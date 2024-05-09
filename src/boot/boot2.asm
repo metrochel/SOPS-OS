@@ -15,7 +15,10 @@ a20_error db "Oshibka vkluchenia adresnoi linii A20!", NEWL, 0
 a20_success db "Adresnaya liniya A20 uspeshno vkluchena!", NEWL, 0
 
 no_cpuid db "Instruktsiya CPUID nedostupna!", NEWL, 0
-cpuid_success db "Instruktsiya CPUID uspeshno ispol'zovana!", NEWL, 0
+cpuid_success db "Informatsiya o processore uspeshno poluchena!", NEWL, 0
+
+ram_error_msg db "Oshibka sozdaniya razmetki pamyati!", NEWL, 0
+ram_success_msg db "Razmetka pamyati uspeshno sdelana!", NEWL, 0
 ;
 ;======================================
 ;   
@@ -196,6 +199,8 @@ getcpuinfo:
     jz .no_cpuid
     call .cpuid_getvendor
     call .cpuid_getdata
+    mov si, cpuid_success
+    call printstr
     ret
 
 ; Проверка доступности инструкции CPUID
@@ -251,11 +256,56 @@ getcpuinfo:
     ret
 ;==========================================
 
+;====================================
+;
+;   Получение доступных видеорежимов
+;
+;   - TODO
+;
 getvideomodes:
     ret
+;====================================
 
+;====================================
+;
+;   Получение разметки памяти
+;
+;   - Исследует доступную ОЗУ и показывает,
+;   что можно использовать, а что - нет.
+;
 getram:
+    pusha
+    mov eax, 0xE820
+    mov di, bp
+    xor ebx, ebx
+    mov edx, 0x534D4150
+    mov ecx, 24
+    int 0x15
+    jc .ramerror
+.ramloop:
+    or ebx, ebx
+    je .ramend
+    add di, cx
+    mov eax, 0xE820
+    mov ecx, 24
+    int 0x15
+    jc .ramerror
+    jmp .ramloop
+
+; Вся память прочитана
+.ramend:
+    mov si, ram_success_msg
+    call printstr
+    popa
     ret
+
+; Ошибка при чтении памяти
+.ramerror:
+    mov si, ram_error_msg
+    call printstr
+    popa
+    ret
+;=================================
 
 enable_prot_mode:
     ret
