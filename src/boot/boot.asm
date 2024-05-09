@@ -81,15 +81,16 @@ diskreset:
 diskread:
 	pusha
 	mov ah, 0x02
-	and ch, 0xFF
 	mov dl, 0x00
 	int 13h
 	jnc .done
-	jmp diskreset
+	call diskreset
 	int 13h
 	jnc .done
+	call diskreset
 	int 13h
 	jnc .done
+	call diskreset
 	jmp .diskerror
 .done:
 	mov si, diskreadsuccess
@@ -101,8 +102,6 @@ diskread:
 	mov si, diskerrstring
 	call printstr
 	hlt
-
-
 
 ;
 ;	Точка входа в загрузчик
@@ -120,15 +119,26 @@ main:
 	mov ss, ax
 	mov sp, 0x5FFF
 
-	; Чтение с диска
+	; Копирование MBR на адрес 0х6000
+	mov cx, 512
+	mov si, 0x7C00
+	mov di, 0x6000
+	rep movsb
+
+	; Переход на копию
+	jmp .mbr_after_copy - 0x1C00
+.mbr_after_copy:
+
+	; Загрузка загрузчика 2 ступени на адрес 0x7000
 	mov al, 2
 	mov cx, ((0 & 255) << 8) | ((0 & 768) >> 2) | 2
 	mov dh, 0
-	mov bx, 0x6000
+	mov bx, 0x7000
 	call diskread
 
-	; Переход на загрузчик 2 стадии
-	jmp 0x0000:0x6000
+	; Переход на загрузчик 2 ступени (сдвиг на 0x1C00 необходим, потому что иначе адрес повреждается,
+	; потом выясним, почему (наверное))
+	jmp 0x7000 + 0x1C00
 
 diskerrstring db "Oshibka chteniya s diska!", 0
 diskreadsuccess db "Uspeshno schitani sectori! Molodets!", CR, NEWL, 0
