@@ -15,6 +15,7 @@ a20_error db "Oshibka vkluchenia adresnoi linii A20!", NEWL, 0
 a20_success db "Adresnaya liniya A20 uspeshno vkluchena!", NEWL, 0
 
 no_cpuid db "Instruktsiya CPUID nedostupna!", NEWL, 0
+cpuid_success db "Instruktsiya CPUID uspeshno ispol'zovana!", NEWL, 0
 
 printstr:
 	mov ah, 0x0E
