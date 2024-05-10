@@ -19,6 +19,10 @@ cpuid_success db "Informatsiya o processore uspeshno poluchena!", NEWL, 0
 
 ram_error_msg db "Oshibka sozdaniya razmetki pamyati!", NEWL, 0
 ram_success_msg db "Razmetka pamyati uspeshno sdelana!", NEWL, 0
+
+video_fail_msg db "Oshibka poluchenia videorezhimov!", NEWL, 0
+video_success_msg db "Videorezhimi uspeshno polucheni!", NEWL, 0
+
 ;
 ;======================================
 ;   
@@ -260,10 +264,88 @@ getcpuinfo:
 ;
 ;   Получение доступных видеорежимов
 ;
-;   - TODO
+;   - Извлекает доступные видеокарте режимы.
 ;
 getvideomodes:
+    pusha
+    push bp
+    mov ax, 0x4F00
+    mov di, bp
+    int 0x10                    ; Извлекаем все доступные видеорежимы
+    cmp ax, 0x004F              ; Проверка на успех
+    jnz .video_fail
+    mov si, video_success_msg
+    call printstr
+    mov si, 0x6022              ; Поехали перебирать режимы
+    lodsw
+    push ax
+    lodsw
+    mov ds, ax
+    pop si
+    mov ax, 0x0000
+    mov es, ax
+    mov di, 0x6500
+    mov bp, 0x6302
+.videomodesloop:
+    lodsw
+    mov cx, ax                          ; Номер режима
+    cmp cx, 0xFFFF                      ; Если 0xFFFF, то режимов больше нет
+    je .videomodesend
+    mov ax, 0x4F01                      ; Извлекаем параметры режима
+    int 0x10
+    cmp ax, 0x004F                      ; Проверка на успех
+    jne .video_fail
+    mov ax, word [es:di]                ; Аттрибуты (интересует только бит 7 - поддержка линейного буфера кадров)
+    and ax, 0x80
+    jz .videomodesloop                  ; Если нет, то этот режим не рассматриваем
+    add di, 16
+    mov ax, word [es:di]                ; Количество байтов на строку
+    add di, 2
+    xor ebx, ebx
+    mov bx, word [es:di]                ; Ширина экрана
+    add di, 2
+    mov ax, word [es:di]
+    cwde
+    mul ebx                             ; Площадь экрана
+    add di, 5
+    xor dx, dx
+    mov dl, byte [es:di]                ; Число бит на пиксел
+    cmp eax, dword [es:bp]              ; Сравниваем площадь экрана с максимальной на данный момент
+    jb .videomodesloop                  ; Если меньше, то более режим не рассматриваем
+    add bp, 4
+    cmp dl, byte [es:bp]                ; Сравниваем б/пикс текущего режима с максимальным на данный момент
+    jb .videomodesloop                  ; Если меньше, то более режим не рассматриваем
+    ; Найден новый режим лучше, чем имеющийся
+    ; Записываем параметры
+    mov bp, 0x6300
+    mov word [es:bp], cx
+    add bp, 2
+    mov dword [es:bp], eax
+    add bp, 4
+    mov byte [es:bp], dl
+    mov bp, 0x6302
+    mov di, 0x6500
+    jmp .videomodesloop
+.videomodesend:
+    ; Теперь ставим новый режим
+    mov bp, 0x6300
+    mov ax, 0x4F02
+    mov bx, word [es:bp]
+    and bx, 0b0111111111111111
+    int 10h
+    cmp ax, 0x004F
+    je .video_fail
+    pop bp
+    popa
+    add bp, 4
     ret
+.video_fail:
+    mov si, video_fail_msg
+    call printstr
+    popa
+    ret
+; Оххххххххххх...
+; Авось сработает
 ;====================================
 
 ;====================================
