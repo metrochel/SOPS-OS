@@ -23,6 +23,25 @@ ram_success_msg db "Razmetka pamyati uspeshno sdelana!", NEWL, 0
 video_fail_msg db "Oshibka poluchenia videorezhimov!", NEWL, 0
 video_success_msg db "Videorezhimi uspeshno polucheni!", NEWL, 0
 
+gdt_load_success db "GDT uspeshno zagruzhena!", NEWL, 0
+
+gdt_desc:
+    .limit      dw 0
+    .base       dd 0
+
+gdt_start:
+    null            dq 0
+    lvl_0_code      dq 0
+    lvl_0_data      dq 0
+    lvl_1_code      dq 0
+    lvl_1_data      dq 0
+    lvl_2_code      dq 0
+    lvl_2_data      dq 0
+    lvl_3_code      dq 0
+    lvl_3_data      dq 0
+    task_state      dq 0
+gdt_end:
+
 ;
 ;======================================
 ;   
@@ -181,13 +200,9 @@ enable_a20:
     ret
 ; A20 включена
 .a20_on:
-    mov si, a20_success
-    call printstr
     ret
 ; A20 не включена
 .a20_fail:
-    mov si, a20_error
-    call printstr
     ret
 ;==========================================================
 
@@ -203,8 +218,6 @@ getcpuinfo:
     jz .no_cpuid
     call .cpuid_getvendor
     call .cpuid_getdata
-    mov si, cpuid_success
-    call printstr
     ret
 
 ; Проверка доступности инструкции CPUID
@@ -246,17 +259,15 @@ getcpuinfo:
     cpuid
     mov di, bp
     mov eax, edx
-    movsd
+    stosd
     mov eax, ecx
-    movsd
+    stosd
     mov bp, di
     pop di
     ret
 
 ; Инструкция CPUID недоступна
 .no_cpuid:
-    mov si, no_cpuid
-    call printstr
     ret
 ;==========================================
 
@@ -268,14 +279,11 @@ getcpuinfo:
 ;
 getvideomodes:
     pusha
-    push bp
     mov ax, 0x4F00
     mov di, bp
     int 0x10                    ; Извлекаем все доступные видеорежимы
     cmp ax, 0x004F              ; Проверка на успех
     jnz .video_fail
-    mov si, video_success_msg
-    call printstr
     mov si, 0x6022              ; Поехали перебирать режимы
     lodsw
     push ax
@@ -335,17 +343,15 @@ getvideomodes:
     int 10h
     cmp ax, 0x004F
     je .video_fail
-    pop bp
     popa
     add bp, 4
     ret
 .video_fail:
-    mov si, video_fail_msg
-    call printstr
     popa
     ret
 ; Оххххххххххх...
 ; Авось сработает
+; (Сработало, кстати!)
 ;====================================
 
 ;====================================
@@ -376,22 +382,158 @@ getram:
 
 ; Вся память прочитана
 .ramend:
-    mov si, ram_success_msg
-    call printstr
     popa
     ret
 
 ; Ошибка при чтении памяти
 .ramerror:
-    mov si, ram_error_msg
-    call printstr
     popa
     ret
 ;=================================
 
+;====================================
+;
+;   Переход в защищённый режим
+;
+;   - Активация 32-битной адресной шины, что позволит нам адресовать
+;     куда больше памяти и немножко защитит наш код.
+;
 enable_prot_mode:
-    ret
+    cli                             ; Отключаем прерывания (если не выключить, будет риск казуса)
+    ; Кодирование строк GDT
+    ; Для C++ надо будет использовать страницы, так что просто ставим
+    ; все секторы на всю память
+    ; Нулевой сегмент кодировать не нужно - там всё равно всё по нулям
+    ; Сегмент кода уровня 0
+    mov eax, 0xFFFFF
+    mov ebx, 0x00000000
+    mov cl,  0b10011011
+    mov ch,  0b1100
+    mov di,  lvl_0_code
+    call .encode_gdt
 
+    ; Сегмент данных уровня 0
+    mov eax, 0xFFFFF
+    mov ebx, 0x00000000
+    mov cl,  0b10010011
+    mov ch,  0b1100
+    mov di,  lvl_0_data
+    call .encode_gdt
+
+    ; Сегмент кода уровня 1
+    mov eax, 0xFFFFF
+    mov ebx, 0x00000000
+    mov cl,  0b10111011
+    mov ch,  0b1100
+    mov di,  lvl_1_code
+    call .encode_gdt
+
+    ; Сегмент данных уровня 1
+    mov eax, 0xFFFFF
+    mov ebx, 0x00000000
+    mov cl,  0b10110011
+    mov ch,  0b1100
+    mov di,  lvl_1_data
+    call .encode_gdt
+
+    ; Сегмент кода уровня 2
+    mov eax, 0xFFFFF
+    mov ebx, 0x00000000
+    mov cl,  0b11011011
+    mov ch,  0b1100
+    mov di,  lvl_2_code
+    call .encode_gdt
+
+    ; Сегмент данных уровня 2
+    mov eax, 0xFFFFF
+    mov ebx, 0x00000000
+    mov cl,  0b11010011
+    mov ch,  0b1100
+    mov di,  lvl_2_data
+    call .encode_gdt
+
+    ; Сегмент кода уровня 3
+    mov eax, 0xFFFFF
+    mov ebx, 0x00000000
+    mov cl,  0b11111011
+    mov ch,  0b1100
+    mov di,  lvl_3_code
+    call .encode_gdt
+
+    ; Сегмент данных уровня 3
+    mov eax, 0xFFFFF
+    mov ebx, 0x00000000
+    mov cl,  0b11110111
+    mov ch,  0b1100
+    mov di,  lvl_3_data
+    call .encode_gdt
+
+    ; Регистрация GDT
+    mov eax, gdt_start
+    mov dword [es:bp + 2], eax      ; Кладём в структуру GDTR начало таблицы GDT
+    mov eax, gdt_end
+    sub eax, gdt_start              ; Длина = Конец - Начало
+    mov word [es:bp], ax            ; Кладём в структуру GDTR длину таблицы GDT
+    lgdt [es:bp]                    ; Загружаем структуру GDTR в процессор
+    add bp, 6                       ; Перемещаем указатель памяти в свободное место
+
+    ; Активация защищённого режима
+    mov eax, cr0
+    or eax, 1
+    mov cr0, eax
+
+    ; Переход к коду защищённого режима
+    jmp 0x08:clean
+;
+;   Кодирование структуры GDT
+;
+;   На вход:
+;      - EAX    - предельный размер сегмента (используются только нижние 20 бит)
+;      - EBX    - начальный адрес сегмента
+;      - CL     - байт доступа сегмента
+;      - CH     - байт флагов сегмента (используются только нижние 4 бита)
+;      - ES:DI  - место кодирования сегмента
+;
+.encode_gdt:
+    ; В начале DI = 0 (относительно начала, равно как и далее)
+    mov byte [es:di], al    ; ES:DI[0] = EAX & 0xFF
+    inc di                  ; DI = 1
+    shr eax, 8              
+    mov byte [es:di], al    ; ES:DI[1] = (EAX >> 8) & 0xFF
+    shr eax, 8
+    and eax, 0x0F
+    add di, 5               ; DI = 6
+    mov byte [es:di], al    ; ES:DI[6] = (EAX >> 16) & 0x0F
+    sub di, 4               ; DI = 2
+    mov byte [es:di], bl    ; ES:DI[2] = EBX & 0xFF
+    shr ebx, 8
+    inc di                  ; DI = 3
+    mov byte [es:di], bl    ; ES:DI[3] = (EBX >> 8) & 0xFF
+    shr ebx, 8
+    inc di                  ; DI = 4
+    mov byte [es:di], bl    ; ES:DI[4] = (EBX >> 16) & 0xFF
+    shr ebx, 8
+    add di, 3               ; DI = 7
+    mov byte [es:di], bl    ; ES:DI[7] = (EBX >> 24) & 0xFF
+    sub di, 2               ; DI = 5
+    mov byte [es:di], cl    ; ES:DI[5] = CL
+    inc di                  ; DI = 6
+    shl ch, 4
+    or  byte [es:di], ch    ; ES:DI[6] |= CH
+    ret                     ; Готово!
+; Трындец, я знаю. Но такова реальность: если верить источникам,
+; структура намеренно настолько сложная - всё дело в обратной совместимости.
+; Теперь я понимаю, почему сложно развивать обратную совместимость.
+;=============================================
+
+;========================================================
+;
+;   Точка входа
+;
+;   - Место, где вызываются все ранее описанные функции.
+;   Совершаем последние приготовления перед развёртыванием
+;   ядра.
+;
 main:
     ; Обнуление всей резервированной памяти (чтоб дампы удобнее читать было)
     call resetmem
@@ -412,8 +554,55 @@ main:
     call getram
 
     ; Активация защищённого 32-битного режима
-    call enable_prot_mode
+    jmp enable_prot_mode
 
     ; TODO: Загрузка ядра
+.halt:
+    jmp .halt
+; Ядро, кстати, будем писать на C (а лучше на C++).
+; Наконец-то мы перейдём к высокоуровнему программированию!
+; Ура!
+;=====================================================
+
+;
+;   Код защищённого режима
+;
+;   - После перехода в защищённый режим весь код сверху использоваться
+;   более не может, потому мы его стираем полностью. Только копируем
+;   сведения, раздобытые БИОСом в новый сегмент для данных ядра.
+;
+[bits 32]
+;==========================================
+;
+;   Копирование резервированной памяти
+;
+;   - Копирует 1 КиБ резервированной памяти в новое место.
+;
+copyres:
+    push esi
+    push edi
+    push cx
+    mov esi, 0x6000
+    mov edi, 0x100000
+    mov cx, 0x400
+    rep movsd
+    pop cx
+    pop edi
+    pop esi
+    ret
+;==============================================
+
+clean:
+    ; Инициализация сегментов
+    mov ax, 0x10
+    mov ds, ax
+    mov ss, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    mov esp, 0x9000
+
+    ; Копирование 1 КиБ памяти в новое место для памяти
+    call copyres
 .halt:
     jmp .halt

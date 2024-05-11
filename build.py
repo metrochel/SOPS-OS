@@ -1,6 +1,6 @@
 import os
 
-PRIORITY_BINS = ['boot.bin']
+PRIORITY_BINS = ['boot.bin', 'boot2.bin']
 
 def err_handler(err):
     print(f'ошибка: {err}')
