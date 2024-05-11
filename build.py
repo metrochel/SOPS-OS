@@ -58,10 +58,10 @@ for b in bins:
         err_handler(e)
 disk.close()
 size = os.stat('./build/sops.img').st_size
-print(f'Записано {formatsize(size)}. Дополнение до 2.88 МБ... ', end="")
-remsize = 512 * 5760 - size
+print(f'Записано {formatsize(size)}. Дополнение до 1.44 МБ... ', end="")
+remsize = 512 * 2880 - size
 if remsize < 0:
-    print('Внимание! Объём дискеты превысил 2.88 МБ!')
+    print('Внимание! Объём диска превысил 1.44 МБ!')
     print('========= СБОРКА СОПС ЗАВЕРШЕНА =========')
     quit()
 disk = open('./build/sops.img', 'ab')

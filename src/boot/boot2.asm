@@ -592,6 +592,96 @@ copyres:
     ret
 ;==============================================
 
+;
+;   Маленький драйвер для дисков
+;
+;   - Драйвер-заглушка для загрузки
+;     ядра
+;
+babydiskdriver:
+.disk_doesnt_exist:
+    mov esi, 0x100500
+    mov dword [ds:esi], "NDSK"
+    popa
+    stc
+    ret
+.disk_not_ata:
+    mov esi, 0x100500
+    mov dword [ds:esi], "NATA"
+    popa
+    stc
+    ret
+.disk_error:
+    mov esi, 0x100500
+    mov dword [ds:esi], "DERR"
+    popa
+    stc
+    ret
+.deploy:
+    ; Команда IDENTIFY
+    pusha
+    xor eax, eax
+    mov al, 0xA0
+    mov dx, 0x1F6
+    out dx, al
+    mov al, 0x00
+    mov dx, 0x1F2
+    out dx, al
+    inc dx
+    out dx, al
+    inc dx
+    out dx, al
+    inc dx
+    out dx, al
+    mov al, 0xEC
+    mov dx, 0x1F7
+    out dx, al
+    in  al, dx
+    or  al, al
+    jz  .disk_doesnt_exist
+._statusloop:
+    in  al, dx
+    and al, 0x80
+    jnz ._statusloop
+    mov dx, 0x1F4
+    in  al, dx
+    mov bl, al
+    mov dx, 0x1F5
+    in  al, dx
+    or  al, bl
+    jnz .disk_not_ata
+
+    mov dx, 0x1F7
+._statusloop2:
+    in  al, dx
+    mov bl, al
+    and al, 0x08
+    and bl, 0x01
+    or  al, bl
+    jz  ._statusloop2
+
+    test bl, 0x01
+    jnz  .disk_error
+    mov  edi, 0x100500
+    mov  cx, 256
+    mov  dx, 0x1F0
+._dataloop:
+    in  ax, dx
+    stosw
+    dec cx
+    cmp cx, 0
+    jne ._dataloop
+
+    mov  dx, 0x3F7
+    insw
+    
+
+    popa
+    clc
+    ret
+
+
+
 clean:
     ; Инициализация сегментов
     mov ax, 0x10
@@ -604,5 +694,8 @@ clean:
 
     ; Копирование 1 КиБ памяти в новое место для памяти
     call copyres
+
+    ; Загрузка маленького драйвера для диска, чтобы считать ядро
+    call babydiskdriver.deploy
 .halt:
     jmp .halt
