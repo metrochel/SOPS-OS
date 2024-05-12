@@ -33,7 +33,7 @@ $(BOOTBINS): $(BOOTSRC)
 #	Создание файла дискеты
 #
 $(DISKFILE):
-	dd if=/dev/zero of=$(DISKFILE) count=2880 bs=512
+	dd if=/dev/zero of=$(DISKFILE) count=4000 bs=512
 
 #
 #	Очистка сборки

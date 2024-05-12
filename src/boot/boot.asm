@@ -20,7 +20,7 @@ BPB_SECTORS_PER_CLUSTER		db 8				; Количество секторов на к
 BPB_RESERVED_SECTORS 		dw 64				; Количество зарезервированных секторов (+MBR)
 BPB_FAT_TABLES				db 2				; Количество FAT-таблиц на диске
 BPB_ROOT_DIR_ENTRIES		dw 240				; Количество входов в корневой каталог (пока хз)
-BPB_SECTOR_COUNT			dw 2880				; Количество секторов на носителе
+BPB_SECTOR_COUNT			dw 4000				; Количество секторов на носителе
 BPB_MEDIA_DESCRIPTOR_TYPE	db 0xF8				; Дескриптор типа носителя (для фиксированного диска 0xF8)
 BPB_SECTORS_PER_FAT			dw ?				; Количество секторов на таблицу
 BPB_SECTORS_PER_TRACK		dw ?				; Количество секторов на дорожку
