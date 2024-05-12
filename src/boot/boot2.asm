@@ -723,8 +723,132 @@ paging_time:
     or  eax, 0x80000001
     mov cr0, eax
     ret
+;======================================
+;
+;   Менеджер памяти
+;
+;   - Без него в ОС никуда. Определяет,
+;     какую память можно использовать, 
+;     используя деление памяти на блоки.
+;
+memmgr:
+;==============================================================================
+;   Блок памяти
+;   Строение:
+;       DWORD - указатель на предыдущий блок (0x00000000, если первый блок)
+;       DWORD - указатель на начало блока в памяти
+;       DWORD - длина блока в байтах
+;       DWORD - указатель на следующий блок  (0xFFFFFFFF, если последний блок)
+;==============================================================================
+; Постоянная величина - начало хранения блоков
+%define MEMBLOCKS_START 0xEFF00000
+; Постоянная величина - длина блока в памяти
+%define BLOCKLENGTH     0x10
+; Постоянный адрес    - количество блоков (WORD)
+%define BLOCKSAMOUNT    0xEFEFFFFE
+; Постоянный адрес    - адрес свободного места в адресах блоков (DWORD)
+%define NEXTFREEBLOCK   0xEFEFFFFA
+; Инициализация менеджера
+; (т.е. резервирование памяти для ОС)
+.init:
+    push edi
+    push eax
+    mov edi, MEMBLOCKS_START
+    ; Первый блок - блок ядра
+    mov eax, 0                  ; Указатель на предыдущий блок (0, так как блок первый)
+    stosd
+    mov eax, 0                  ; Указатель на начало блока в памяти
+    stosd
+    mov eax, 0x6400000          ; Длина блока в байтах
+    stosd
+    mov eax, edi                ; Указатель на следующий блок (EDI + 4)
+    add eax, 4
+    stosd
+    ; Второй блок - блок свободной памяти
+    mov eax, MEMBLOCKS_START    ; Указатель на предыдущий блок 
+    stosd
+    mov eax, 0x06400001         ; Указатель на начало блока в памяти
+    stosd
+    mov eax, 0xD9C00000         ; Длина блока в байтах
+    stosd
+    mov eax, edi                ; Указатель на следующий блок (EDI + 4)
+    add eax, 4
+    stosd
+    ; Третий блок - блок резервированной памяти (буферы и прочее)
+    mov eax, MEMBLOCKS_START + 16                                   ; Указатель на предыдущий блок
+    stosd
+    mov eax, 0xE0000000                                             ; Указатель на начало блока в памяти
+    stosd
+    mov eax, 0x1FFFFFFF                                             ; Длина блока в байтах
+    stosd
+    mov eax, 0xFFFFFFFF                                             ; Указатель на следующий блок (0xFFFFFFFF, так как блок последний)
+    stosd
+    mov word [BLOCKSAMOUNT], 3                                      ; Количество занятых блоков
+    mov dword [NEXTFREEBLOCK], 3 * BLOCKLENGTH + MEMBLOCKS_START    ; Адрес свободного места, куда можно добавить блок
+    pop eax
+    pop edi
+    ret
+;
+;   Выделение памяти
+;
+;   - Отделяет место в памяти. (Не благодарите.)
+;   На вход:
+;       EAX - объём выделяемой памяти
+;   На выход:
+;       CF  = 1 - ошибка
+;       EAX = 0x00000000
+;       CF  = 0 - успех
+;       EAX - адрес новой переменной
+;       
+.alloc:
+    ; Чтобы выделить память:
+    ; проверяем, можно ли это сделать
+    cmp dword [NEXTFREEBLOCK], 0xFFFFFFFF - BLOCKLENGTH
+    jae .alloc_error
+    ; ищем ближайший свободный блок (всегда второй в памяти)
+    mov ecx, MEMBLOCKS_START + BLOCKLENGTH
 
+    ; изменяем его: адрес предыдущего меняем на выделяемый блок, вычитаем EAX из
+    ; используемой памяти
+    push ebp
+    mov ebp, dword [NEXTFREEBLOCK]
+    mov dword [ecx], ebp
+    pop ebp
+    add ecx, 4
+    mov ebx, dword [ecx]
+    add dword [ecx], eax
+    add ecx, 4
+    sub dword [ecx], eax
+    inc word [BLOCKSAMOUNT]
 
+    ; заносим их в новый блок
+    mov esi, [NEXTFREEBLOCK]
+    push eax
+    cmp word [BLOCKSAMOUNT], 3
+    je ._three_blocks
+    mov eax, [BLOCKSAMOUNT]
+    mov edx, BLOCKLENGTH
+    mul edx
+    add eax, MEMBLOCKS_START
+    jmp ._store
+._three_blocks:
+    mov eax, MEMBLOCKS_START
+._store:
+    stosd
+    mov eax, ebx
+    stosd
+    pop eax
+    stosd
+    mov eax, MEMBLOCKS_START + BLOCKLENGTH
+    stosd
+    add dword [NEXTFREEBLOCK], BLOCKLENGTH
+    sub esi, 12
+    mov eax, dword [esi]
+    ret
+.alloc_error:
+    stc
+    mov eax, 0x00000000
+    ret
 
 
 clean:

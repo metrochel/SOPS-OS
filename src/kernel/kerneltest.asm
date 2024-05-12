@@ -1,1 +1,0 @@
-teststring db "S"
