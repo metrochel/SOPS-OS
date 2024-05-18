@@ -4,6 +4,7 @@
 ;   - Готовит систему к загрузке ядра.
 ;
 org 0x7000
+section .code
 
 %define NEWL 0x0A
 %define CR   0x0D
@@ -389,7 +390,6 @@ getram:
 .ramerror:
     popa
     ret
-;=================================
 
 ;====================================
 ;
@@ -483,7 +483,7 @@ enable_prot_mode:
     mov cr0, eax
 
     ; Переход к коду защищённого режима
-    jmp 0x08:clean
+    jmp 0x08:prot_mode_entry_point
 ;
 ;   Кодирование структуры GDT
 ;
@@ -572,11 +572,20 @@ main:
 ;   сведения, раздобытые БИОСом в новый сегмент для данных ядра.
 ;
 [bits 32]
+; LBA-адрес ядра
+%define KERNEL_POS      9
+; Адрес, на который следует загрузить ядро в память
+%define KERNEL_ADDR     0x200000
+; Длина ядра в секторах диска
+%define KERNEL_LEN      56
+; ELF-подпись файла
+%define ELF_SIGNATURE   0x464C457F
+
 ;==========================================
 ;
 ;   Копирование резервированной памяти
 ;
-;   - Копирует 1 КиБ резервированной памяти в новое место.
+;   - Копирует 4 КиБ резервированной памяти в новое место.
 ;
 copyres:
     push esi
@@ -598,7 +607,7 @@ copyres:
 ;   - Драйвер-заглушка для загрузки
 ;     ядра
 ;
-babydiskdriver:
+tinydiskdriver:
 .disk_doesnt_exist:
     mov esi, 0x100500
     mov dword [ds:esi], "NDSK"
@@ -617,7 +626,7 @@ babydiskdriver:
     popa
     stc
     ret
-.deploy:
+.init:
     ; Команда IDENTIFY
     pusha
     xor eax, eax
@@ -672,22 +681,126 @@ babydiskdriver:
     cmp cx, 0
     jne ._dataloop
 
-    mov  dx, 0x3F7
-    insw
+    ; Отключение прерываний
+    mov dx, 0x3F6
+    mov al, 0b00000010
+    out dx, al
 
     popa
     clc
     ret
+;
+;   Считывание ядра
+;
+;   - Считывает ядро. (А вы что думали?)
+;
+.read_kernel:
+    pusha
+
+    ; Настраиваем параметры, которые не будут меняться
+
+    mov cx,  KERNEL_LEN     ; Число секторов
+    mov ebx, KERNEL_POS     ; LBA-адрес ядра
+    mov edi, 0x7C000        ; Адрес, на который совать файл ядра
+
+; Чтение
+.sector_loop:
+    call .read_sector       ; Читаем сектор
+    dec cx
+    inc ebx
+    cmp cx, 0               ; Все секторы прочитали?
+    jne .sector_loop        ; Если не все, продолжаем читать
+; Чтение завершено
+.read_done:
+    clc                     ; Если всё прошло хорошо, то CF = 0
+    popa
+    ret
+
+; Чтение сектора
+.read_sector:
+    push ebx
+    push cx
+
+    ; Выбор главного диска и верхние 4 бита LBA-координаты
+    mov dx, 0x1F6
+    mov al, 0xE0
+    out dx, al
+
+    ; Количество секторов
+    mov dx, 0x1F2
+    mov al, 1
+    out dx, al
+
+    ; Низшие 8 бит LBA-координаты
+    mov dx, 0x1F3
+    mov al, bl
+    out dx, al
+
+    ; Следующие 8 бит
+    mov dx, 0x1F4
+    mov al, bh
+    out dx, al
+
+    ; Следующие 8 бит
+    mov dx, 0x1F5
+    bswap ebx
+    mov al, bl
+    out dx, al
+
+    ; Команда READ SECTORS
+    mov dx, 0x1F7
+    mov al, 0x20
+    out dx, al
+
+    ; Ждём диск
+    call .poll
+
+    ; Диск готов! Работаем, братья
+    mov cx, 0x100
+    mov dx, 0x1F0
+    rep insw
+
+    ; Чуть-чуть ждём, пока диск выдохнет
+    mov dx, 0x1F7
+    in  al, dx
+    in  al, dx
+    in  al, dx
+    in  al, dx
+
+    ; Сектор считан! Выходим
+    pop cx
+    pop ebx
+    ret
+
+; Ожидание контроллера диска
+.poll:
+    mov dx, 0x1F7       ; Читаем статус
+    in  al, dx
+    test al, 0x80       ; Проверяем флаг BSY (диск занят)
+    jnz  .poll
+    test al, 0x21       ; Проверяем флаги ERR и DRF (ошибка команды или ошибка диска)
+    jnz  .read_error
+    ret
+
+; Ошибка чтения
+.read_error:
+    stc                 ; CF = 1
+    popa
+    mov dx, 0x1F6       ; В AL байт ошибки
+    in  al, dx          
+    ret
+
 
 ;==========================================================
 ;
 ;   Настройка страниц памяти
 ;
 ;   - Настраивает страницы памяти и активирует их.
-;     Кстати, в 64-битном режиме без них никуда.
+;     Кстати, в 64-битном режиме без них нельзя.
 ;
 paging_time:
-    ; Создание пустой директории страниц
+    pusha
+    ; Создаём пустую директорию страниц
     mov eax, 0x00000002
     mov ecx, 1024
     mov edi, 0x150000
@@ -695,163 +808,121 @@ paging_time:
     ; Так, адрес директории страниц - 0x150000,
     ; там резервировано 4 КиБ данных для таблиц страниц.
     
-    ; Создание первой таблицы страниц
+    ; Создаём "идентичные страницы" (т.е. адреса страниц совпадают с физическими)
+    ; Таких страниц сделаем на 4 МиБ (чтобы ядро влезло)
     mov edi, 0x151000
     mov ecx, 0
-.first_table_loop: 
+.identity_paging:
     mov eax, ecx
-    mov bx, 0x1000
-    mul bx
+    and eax, 0xFFFFF000
     or  eax, 3
     stosd
-    inc ecx
-    cmp ecx, 1024
-    jne .first_table_loop
+    add ecx, 0x1000
+    cmp ecx, 0x1000000
+    jne .identity_paging
 
-    ; Добавление указателя на 1 таблицу в директорию
+    ; Загружаем 4 таблицы в директорию
     mov edi, 0x150000
     mov eax, 0x151000
     or  eax, 3
     stosd
+    mov eax, 0x152000
+    or  eax, 3
+    stosd
+    mov eax, 0x153000
+    or  eax, 3
+    stosd
+    mov eax, 0x154000
+    or  eax, 3
+    stosd
 
-    ; Загрузка директории таблиц
+    ; Загружаем директорию таблиц
     mov eax, 0x150000
     mov cr3, eax
     
-    ; Активация страниц
+    ; Активируем страничную память
     mov eax, cr0
     or  eax, 0x80000001
     mov cr0, eax
+    popa
+    ret
+;====================================
+;
+;   Чтение ELF-заголовка ядра
+;
+;   - Читает заголовок ядра (оно компилируется как ELF),
+;     чтобы правильно его открыть и развернуть.
+;   На выходе:
+;       EBX - размер сегмента в памяти
+;       ECX - сдвиг сегмента по файлу
+;       EDX - точка входа в ядро
+;
+read_elf_header:
+    push esi
+    push eax
+
+    ; Проверка подписи ELF
+    mov esi, 0x7C000
+    lodsd
+    cmp eax, ELF_SIGNATURE
+    jne .elf_error
+    
+    ; Сдвиг заголовка программы и точка входа в программу
+    mov esi, 0x7C01C
+    lodsd
+    mov esi, 0x7C000
+    add esi, eax
+    push esi
+    mov esi, 0x7C018
+    lodsd
+    mov edx, eax
+    pop esi
+
+
+    ; Заголовок программы: сдвиг в файле
+    add esi, 4
+    lodsd
+    mov ecx, eax
+
+    ; Заголовок программы: размер сегмента в памяти
+    add esi, 12
+    lodsd
+    mov ebx, eax
+
+    clc
+    pop eax
+    pop esi
+    ret
+.elf_error:
+    stc
+    pop eax
+    pop esi
     ret
 ;======================================
 ;
-;   Менеджер памяти
+;   Помещение ядра в память
 ;
-;   - Без него в ОС никуда. Определяет,
-;     какую память можно использовать, 
-;     используя деление памяти на блоки.
+;   - Мы извлекли данные ядра!
+;     Осталось их использовать и запихнуть ядро.
 ;
-memmgr:
-;==============================================================================
-;   Блок памяти
-;   Строение:
-;       DWORD - указатель на предыдущий блок (0x00000000, если первый блок)
-;       DWORD - указатель на начало блока в памяти
-;       DWORD - длина блока в байтах
-;       DWORD - указатель на следующий блок  (0xFFFFFFFF, если последний блок)
-;==============================================================================
-; Постоянная величина - начало хранения блоков
-%define MEMBLOCKS_START 0xEFF00000
-; Постоянная величина - длина блока в памяти
-%define BLOCKLENGTH     0x10
-; Постоянный адрес    - количество блоков (WORD)
-%define BLOCKSAMOUNT    0xEFEFFFFE
-; Постоянный адрес    - адрес свободного места в адресах блоков (DWORD)
-%define NEXTFREEBLOCK   0xEFEFFFFA
-; Инициализация менеджера
-; (т.е. резервирование памяти для ОС)
-.init:
-    push edi
-    push eax
-    mov edi, MEMBLOCKS_START
-    ; Первый блок - блок ядра
-    mov eax, 0                  ; Указатель на предыдущий блок (0, так как блок первый)
-    stosd
-    mov eax, 0                  ; Указатель на начало блока в памяти
-    stosd
-    mov eax, 0x6400000          ; Длина блока в байтах
-    stosd
-    mov eax, edi                ; Указатель на следующий блок (EDI + 4)
-    add eax, 4
-    stosd
-    ; Второй блок - блок свободной памяти
-    mov eax, MEMBLOCKS_START    ; Указатель на предыдущий блок 
-    stosd
-    mov eax, 0x06400001         ; Указатель на начало блока в памяти
-    stosd
-    mov eax, 0xD9C00000         ; Длина блока в байтах
-    stosd
-    mov eax, edi                ; Указатель на следующий блок (EDI + 4)
-    add eax, 4
-    stosd
-    ; Третий блок - блок резервированной памяти (буферы и прочее)
-    mov eax, MEMBLOCKS_START + 16                                   ; Указатель на предыдущий блок
-    stosd
-    mov eax, 0xE0000000                                             ; Указатель на начало блока в памяти
-    stosd
-    mov eax, 0x1FFFFFFF                                             ; Длина блока в байтах
-    stosd
-    mov eax, 0xFFFFFFFF                                             ; Указатель на следующий блок (0xFFFFFFFF, так как блок последний)
-    stosd
-    mov word [BLOCKSAMOUNT], 3                                      ; Количество занятых блоков
-    mov dword [NEXTFREEBLOCK], 3 * BLOCKLENGTH + MEMBLOCKS_START    ; Адрес свободного места, куда можно добавить блок
-    pop eax
-    pop edi
-    ret
-;
-;   Выделение памяти
-;
-;   - Отделяет место в памяти. (Не благодарите.)
-;   На вход:
-;       EAX - объём выделяемой памяти
-;   На выход:
-;       CF  = 1 - ошибка
-;       EAX = 0x00000000
-;       CF  = 0 - успех
-;       EAX - адрес новой переменной
-;       
-.alloc:
-    ; Чтобы выделить память:
-    ; проверяем, можно ли это сделать
-    cmp dword [NEXTFREEBLOCK], 0xFFFFFFFF - BLOCKLENGTH
-    jae .alloc_error
-    ; ищем ближайший свободный блок (всегда второй в памяти)
-    mov ecx, MEMBLOCKS_START + BLOCKLENGTH
-
-    ; изменяем его: адрес предыдущего меняем на выделяемый блок, вычитаем EAX из
-    ; используемой памяти
-    push ebp
-    mov ebp, dword [NEXTFREEBLOCK]
-    mov dword [ecx], ebp
-    pop ebp
-    add ecx, 4
-    mov ebx, dword [ecx]
-    add dword [ecx], eax
-    add ecx, 4
-    sub dword [ecx], eax
-    inc word [BLOCKSAMOUNT]
-
-    ; заносим их в новый блок
-    mov esi, [NEXTFREEBLOCK]
-    push eax
-    cmp word [BLOCKSAMOUNT], 3
-    je ._three_blocks
-    mov eax, [BLOCKSAMOUNT]
-    mov edx, BLOCKLENGTH
-    mul edx
-    add eax, MEMBLOCKS_START
-    jmp ._store
-._three_blocks:
-    mov eax, MEMBLOCKS_START
-._store:
-    stosd
-    mov eax, ebx
-    stosd
-    pop eax
-    stosd
-    mov eax, MEMBLOCKS_START + BLOCKLENGTH
-    stosd
-    add dword [NEXTFREEBLOCK], BLOCKLENGTH
-    sub esi, 12
-    mov eax, dword [esi]
-    ret
-.alloc_error:
-    stc
-    mov eax, 0x00000000
+put_kernel:
+    mov esi, 0x7C000
+    add esi, ecx            ; ESI = 0x7C000 + ECX (т.е. начало ядра)
+    mov edi, KERNEL_ADDR
+    mov ecx, ebx
+    rep movsb               ; Поехали копировать!
+    ; И всё! Это простая операция копирования
     ret
 
 
-clean:
+;==============================================
+;
+;   Входная точка защищённого режима
+;
+;   - Здесь начинается код защищённого режима.
+;     Производит последние приготовления и загружает ядро.
+;
+prot_mode_entry_point:
     ; Инициализация сегментов
     mov ax, 0x10
     mov ds, ax
@@ -861,10 +932,37 @@ clean:
     mov gs, ax
     mov esp, 0x9000
 
-    ; Копирование 1 КиБ памяти в новое место для памяти
+    ; Копирование 4 КиБ памяти в новое место для памяти
     call copyres
+
+    ; Инициализация драйвера диска
+    call tinydiskdriver.init
+
+    ; Считывание ядра
+    call tinydiskdriver.read_kernel
+
+    ; Считывание ELF-заголовка ядра
+    call read_elf_header
+
+    ; Размещение ядра в памяти
+    call put_kernel
 
     ; Настройка страниц
     call paging_time
+
+    ; Переход на ядро (адрес точки входа в EDX)
+    ; Вместо JMP используется CALL, чтобы в случае возврата из ядра
+    ; процессор не улетел Бог знает куда, а вернулся сюда
+    ; и застыл.
+    call edx
+
+    cli
 .halt:
     jmp .halt
+
+
+; Дополняем этот файл, чтобы не было проблем с
+; положением ядра
+times (8*512) - ($-$$) db 0
+; Хо-хо-хо-о-о-о! Наконец-то будем писать на языке высокого уровня!
+; (Спустя 4 дня наконец-то оно заработало!)

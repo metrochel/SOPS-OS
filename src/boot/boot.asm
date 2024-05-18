@@ -117,7 +117,7 @@ main:
 	
 	; Настройка стека
 	mov ss, ax
-	mov sp, 0x5FFF
+	mov sp, 0x6000
 
 	; Копирование MBR на адрес 0х6000
 	mov cx, 512
@@ -130,7 +130,7 @@ main:
 .mbr_after_copy:
 
 	; Загрузка загрузчика 2 ступени на адрес 0x7000
-	mov al, 4
+	mov al, 8
 	mov cx, ((0 & 255) << 8) | ((0 & 768) >> 2) | 2
 	mov dh, 0
 	mov bx, 0x7000
