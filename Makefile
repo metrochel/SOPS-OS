@@ -4,9 +4,10 @@ BOOTBINS		=$(patsubst ./src/boot/%.asm, ./build/bins/%.bin, $(BOOTSRC))
 BUILDDIR		=build
 BINSDIR			=build/bins
 OBJSDIR			=build/objs
-KERNELSRC   	=$(sort $(wildcard ./src/kernel/*.cpp))
-KERNELOBJ       =$(patsubst ./src/kernel/%.cpp, ./build/objs/%.o, $(KERNELSRC))
+KERNELSRC   	=./src/kernel/kernel.cpp $(wildcard ./src/kernel/*/*.cpp)
+KERNELOBJ       =$(patsubst %.cpp, %.o, $(KERNELSRC))
 KERNELBIN		=$(BINSDIR)/kernel.bin
+HEADERS			=src/kernel/vga
 CROSSCOMPILER	=/usr/local/cross/bin/i686-elf-g++
 LINKERSCRIPT    =linker.ld
 
@@ -50,7 +51,7 @@ $(DISKFILE):
 #
 #	Компиляция файлов ядра
 #
-compile_cpp_source = $(CROSSCOMPILER) -c $(1) -o $(patsubst ./src/kernel/%.cpp, ./build/objs/%.o, $(1)) -ffreestanding -O2 -lgc++ -Wall -Wextra -fno-exceptions -fno-rtti
+compile_cpp_source = $(CROSSCOMPILER) -c $(1) -o $(OBJSDIR)/$(subst .cpp,.o,$(notdir $(1))) -ffreestanding -O2 -lgc++ -Wall -Wextra -fno-exceptions -fno-rtti
 
 $(KERNELOBJ): $(KERNELSRC) $(OBJSDIR)
 	$(foreach cpp, $(KERNELSRC), $(shell $(call compile_cpp_source, $(cpp))))
@@ -59,7 +60,7 @@ $(KERNELOBJ): $(KERNELSRC) $(OBJSDIR)
 #	Компоновка ядра
 #
 $(KERNELBIN): $(KERNELOBJ)
-	$(CROSSCOMPILER) -T $(LINKERSCRIPT) -o $(KERNELBIN) -ffreestanding -O2 -nostdlib $(patsubst ./src/kernel/%.cpp, ./build/objs/%.o, $(KERNELSRC))
+	$(CROSSCOMPILER) -T $(LINKERSCRIPT) -o $(KERNELBIN) -ffreestanding -O2 -nostdlib $(wildcard $(OBJSDIR)/*.o)
 
 #
 #	Очистка сборки

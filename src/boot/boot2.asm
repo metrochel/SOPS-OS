@@ -201,9 +201,11 @@ enable_a20:
     ret
 ; A20 включена
 .a20_on:
+    clc
     ret
 ; A20 не включена
 .a20_fail:
+    stc
     ret
 ;==========================================================
 
@@ -280,6 +282,7 @@ getcpuinfo:
 ;
 getvideomodes:
     pusha
+    push bp
     mov ax, 0x4F00
     mov di, bp
     int 0x10                    ; Извлекаем все доступные видеорежимы
@@ -314,7 +317,7 @@ getvideomodes:
     mov bx, word [es:di]                ; Ширина экрана
     add di, 2
     mov ax, word [es:di]
-    cwde
+    cwd
     mul ebx                             ; Площадь экрана
     add di, 5
     xor dx, dx
@@ -340,15 +343,28 @@ getvideomodes:
     mov bp, 0x6300
     mov ax, 0x4F02
     mov bx, word [es:bp]
+    mov dx, bx
     and bx, 0b0111111111111111
     int 10h
     cmp ax, 0x004F
-    je .video_fail
+    jne .video_fail
+
+    ; А теперь достаём его параметры
+    pop bp
+    mov cx, dx
+    mov ax, 0x4F01
+    mov di, bp
+    int 10h
+
+    ; На выход!
     popa
-    add bp, 4
+    clc
+    add bp, 256
     ret
 .video_fail:
+    pop bp
     popa
+    stc
     ret
 ; Оххххххххххх...
 ; Авось сработает
@@ -362,6 +378,9 @@ getvideomodes:
 ;   - Исследует доступную ОЗУ и показывает,
 ;   что можно использовать, а что - нет.
 ;
+BLOCKS_AMOUNT dw 0
+MAXBLOCKADDR  dq 0
+MAXBLOCKLEN   dq 0
 getram:
     pusha
     mov eax, 0xE820
@@ -370,11 +389,14 @@ getram:
     mov edx, 0x534D4150
     mov ecx, 24
     int 0x15
+    xor si, si
     jc .ramerror
 .ramloop:
+    inc word [BLOCKS_AMOUNT]
     or ebx, ebx
     je .ramend
     add di, cx
+._dontadd:
     mov eax, 0xE820
     mov ecx, 24
     int 0x15
@@ -383,12 +405,58 @@ getram:
 
 ; Вся память прочитана
 .ramend:
+    mov cx, word [BLOCKS_AMOUNT]
+    mov si, bp
+.seekmaxaddr:
+    lodsd
+    mov ebx, eax
+    lodsd
+    push eax
+    add si, 8
+    lodsd
+    mov edx, eax
+    pop eax
+    cmp edx, 1
+    je  ._check
+    jmp ._notfound
+._check:
+    cmp eax, dword [MAXBLOCKADDR]
+    jl  ._notfound
+    cmp ebx, dword [MAXBLOCKADDR + 4]
+    jl  ._notfound
+._foundnewmax:
+    push edx
+    mov dword [MAXBLOCKADDR], eax
+    mov dword [MAXBLOCKADDR + 4], ebx
+    mov edx, dword [ds:si - 12]
+    mov dword [MAXBLOCKLEN], edx
+    mov edx, dword [ds:si - 8]
+    mov dword [MAXBLOCKLEN + 4], edx
+    pop edx
+._notfound:
+    dec cx
+    cmp dl, 3
+    jne ._cont
+._24byte:
+    add si, 4
+    jmp ._cont
+._cont:
+    jcxz .maxaddrfound
+    jmp .seekmaxaddr
+
+.maxaddrfound:
+    ; Поиск закончен, теперь кладём адрес в нашу область
+    mov eax, dword [MAXBLOCKADDR + 4]
+    add eax, dword [MAXBLOCKLEN  + 4]
+    mov ebx, dword [MAXBLOCKADDR]
+    adc ebx, dword [MAXBLOCKLEN]
     popa
     ret
 
 ; Ошибка при чтении памяти
 .ramerror:
     popa
+    stc
     ret
 
 ;====================================
@@ -562,6 +630,7 @@ main:
 ; Ядро, кстати, будем писать на C (а лучше на C++).
 ; Наконец-то мы перейдём к высокоуровнему программированию!
 ; Ура!
+; (Знал ли он, что его ждёт...)
 ;=====================================================
 
 ;
@@ -574,12 +643,57 @@ main:
 [bits 32]
 ; LBA-адрес ядра
 %define KERNEL_POS      9
-; Адрес, на который следует загрузить ядро в память
-%define KERNEL_ADDR     0x200000
+; Физический адрес, на который следует загрузить ядро в память
+%define KERNEL_PHYSADDR 0xA000000
+; Виртуальный адрес, на котором будет находиться ядро
+%define KERNEL_VIRTADDR 0x4000000
 ; Длина ядра в секторах диска
 %define KERNEL_LEN      56
 ; ELF-подпись файла
 %define ELF_SIGNATURE   0x464C457F
+
+;
+;   Таблица прерываний
+;
+;   - Заглушка, чтобы отслеживать страничные ошибки.
+;
+idt_r:
+    size   dw (50*8) - 1
+    offset dd int_dt
+
+int_dt: resd 50 * 2 
+
+load_idt:
+    lidt [idt_r]
+
+    mov eax, int_0E
+    mov word [int_dt + 0x0E*8], ax
+    mov word [int_dt + 0x0E*8 + 2], 0x08
+    mov word [int_dt + 0x0E*8 + 4], 0x8F00
+    shr eax, 16
+    mov word [int_dt + 0x0E*8 + 6], ax
+
+    mov eax, int_0D
+    mov word [int_dt + 0x0D*8], ax
+    mov word [int_dt + 0x0D*8 + 2], 0x08
+    mov word [int_dt + 0x0D*8 + 4], 0x8F00
+    shr eax, 16
+    mov word [int_dt + 0x0D*8 + 6], ax
+
+    ret
+
+; Прерывание 0x0E - страничный сбой
+int_0E:
+    mov eax, '#PF '
+    pop ebx
+    jmp boot_error
+
+; Прерывание 0x0D - общий сбой защиты
+int_0D:
+    mov eax, '#GPF'
+    pop ebx
+    jmp boot_error
+
 
 ;==========================================
 ;
@@ -698,7 +812,6 @@ tinydiskdriver:
     pusha
 
     ; Настраиваем параметры, которые не будут меняться
-
     mov cx,  KERNEL_LEN     ; Число секторов
     mov ebx, KERNEL_POS     ; LBA-адрес ядра
     mov edi, 0x7C000        ; Адрес, на который совать файл ядра
@@ -784,8 +897,8 @@ tinydiskdriver:
 
 ; Ошибка чтения
 .read_error:
-    stc                 ; CF = 1
     popa
+    stc                 ; CF = 1
     mov dx, 0x1F6       ; В AL байт ошибки
     in  al, dx          
     ret
@@ -798,19 +911,20 @@ tinydiskdriver:
 ;   - Настраивает страницы памяти и активирует их.
 ;     Кстати, в 64-битном режиме без них нельзя.
 ;
+%define PAGING_BASE 0x101000
 paging_time:
     pusha
     ; Создаём пустую директорию страниц
     mov eax, 0x00000002
     mov ecx, 1024
-    mov edi, 0x150000
+    mov edi, PAGING_BASE
     rep stosd
-    ; Так, адрес директории страниц - 0x150000,
+    ; Так, адрес директории страниц лежит в дефайне PAGING_BASE, и
     ; там резервировано 4 КиБ данных для таблиц страниц.
     
     ; Создаём "идентичные страницы" (т.е. адреса страниц совпадают с физическими)
-    ; Таких страниц сделаем на 4 МиБ (чтобы ядро влезло)
-    mov edi, 0x151000
+    ; Этаких страничек сделаем на 8 МиБ (чтобы все страницы влезли)
+    mov edi, PAGING_BASE + 0x1000
     mov ecx, 0
 .identity_paging:
     mov eax, ecx
@@ -818,26 +932,79 @@ paging_time:
     or  eax, 3
     stosd
     add ecx, 0x1000
-    cmp ecx, 0x1000000
+    cmp ecx, 0x400000 * 8
     jne .identity_paging
 
-    ; Загружаем 4 таблицы в директорию
-    mov edi, 0x150000
-    mov eax, 0x151000
+    ; Помещаем видеопамять на страничку с
+    ; виртуальным адресом на конце памяти
+    mov edi, PAGING_BASE + 0x400000
+    mov esi, 0x10003C
+    lodsd
+    mov ebx, eax
+    mov ecx, 0
+.map_vram:
+    mov eax, ebx
+    add eax, ecx
+    and eax, 0xFFFFF000
     or  eax, 3
     stosd
-    mov eax, 0x152000
+    add ecx, 0x1000
+    cmp ecx, 0x400000
+    jne .map_vram
+
+    ; Помещаем ядро на странички с
+    ; виртуальным адресом 0x1000000
+    mov edi, PAGING_BASE + ((KERNEL_VIRTADDR & 0xFFC00000) >> 10)
+    mov ebx, KERNEL_PHYSADDR
+    mov ecx, 0
+.map_kernel:
+    mov eax, ebx
+    add eax, ecx
+    and eax, 0xFFFFF000
     or  eax, 3
     stosd
-    mov eax, 0x153000
+    add ecx, 0x1000
+    cmp ecx, 0x400000
+    jne .map_kernel
+
+    ; Загружаем таблицы в директорию
+.load_page_tables:
+    mov edi, PAGING_BASE
+    mov eax, PAGING_BASE + 0x1000
     or  eax, 3
     stosd
-    mov eax, 0x154000
+    mov eax, PAGING_BASE + 0x2000
+    or  eax, 3
+    stosd
+    mov eax, PAGING_BASE + 0x3000
+    or  eax, 3
+    stosd
+    mov eax, PAGING_BASE + 0x4000
+    or  eax, 3
+    stosd
+    mov eax, PAGING_BASE + 0x5000
+    or  eax, 3
+    stosd
+    mov eax, PAGING_BASE + 0x6000
+    or  eax, 3
+    stosd
+    mov eax, PAGING_BASE + 0x7000
+    or  eax, 3
+    stosd
+    mov eax, PAGING_BASE + 0x8000
+    or  eax, 3
+    stosd
+    mov edi, PAGING_BASE + ((KERNEL_VIRTADDR & 0xFFC00000) >> 22) * 4
+    mov eax, PAGING_BASE + (KERNEL_VIRTADDR & 0xFFC00000) + 0x1000
+    or  eax, 3
+    stosd
+    mov edi, PAGING_BASE + 0x1000 - 4
+    mov eax, PAGING_BASE + 0x400000
     or  eax, 3
     stosd
 
     ; Загружаем директорию таблиц
-    mov eax, 0x150000
+    mov eax, PAGING_BASE
     mov cr3, eax
     
     ; Активируем страничную память
@@ -848,72 +1015,146 @@ paging_time:
     ret
 ;====================================
 ;
-;   Чтение ELF-заголовка ядра
+;   Размещение ELF-ядра в памяти
 ;
-;   - Читает заголовок ядра (оно компилируется как ELF),
-;     чтобы правильно его открыть и развернуть.
-;   На выходе:
-;       EBX - размер сегмента в памяти
-;       ECX - сдвиг сегмента по файлу
-;       EDX - точка входа в ядро
+;   - Помещает все секции ядра (файл по адресу 0x7C000)
+;     в физическую память.
 ;
-read_elf_header:
-    push esi
-    push eax
+ENTRYPOINT  dd 0
+PHT_OFFSET  dd 0
+SHT_OFFSET  dd 0
+SH_SIZE     dw 0
+SH_AMOUNT   dw 0
+SH_STRT_IND dw 0
+TEXT_OFFSET dd 0
+SEC_HEAD_BUF:
+    .SH_NAME        dd 0
+    .SH_TYPE        dd 0
+    .SH_FLAGS       dd 0
+    .SH_ADDR        dd 0
+    .SH_OFF         dd 0
+    .SH_SIZE        dd 0
+    .SH_LINK        dd 0
+    .SH_INFO        dd 0
+    .SH_ADDRALIGN   dd 0
+    .SH_ENTSIZE     dd 0
 
-    ; Проверка подписи ELF
+put_elf:
+    pusha
+
+    ; Проверяем подпись файла
     mov esi, 0x7C000
     lodsd
     cmp eax, ELF_SIGNATURE
+    mov ebx, 1
     jne .elf_error
-    
-    ; Сдвиг заголовка программы и точка входа в программу
-    mov esi, 0x7C01C
-    lodsd
-    mov esi, 0x7C000
-    add esi, eax
-    push esi
+
+    ; Достаём пару штук из заголовка
+.parse_elf_header:
     mov esi, 0x7C018
     lodsd
-    mov edx, eax
-    pop esi
-
-
-    ; Заголовок программы: сдвиг в файле
-    add esi, 4
+    mov dword [ENTRYPOINT],  eax
     lodsd
+    mov dword [PHT_OFFSET],  eax
+    lodsd
+    mov dword [SHT_OFFSET],  eax
+    add esi, 10
+    lodsw
+    mov word  [SH_SIZE],     ax
+    lodsw
+    mov word  [SH_AMOUNT],   ax
+    lodsw
+    mov word  [SH_STRT_IND], ax
+
+    ; Обрабатываем заголовок программы
+.parse_prog_hdr:
+    mov esi, 0x7C000
+    add esi, dword [PHT_OFFSET]
+    lodsd
+    mov ebx, 2
+    test ax, ax
+    jz .elf_error
+    lodsd
+    mov dword [TEXT_OFFSET], eax
+    lodsd
+    mov edx, eax
+    add esi, 8
+    lodsd
+    xor ecx, ecx
     mov ecx, eax
 
-    ; Заголовок программы: размер сегмента в памяти
-    add esi, 12
+    ; Мы достали сведения о коде! Кладём его куда надо
+.put_text:
+    mov esi, dword [TEXT_OFFSET]
+    add esi, 0x7C000
+    mov edi, edx
+    rep movsb
+
+    ; Обрабатываем таблицу секций
+    mov cx,  word  [SH_AMOUNT]
+    mov esi, dword [SHT_OFFSET]
+    add esi, 0x7C000
+    add si,  word  [SH_SIZE]    ; Первые 3 заголовка мы уже скопировали,
+                                ; так что лишний раз можно не копировать
+    adc si,  word  [SH_SIZE]
+    adc si,  word  [SH_SIZE]
+    adc esi, 0
+    sub cx,  3
+.parse_section_table:
+    ; Загружаем заголовок в буфер
     lodsd
-    mov ebx, eax
+    mov dword [SEC_HEAD_BUF.SH_NAME], eax
+    lodsd
+    mov dword [SEC_HEAD_BUF.SH_TYPE], eax
+    lodsd
+    mov dword [SEC_HEAD_BUF.SH_FLAGS],eax
+    lodsd
+    mov dword [SEC_HEAD_BUF.SH_ADDR], eax
+    lodsd
+    mov dword [SEC_HEAD_BUF.SH_OFF],  eax
+    lodsd
+    mov dword [SEC_HEAD_BUF.SH_SIZE], eax
+    lodsd
+    mov dword [SEC_HEAD_BUF.SH_LINK], eax
+    lodsd
+    mov dword [SEC_HEAD_BUF.SH_INFO], eax
+    lodsd
+    mov dword [SEC_HEAD_BUF.SH_ADDRALIGN], eax
+    lodsd
+    mov dword [SEC_HEAD_BUF.SH_ENTSIZE], eax
 
+    ; Проверяем, загружаемый ли он
+    test word [SEC_HEAD_BUF.SH_FLAGS], 0x02
+    jz ._continue
+
+    ; Ежели загружаемый, то загружаем
+    push ecx
+    push esi
+    mov esi, dword [SEC_HEAD_BUF.SH_OFF]
+    add esi, 0x7C000
+    mov edi, dword [SEC_HEAD_BUF.SH_ADDR]
+    mov ecx, dword [SEC_HEAD_BUF.SH_SIZE]
+    rep movsb
+    pop esi
+    pop ecx
+
+    ; Смотрим, все ли секции загрузили
+._continue:
+    dec cx
+    jcxz .load_complete
+    jmp  .parse_section_table
+
+    ; Загрузили все секции!
+.load_complete:
+    popa
     clc
-    pop eax
-    pop esi
-    ret
-.elf_error:
-    stc
-    pop eax
-    pop esi
-    ret
-;======================================
-;
-;   Помещение ядра в память
-;
-;   - Мы извлекли данные ядра!
-;     Осталось их использовать и запихнуть ядро.
-;
-put_kernel:
-    mov esi, 0x7C000
-    add esi, ecx            ; ESI = 0x7C000 + ECX (т.е. начало ядра)
-    mov edi, KERNEL_ADDR
-    mov ecx, ebx
-    rep movsb               ; Поехали копировать!
-    ; И всё! Это простая операция копирования
     ret
 
+.elf_error:
+    popa
+    mov eax, "#ELF"
+    stc
+    ret
 
 ;==============================================
 ;
@@ -935,30 +1176,44 @@ prot_mode_entry_point:
     ; Копирование 4 КиБ памяти в новое место для памяти
     call copyres
 
+    ; Активация таблицы прерываний
+    call load_idt
+
     ; Инициализация драйвера диска
     call tinydiskdriver.init
 
     ; Считывание ядра
     call tinydiskdriver.read_kernel
 
-    ; Считывание ELF-заголовка ядра
-    call read_elf_header
-
-    ; Размещение ядра в памяти
-    call put_kernel
-
     ; Настройка страниц
     call paging_time
 
-    ; Переход на ядро (адрес точки входа в EDX)
+    ; Размещение ядра в памяти
+    call put_elf
+    jc boot_error
+
+    ; Переход на ядро
     ; Вместо JMP используется CALL, чтобы в случае возврата из ядра
     ; процессор не улетел Бог знает куда, а вернулся сюда
     ; и застыл.
-    call edx
+    call dword [ENTRYPOINT]
+    jmp  _halt
 
+;
+;   Обработчик ошибок
+;
+;   - Останавливает исполнение загрузчика
+;     при возникновении ошибки.
+;   На вход:
+;    - EAX - вид ошибки
+;    - EBX - код ошибки
+;
+boot_error:
+    mov edi, 0x80000
+    stosd
     cli
-.halt:
-    jmp .halt
+_halt:
+    jmp _halt
 
 
 ; Дополняем этот файл, чтобы не было проблем с
@@ -966,3 +1221,5 @@ prot_mode_entry_point:
 times (8*512) - ($-$$) db 0
 ; Хо-хо-хо-о-о-о! Наконец-то будем писать на языке высокого уровня!
 ; (Спустя 4 дня наконец-то оно заработало!)
+; (а на пятый перестало, но ничего, скоро поправим)
+; (...правда?)
