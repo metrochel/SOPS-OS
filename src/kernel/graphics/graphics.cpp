@@ -1,21 +1,29 @@
-#include "vga.hpp"
+#include "graphics.hpp"
 
-uint32_t *frameBufferPtr;
+uint8_t *frameBufferPtr;
 uint16_t pitch;
 uint8_t  bpp;
+
+uint8_t redmask;
+uint8_t redshift;
+uint8_t greenmask;
+uint8_t greenshift;
+uint8_t bluemask;
+uint8_t blueshift;
+uint8_t reservedmask;
+uint8_t reservedshift;
 
 /// @brief Кодирует цвет RGB в воспринимаемое видеокартой число.
 /// @param col Цвет
 /// @return Цвет в формате числа
 uint32_t encodeRGB(RGBColor col) {
-    if (bpp == 32 || bpp == 24) {
-        return col.r << 16 + col.g << 8 + col.b;
-    }
-    col.r %= (1 << bpp / 3);
-    col.g %= (1 << (bpp / 3 + bpp % 3));
-    col.b %= (1 << bpp / 3);
-    uint32_t res = col.r << (2*(bpp / 3) + 1) + col.g << (bpp / 3) + col.b;
-    return res;
+    uint32_t encCol = 0;
+
+    encCol += (col.r << ((1 << redmask) - 1)) << redshift;
+    encCol += (col.g << ((1 << greenmask) - 1)) << greenshift;
+    encCol += (col.b << ((1 << bluemask) - 1)) << blueshift;
+
+    return encCol;
 }
 
 /// @brief Помещает пиксел в видеопамять.
@@ -23,17 +31,20 @@ uint32_t encodeRGB(RGBColor col) {
 /// @param y Ордината пиксела
 /// @param col Цвет пиксела
 void putpixel(uint16_t x, uint16_t y, uint32_t col) {
-    uint32_t offset = y * pitch + x;
-    uint32_t *pixptr = frameBufferPtr + offset;
-    *pixptr = col;
+    uint32_t offset = y * pitch + (x * (bpp/8));
+    putpixel(offset, col);
 }
 
 /// @brief Помещает по выбранному сдвигу пиксел выбранного цвета.
 /// @param offset Сдвиг по буферу
 /// @param col Цвет
 void putpixel(uint32_t offset, uint32_t col) {
-    uint32_t *pixptr = frameBufferPtr + offset;
-    *pixptr = col;
+    uint8_t *pixptr = frameBufferPtr + offset;
+    for (int i = 0; i < bpp/8; i++) {
+        *pixptr = (uint8_t)(col & 0xFF);
+        pixptr++;
+        col >>= 8;
+    }
 }
 
 /// @brief Размещает на данных координатах прямоугольник.
@@ -43,10 +54,18 @@ void putpixel(uint32_t offset, uint32_t col) {
 /// @param y2 Ордината второй вершины
 /// @param col Цвет прямоугольника
 void putrect(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint32_t col) {
-    uint32_t offset1 = y1 * pitch + x1;
-    for (uint32_t y = 0; y <= y2-y1; y++) {
-        for (uint32_t x = 0; x <= x2-x1; x++) {
-            putpixel(offset1 + y * pitch + x, col);
+    uint32_t offset = y1 * pitch + x1;
+    uint32_t *dbgPtr = (uint32_t*)0x100300;
+    *dbgPtr = pitch;
+    dbgPtr++;
+    for (uint32_t y = y1; y <= y2; y++) {
+        for (uint32_t x = x1; x <= x2; x++) {
+            putpixel(offset, col);
+            offset += bpp/8;
         }
+        offset += pitch;
+        offset -= (x2-x1+1) * (bpp/8);
+        *dbgPtr = offset;
+        dbgPtr++;
     }
 }

@@ -280,95 +280,123 @@ getcpuinfo:
 ;
 ;   - Извлекает доступные видеокарте режимы.
 ;
+MAXSCREENSURFACE    dd 0
+MAXBPP              db 0
+MAXMODE             dw 0
+BUFSCREENSURFACE    dd 0
+BUFBPP              db 0
+BUFMODE             dw 0
 getvideomodes:
     pusha
-    push bp
-    mov ax, 0x4F00
+
+    ; Получаем доступные режимы
     mov di, bp
-    int 0x10                    ; Извлекаем все доступные видеорежимы
-    cmp ax, 0x004F              ; Проверка на успех
-    jnz .video_fail
-    mov si, 0x6022              ; Поехали перебирать режимы
+    mov ax, 0x4F00
+    int 0x10
+    cmp ax, 0x004F
+    jne .video_fail
+
+    ; Настраиваемся на обработку режимов
+    mov si, 0x6014 + 14
     lodsw
     push ax
     lodsw
     mov ds, ax
     pop si
-    mov ax, 0x0000
+    mov ax, 0
     mov es, ax
     mov di, 0x6500
-    mov bp, 0x6302
-.videomodesloop:
+
+    ; Перебираем все режимы
+.videoloop:
+    ; Считываем номер режима
     lodsw
-    mov cx, ax                          ; Номер режима
-    cmp cx, 0xFFFF                      ; Если 0xFFFF, то режимов больше нет
-    je .videomodesend
-    mov ax, 0x4F01                      ; Извлекаем параметры режима
-    int 0x10
-    cmp ax, 0x004F                      ; Проверка на успех
-    jne .video_fail
-    mov ax, word [es:di]                ; Аттрибуты (интересует только бит 7 - поддержка линейного буфера кадров)
-    and ax, 0x80
-    jz .videomodesloop                  ; Если нет, то этот режим не рассматриваем
-    add di, 16
-    mov ax, word [es:di]                ; Количество байтов на строку
-    add di, 2
-    xor ebx, ebx
-    mov bx, word [es:di]                ; Ширина экрана
-    add di, 2
-    mov ax, word [es:di]
-    cwd
-    mul ebx                             ; Площадь экрана
-    add di, 5
-    xor dx, dx
-    mov dl, byte [es:di]                ; Число бит на пиксел
-    cmp eax, dword [es:bp]              ; Сравниваем площадь экрана с максимальной на данный момент
-    jb .videomodesloop                  ; Если меньше, то более режим не рассматриваем
-    add bp, 4
-    cmp dl, byte [es:bp]                ; Сравниваем б/пикс текущего режима с максимальным на данный момент
-    jb .videomodesloop                  ; Если меньше, то более режим не рассматриваем
-    ; Найден новый режим лучше, чем имеющийся
-    ; Записываем параметры
-    mov bp, 0x6300
-    mov word [es:bp], cx
-    add bp, 2
-    mov dword [es:bp], eax
-    add bp, 4
-    mov byte [es:bp], dl
-    mov bp, 0x6302
+    cmp ax, 0xFFFF
+    je .videoend
+
+    ; Достаём его параметры
+    mov cx, ax
+    mov ax, 0x4F01
     mov di, 0x6500
-    jmp .videomodesloop
-.videomodesend:
-    ; Теперь ставим новый режим
-    mov bp, 0x6300
+    int 10h
+
+    ; Проверяем на успех
+    cmp ax, 0x004F
+    jne .video_fail
+
+    ; Проверяем на наличие буфера кадров
+    mov ax, word [0x6500]
+    test ax, 0x80
+    jz .videoloop
+
+    ; Считаем площадь экрана и биты на пиксел
+    xor eax, eax
+    mov ax, word [0x6512]
+    xor ebx, ebx
+    mov bx, word [0x6514]
+    mul ebx
+    mov dword [BUFSCREENSURFACE], eax
+    push si
+    mov si, 0x6519
+    mov di, BUFBPP
+    movsb
+    pop si
+    mov word [BUFMODE], cx
+
+    ; Проверяем, лучше ли этот режим
+    mov eax, dword [BUFSCREENSURFACE]
+    cmp eax, dword [MAXSCREENSURFACE]
+    ja  .newmax
+    jb  ._cont
+    mov al,  byte  [BUFBPP]
+    cmp al,  byte  [MAXBPP]
+    ja  .newmax
+
+._cont:
+    jmp .videoloop
+
+.newmax:
+    push si
+    mov si, BUFSCREENSURFACE
+    mov di, MAXSCREENSURFACE
+    movsd
+    movsb
+    movsw
+    pop si
+    jmp .videoloop
+
+.videoend:
+    ; Устанавливаем видеорежим
     mov ax, 0x4F02
-    mov bx, word [es:bp]
-    mov dx, bx
-    and bx, 0b0111111111111111
+    mov bx, word [MAXMODE]
+    and bx, 0x7FFF
+    or  bx, 0x4000
     int 10h
     cmp ax, 0x004F
     jne .video_fail
 
-    ; А теперь достаём его параметры
-    pop bp
-    mov cx, dx
+    ; Получаем его параметры
     mov ax, 0x4F01
+    mov cx, word [MAXMODE]
     mov di, bp
     int 10h
 
-    ; На выход!
+    ; Выходим
     popa
+    add bp, 0x100
+    mov di, bp
+    mov eax, dword [MAXSCREENSURFACE]
+    stosd
+    mov bp, di
     clc
-    add bp, 256
     ret
+
 .video_fail:
-    pop bp
     popa
     stc
     ret
 ; Оххххххххххх...
 ; Авось сработает
-; (Сработало, кстати!)
 ;====================================
 
 ;====================================
@@ -666,6 +694,13 @@ int_dt: resd 50 * 2
 load_idt:
     lidt [idt_r]
 
+    mov eax, int_06
+    mov word [int_dt + 0x06*8], ax
+    mov word [int_dt + 0x06*8 + 2], 0x08
+    mov word [int_dt + 0x06*8 + 4], 0x8F00
+    shr eax, 16
+    mov word [int_dt + 0x06*8 + 6], ax
+
     mov eax, int_0E
     mov word [int_dt + 0x0E*8], ax
     mov word [int_dt + 0x0E*8 + 2], 0x08
@@ -680,7 +715,14 @@ load_idt:
     shr eax, 16
     mov word [int_dt + 0x0D*8 + 6], ax
 
+
     ret
+
+; Прерывание 0x06 - невозможная инструкция
+int_06:
+    mov eax, '#UD '
+    pop ebx
+    jmp boot_error
 
 ; Прерывание 0x0E - страничный сбой
 int_0E:
@@ -707,7 +749,7 @@ copyres:
     push cx
     mov esi, 0x6000
     mov edi, 0x100000
-    mov cx, 0x400
+    mov cx, 0x1000
     rep movsd
     pop cx
     pop edi
@@ -935,21 +977,20 @@ paging_time:
     cmp ecx, 0x400000 * 8
     jne .identity_paging
 
-    ; Помещаем видеопамять на страничку с
+
+    ; Помещаем видеопамять на таблицы с
     ; виртуальным адресом на конце памяти
-    mov edi, PAGING_BASE + 0x400000
+    mov edi, PAGING_BASE + 0x3F0000
     mov esi, 0x10003C
     lodsd
-    mov ebx, eax
     mov ecx, 0
 .map_vram:
-    mov eax, ebx
-    add eax, ecx
     and eax, 0xFFFFF000
     or  eax, 3
     stosd
-    add ecx, 0x1000
-    cmp ecx, 0x400000
+    add eax, 0x1000
+    inc ecx
+    cmp ecx, 0x400 * 0x10
     jne .map_vram
 
     ; Помещаем ядро на странички с
@@ -998,10 +1039,14 @@ paging_time:
     mov eax, PAGING_BASE + (KERNEL_VIRTADDR & 0xFFC00000) + 0x1000
     or  eax, 3
     stosd
-    mov edi, PAGING_BASE + 0x1000 - 4
-    mov eax, PAGING_BASE + 0x400000
+    mov edi, PAGING_BASE + (0x3F0 * 4)
+    mov eax, PAGING_BASE + 0x3F0000
+.put_vram:
     or  eax, 3
     stosd
+    add eax, 0x1000
+    cmp eax, PAGING_BASE + 0x400000
+    jb  .put_vram
 
     ; Загружаем директорию таблиц
     mov eax, PAGING_BASE
@@ -1209,7 +1254,9 @@ prot_mode_entry_point:
 ;    - EBX - код ошибки
 ;
 boot_error:
-    mov edi, 0x80000
+    mov edi, 0x9500
+    stosd
+    mov eax, ebx
     stosd
     cli
 _halt:
