@@ -1,13 +1,12 @@
 DISKFILE		=build/sops.img
-BOOTSRC			=$(sort $(wildcard ./src/boot/*.asm))
-BOOTBINS		=$(patsubst ./src/boot/%.asm, ./build/bins/%.bin, $(BOOTSRC))
+BOOTSRC			=$(sort $(wildcard src/boot/*.asm))
+BOOTBINS		=$(patsubst src/boot/%.asm, build/bins/%.bin, $(BOOTSRC))
 BUILDDIR		=build
 BINSDIR			=build/bins
 OBJSDIR			=build/objs
-KERNELSRC   	=./src/kernel/kernel.cpp $(wildcard ./src/kernel/*/*.cpp)
-KERNELOBJ       =$(patsubst %.cpp, %.o, $(KERNELSRC))
+KERNELSRC   	=src/kernel/kernel.cpp $(wildcard src/kernel/*/*.cpp)
+KERNELOBJ       =$(foreach cpp, $(KERNELSRC), build/objs/$(patsubst %.cpp,%.o,$(notdir $(cpp))))
 KERNELBIN		=$(BINSDIR)/kernel.bin
-HEADERS			=src/kernel/vga
 CROSSCOMPILER	=/usr/local/cross/bin/i686-elf-g++
 LINKERSCRIPT    =linker.ld
 
@@ -35,7 +34,7 @@ $(BINSDIR): $(BUILDDIR)
 $(OBJSDIR): $(BUILDDIR)
 	mkdir -p build/objs
 
-assemble_source = nasm -f bin $(1) -o $(patsubst ./src/boot/%.asm, ./build/bins/%.bin, $(1)) -w-zeroing
+assemble_source = nasm -f bin $(1) -o $(patsubst src/boot/%.asm, build/bins/%.bin, $(1)) -w-zeroing
 
 #
 #	Сборка исходных файлов загрузчика
@@ -60,7 +59,7 @@ $(KERNELOBJ): $(KERNELSRC) $(OBJSDIR)
 #	Компоновка ядра
 #
 $(KERNELBIN): $(KERNELOBJ)
-	$(CROSSCOMPILER) -T $(LINKERSCRIPT) -o $(KERNELBIN) -ffreestanding -O2 -nostdlib $(wildcard $(OBJSDIR)/*.o)
+	$(CROSSCOMPILER) -T $(LINKERSCRIPT) -o $(KERNELBIN) -ffreestanding -O2 -nostdlib $(KERNELOBJ)
 
 #
 #	Очистка сборки
