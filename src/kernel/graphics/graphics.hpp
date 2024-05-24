@@ -83,23 +83,3 @@ void putpixel(uint16_t x, uint16_t y, uint32_t col);
 void putpixel(uint32_t offset, uint32_t col);
 
 void putrect(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint32_t col);
-
-// ======================================== Работа с текстом ============================================
-
-// Символ
-struct Glyph {
-    uint32_t lines[8];      // Бит-поля, отмечающие пикселы символа
-} __attribute__((packed));
-
-/// @brief Выдаёт разметку символа, воспринимаемую системой.
-/// @param code Код символа в Юникоде
-/// @return Разметка
-Glyph getglyph(uint16_t code);
-
-/// @brief Размещает символ на координатах.
-/// @param glyph Символ
-/// @param x Абсцисса символа (отн. левого верхнего угла)
-/// @param y Ордината символа (отн. левого верхнего угла)
-/// @param letter_col Цвет самого символа
-/// @param back_col Цвет заднего фона символа
-void putglyph(Glyph glyph, uint16_t x, uint16_t y, uint32_t letter_col, uint32_t back_col);

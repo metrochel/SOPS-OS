@@ -9,6 +9,7 @@
 
 #include <stdint.h>
 #include "graphics/graphics.hpp"
+#include "graphics/glyphs.hpp"
 
 // Структура с данными из загрузчика
 struct BootLoaderData {
@@ -33,17 +34,11 @@ void initBLD() {
     greenshift = bld->VBEInfo.GreenPos;
     bluemask = bld->VBEInfo.BlueMaskSize;
     blueshift = bld->VBEInfo.BluePos;
-
-    int* testPtr = (int*)0x100300;
-    *testPtr = 0x696969;
 }
-
 
 /// @brief Точка входа в ядро.
 int main() {
     initBLD();
-    putrect(100,100,400,400,0x00AABB00);
-    putrect(500,300,1500,550,0x00BB00CC);
-    putrect(100,500,450,950,0x00009900);
+    kprint("Добро пожаловать в СОПС вер. 1.0.0-АЛЬФА!");
     return 0;
 }

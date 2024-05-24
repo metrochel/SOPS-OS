@@ -54,7 +54,7 @@ void putpixel(uint32_t offset, uint32_t col) {
 /// @param y2 Ордината второй вершины
 /// @param col Цвет прямоугольника
 void putrect(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint32_t col) {
-    uint32_t offset = y1 * pitch + x1;
+    uint32_t offset = y1 * pitch + x1*(bpp/8);
     uint32_t *dbgPtr = (uint32_t*)0x100300;
     *dbgPtr = pitch;
     dbgPtr++;

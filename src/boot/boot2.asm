@@ -676,7 +676,7 @@ main:
 ; Виртуальный адрес, на котором будет находиться ядро
 %define KERNEL_VIRTADDR 0x4000000
 ; Длина ядра в секторах диска
-%define KERNEL_LEN      56
+%define KERNEL_LEN      128
 ; ELF-подпись файла
 %define ELF_SIGNATURE   0x464C457F
 
