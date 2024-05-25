@@ -12,6 +12,14 @@ extern uint16_t textCurY;
 extern uint32_t defaultTextCol;
 // Стандартный цвет заднего фона текста
 extern uint32_t defaultBGCol;
+// Цвет текста предупреждения
+extern uint32_t warnTextCol;
+// Цвет заднего фона предупреждения
+extern uint32_t warnBGCol;
+// Цвет текста ошибки
+extern uint32_t errorTextCol;
+// Цвет заднего фона ошибки
+extern uint32_t errorBGCol;
 
 // Символ
 struct Glyph {
@@ -38,8 +46,16 @@ Glyph getglyph(uint8_t code);
 void putglyph(Glyph glyph, uint16_t x, uint16_t y, uint32_t letter_col, uint32_t back_col);
 
 /// @brief Выводит строку на экран.
-/// @param str Указатель на строку
+/// @param str Строка
 void kprint(const char* str);
+
+/// @brief Выводит на экран предупреждение.
+/// @param str Сообщение предупреждения
+void kwarn(const char* str);
+
+/// @brief Выводит на экран ошибку.
+/// @param str Сообщение ошибки.
+void kerror(const char* str);
 
 // Нулевой символ
 extern const Glyph NULLGLYPH;

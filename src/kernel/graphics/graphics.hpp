@@ -25,6 +25,9 @@ extern uint8_t blueshift;
 extern uint8_t reservedmask;
 extern uint8_t reservedshift;
 
+extern uint16_t screenWidth;
+extern uint16_t screenHeight;
+
 
 // Структура режима VBE
 struct VBEModeInfo {
@@ -70,14 +73,7 @@ struct VBEModeInfo {
 // Фууууух... Огромная куча полей была оставлена для обратной совместимости,
 // но сейчас они не используются.
 
-// RGB-цвет
-struct RGBColor {
-    uint8_t r;      // Красный канал
-    uint8_t g;      // Зелёный канал
-    uint8_t b;      // Синий канал
-};
-
-uint32_t encodeRGB(RGBColor col);
+uint32_t encodeRGB(float r, float g, float b);
 
 void putpixel(uint16_t x, uint16_t y, uint32_t col);
 void putpixel(uint32_t offset, uint32_t col);

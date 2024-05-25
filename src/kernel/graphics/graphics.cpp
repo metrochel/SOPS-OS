@@ -14,14 +14,15 @@ uint8_t reservedmask;
 uint8_t reservedshift;
 
 /// @brief Кодирует цвет RGB в воспринимаемое видеокартой число.
-/// @param col Цвет
+/// @param r Красный канал
+/// @param g Зелёный канал
+/// @param b Синий канал
 /// @return Цвет в формате числа
-uint32_t encodeRGB(RGBColor col) {
+uint32_t encodeRGB(float r, float g, float b) {
     uint32_t encCol = 0;
-
-    encCol += (col.r << ((1 << redmask) - 1)) << redshift;
-    encCol += (col.g << ((1 << greenmask) - 1)) << greenshift;
-    encCol += (col.b << ((1 << bluemask) - 1)) << blueshift;
+    encCol += (uint8_t)(r * ((1 << redmask) - 1)) << redshift;
+    encCol += (uint8_t)(g * ((1 << greenmask) - 1)) << greenshift;
+    encCol += (uint8_t)(b * ((1 << bluemask) - 1)) << blueshift;
 
     return encCol;
 }
@@ -55,9 +56,6 @@ void putpixel(uint32_t offset, uint32_t col) {
 /// @param col Цвет прямоугольника
 void putrect(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint32_t col) {
     uint32_t offset = y1 * pitch + x1*(bpp/8);
-    uint32_t *dbgPtr = (uint32_t*)0x100300;
-    *dbgPtr = pitch;
-    dbgPtr++;
     for (uint32_t y = y1; y <= y2; y++) {
         for (uint32_t x = x1; x <= x2; x++) {
             putpixel(offset, col);
@@ -65,7 +63,5 @@ void putrect(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint32_t col) {
         }
         offset += pitch;
         offset -= (x2-x1+1) * (bpp/8);
-        *dbgPtr = offset;
-        dbgPtr++;
     }
 }

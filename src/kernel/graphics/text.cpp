@@ -4,8 +4,17 @@
 uint16_t textCurX = 1;
 uint16_t textCurY = 1;
 
-uint32_t defaultTextCol = 0xFFFFFFFF;
-uint32_t defaultBGCol = 0x00000000;
+uint32_t defaultTextCol;
+uint32_t defaultBGCol;
+
+uint32_t warnTextCol;
+uint32_t warnBGCol;
+
+uint32_t errorTextCol;
+uint32_t errorBGCol;
+
+uint16_t screenWidth;
+uint16_t screenHeight;
 
 Glyph getglyph(uint8_t code) {
     switch (code)
@@ -368,7 +377,6 @@ void putglyph(Glyph glyph, uint16_t x, uint16_t y, uint32_t letter_col, uint32_t
 
 void kprint(const char str[]) {
     uint8_t state = 0;
-    uint8_t *dbgPtr = (uint8_t*)0x100300;
     unsigned char symb = *str;
     while (*str != 0) {
         if (symb >= 0x80)
@@ -393,8 +401,6 @@ void kprint(const char str[]) {
                 str++;
                 symb = *str;
                 unicode += symb;
-                *(uint16_t*)dbgPtr = unicode;
-                dbgPtr += 2;
                 g = getglyph(unicode);
                 putglyph(g, textCurX * 16, textCurY * 24, defaultTextCol, defaultBGCol);
                 textCurX++;
@@ -408,6 +414,114 @@ void kprint(const char str[]) {
                 break;
             case 4:
                 putglyph(NULLGLYPH, textCurX * 16, textCurY * 24, defaultTextCol, defaultBGCol);
+                textCurX ++;
+                break;
+        }
+        if (textCurX >= screenWidth / 16) {
+            textCurX = 1;
+            textCurY ++;
+        }
+        str++;
+        symb = *str;
+    }
+    textCurX = 1;
+    textCurY ++;
+}
+
+void kwarn(const char str[]) {
+    uint8_t state = 0;
+    uint8_t *dbgPtr = (uint8_t*)0x100300;
+    unsigned char symb = *str;
+    while (*str != 0) {
+        if (symb >= 0x80)
+            state = 1;
+        else if (symb == CR)
+            state = 2;
+        else if (symb == LF)
+            state = 3;
+        else if (symb == 0x20)
+            state = 4;
+        else
+            state = 0;
+        uint16_t unicode = 0;
+        switch (Glyph g; state) {
+            case 0:
+                g = getglyph(symb);
+                putglyph(g, textCurX * 16, textCurY * 24, warnTextCol, warnBGCol);
+                textCurX ++;
+                break;
+            case 1:
+                unicode = symb << 8;
+                str++;
+                symb = *str;
+                unicode += symb;
+                *(uint16_t*)dbgPtr = unicode;
+                dbgPtr += 2;
+                g = getglyph(unicode);
+                putglyph(g, textCurX * 16, textCurY * 24, warnTextCol, warnBGCol);
+                textCurX++;
+                break;
+            case 2:
+                textCurX = 1;
+                break;
+            case 3:
+                textCurY ++;
+                textCurX = 1;
+                break;
+            case 4:
+                putglyph(NULLGLYPH, textCurX * 16, textCurY * 24, warnTextCol, warnBGCol);
+                textCurX ++;
+                break;
+        }
+        str++;
+        symb = *str;
+    }
+    textCurX = 1;
+    textCurY ++;
+}
+
+void kerror(const char str[]) {
+    uint8_t state = 0;
+    uint8_t *dbgPtr = (uint8_t*)0x100300;
+    unsigned char symb = *str;
+    while (*str != 0) {
+        if (symb >= 0x80)
+            state = 1;
+        else if (symb == CR)
+            state = 2;
+        else if (symb == LF)
+            state = 3;
+        else if (symb == 0x20)
+            state = 4;
+        else
+            state = 0;
+        uint16_t unicode = 0;
+        switch (Glyph g; state) {
+            case 0:
+                g = getglyph(symb);
+                putglyph(g, textCurX * 16, textCurY * 24, errorTextCol, errorBGCol);
+                textCurX ++;
+                break;
+            case 1:
+                unicode = symb << 8;
+                str++;
+                symb = *str;
+                unicode += symb;
+                *(uint16_t*)dbgPtr = unicode;
+                dbgPtr += 2;
+                g = getglyph(unicode);
+                putglyph(g, textCurX * 16, textCurY * 24, errorTextCol, errorBGCol);
+                textCurX++;
+                break;
+            case 2:
+                textCurX = 1;
+                break;
+            case 3:
+                textCurY ++;
+                textCurX = 1;
+                break;
+            case 4:
+                putglyph(NULLGLYPH, textCurX * 16, textCurY * 24, errorTextCol, errorBGCol);
                 textCurX ++;
                 break;
         }
