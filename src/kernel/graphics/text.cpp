@@ -430,7 +430,6 @@ void kprint(const char str[]) {
 
 void kwarn(const char str[]) {
     uint8_t state = 0;
-    uint8_t *dbgPtr = (uint8_t*)0x100300;
     unsigned char symb = *str;
     while (*str != 0) {
         if (symb >= 0x80)
@@ -455,8 +454,6 @@ void kwarn(const char str[]) {
                 str++;
                 symb = *str;
                 unicode += symb;
-                *(uint16_t*)dbgPtr = unicode;
-                dbgPtr += 2;
                 g = getglyph(unicode);
                 putglyph(g, textCurX * 16, textCurY * 24, warnTextCol, warnBGCol);
                 textCurX++;
@@ -482,7 +479,6 @@ void kwarn(const char str[]) {
 
 void kerror(const char str[]) {
     uint8_t state = 0;
-    uint8_t *dbgPtr = (uint8_t*)0x100300;
     unsigned char symb = *str;
     while (*str != 0) {
         if (symb >= 0x80)
@@ -507,8 +503,6 @@ void kerror(const char str[]) {
                 str++;
                 symb = *str;
                 unicode += symb;
-                *(uint16_t*)dbgPtr = unicode;
-                dbgPtr += 2;
                 g = getglyph(unicode);
                 putglyph(g, textCurX * 16, textCurY * 24, errorTextCol, errorBGCol);
                 textCurX++;

@@ -3,7 +3,7 @@
 
 struct IDT_Register {
     uint16_t size;
-    void* base;
+    uint8_t* base;
 } __attribute__((packed));
 
 struct IntFrame {
@@ -19,8 +19,20 @@ extern IDT_Register idtr;
 /// @brief Инициализирует прерывания, доступные процессору.
 void initInts();
 
+/// @brief Загружает новую таблицу дескрипторов прерываний.
+/// @param r Регистр таблицы
 inline void lidt(IDT_Register r) {
     __asm__ ("lidt %0" : : "m"(r));
+}
+
+/// @brief Включает прерывания.
+inline void enableInts() {
+    __asm__ ("sti");
+}
+
+/// @brief Выключает прерывания.
+inline void disableInts() {
+    __asm__ ("cli");
 }
 
 /// @brief Обработчик ошибки деления на 0 (прерывание 0x00)
@@ -121,4 +133,4 @@ inline void int_exit_slave() {
     outb(0x20, 0x20);
 }
 
-void encode_idt_entry(void (*funcPtr)(IntFrame*), uint8_t intNum);
+void encode_idt_entry(void (*handlePtr)(IntFrame*), uint8_t intNum);
