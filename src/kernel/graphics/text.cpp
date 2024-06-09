@@ -652,9 +652,185 @@ void kprint(const char* text, ...) {
 }
 
 void kwarn(const char* text, ...) {
-    
+    va_list l;
+    va_start(l, text);
+    uint8_t state = 0;
+    uint8_t *dbgPtr = (uint8_t*)0x100300;
+    unsigned char symb = *text;
+    while (*text != 0) {
+        if (symb >= 0x80)
+            state = 1;
+        else if (symb == CR)
+            state = 2;
+        else if (symb == LF)
+            state = 3;
+        else if (symb == 0x20)
+            state = 4;
+        else if (symb == '%') {
+            *dbgPtr = symb;
+            dbgPtr ++;
+            text ++;
+            symb = *text;
+            *dbgPtr = symb;
+            dbgPtr++;
+            if (symb == '%')
+                state = 0;
+            else if (symb == 'x')
+                state = 16;
+            else if (symb == 'd')
+                state = 10;
+            else if (symb == 'o')
+                state = 8;
+            else if (symb == 'b')
+                state = 5;
+            else if (symb == 'f')
+                state = 6;
+        }
+        else
+            state = 0;
+        uint16_t unicode = 0;
+        uint32_t arg;
+        double flarg;
+        switch (Glyph g; state) {
+            case 0:
+                g = getglyph(symb);
+                printchar(g, warnTextCol, warnBGCol);
+                break;
+            case 1:
+                unicode = symb << 8;
+                text++;
+                symb = *text;
+                unicode += symb;
+                g = getglyph(unicode);
+                printchar(g, warnTextCol, warnBGCol);
+                break;
+            case 2:
+                textCurX = 1;
+                break;
+            case 3:
+                textCurY ++;
+                textCurX = 1;
+                break;
+            case 4:
+                printchar(NULLGLYPH, warnTextCol, warnBGCol);  
+                break;
+            case 5:
+                arg = va_arg(l, unsigned int);
+                printBinUInt(arg, warnTextCol, warnBGCol);
+                break;
+            case 6:
+                flarg = va_arg(l, double);
+                printFloat(flarg, warnTextCol, warnBGCol);
+                break;
+            case 8:
+                arg = va_arg(l, unsigned int);
+                printOctUInt(arg, warnTextCol, warnBGCol);
+                break;
+            case 10:
+                arg = va_arg(l, unsigned int);
+                printDecUInt(arg, warnTextCol, warnBGCol);
+                break;
+            case 16:
+                arg = va_arg(l, unsigned int);
+                printHexUInt(arg, warnTextCol, warnBGCol);
+                break;
+        }
+        text++;
+        symb = *text;
+    }
+    va_end(l);
+    textCurX = 1;
+    textCurY ++;
 }
 
 void kerror(const char* text, ...) {
-    
+    va_list l;
+    va_start(l, text);
+    uint8_t state = 0;
+    uint8_t *dbgPtr = (uint8_t*)0x100300;
+    unsigned char symb = *text;
+    while (*text != 0) {
+        if (symb >= 0x80)
+            state = 1;
+        else if (symb == CR)
+            state = 2;
+        else if (symb == LF)
+            state = 3;
+        else if (symb == 0x20)
+            state = 4;
+        else if (symb == '%') {
+            *dbgPtr = symb;
+            dbgPtr ++;
+            text ++;
+            symb = *text;
+            *dbgPtr = symb;
+            dbgPtr++;
+            if (symb == '%')
+                state = 0;
+            else if (symb == 'x')
+                state = 16;
+            else if (symb == 'd')
+                state = 10;
+            else if (symb == 'o')
+                state = 8;
+            else if (symb == 'b')
+                state = 5;
+            else if (symb == 'f')
+                state = 6;
+        }
+        else
+            state = 0;
+        uint16_t unicode = 0;
+        uint32_t arg;
+        double flarg;
+        switch (Glyph g; state) {
+            case 0:
+                g = getglyph(symb);
+                printchar(g, errorTextCol, errorBGCol);
+                break;
+            case 1:
+                unicode = symb << 8;
+                text++;
+                symb = *text;
+                unicode += symb;
+                g = getglyph(unicode);
+                printchar(g, errorTextCol, errorBGCol);
+                break;
+            case 2:
+                textCurX = 1;
+                break;
+            case 3:
+                textCurY ++;
+                textCurX = 1;
+                break;
+            case 4:
+                printchar(NULLGLYPH, errorTextCol, errorBGCol);  
+                break;
+            case 5:
+                arg = va_arg(l, unsigned int);
+                printBinUInt(arg, errorTextCol, errorBGCol);
+                break;
+            case 6:
+                flarg = va_arg(l, double);
+                printFloat(flarg, errorTextCol, errorBGCol);
+                break;
+            case 8:
+                arg = va_arg(l, unsigned int);
+                printOctUInt(arg, errorTextCol, errorBGCol);
+                break;
+            case 10:
+                arg = va_arg(l, unsigned int);
+                printDecUInt(arg, errorTextCol, errorBGCol);
+                break;
+            case 16:
+                arg = va_arg(l, unsigned int);
+                printHexUInt(arg, errorTextCol, errorBGCol);
+                break;
+        }
+        text++;
+        symb = *text;
+    }
+    va_end(l);
+    textCurX = 1;
+    textCurY ++;
 }
