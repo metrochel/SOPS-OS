@@ -69,6 +69,9 @@
 #define COM_IIR_FIFO_UNUSABLE       0b10000000
 #define COM_IIR_FIFO_AVAILABLE      0b11000000
 
+// Инициализированные порты
+extern bool initPorts[4];
+
 /// @brief Устанавливает скорость обмена на порте.
 /// @param portNum Номер порта
 /// @param baudRate Скорость

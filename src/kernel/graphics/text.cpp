@@ -1,5 +1,6 @@
 #include "graphics.hpp"
 #include "glyphs.hpp"
+#include <stdarg.h>
 
 uint16_t textCurX = 1;
 uint16_t textCurY = 1;
@@ -210,6 +211,10 @@ Glyph getglyph(uint8_t code) {
     }
 }
 
+Glyph getglyph(char c) {
+    return getglyph((uint8_t)c);
+}
+
 Glyph getglyph(uint16_t unicode) {
     if (unicode < 0x80)
         return getglyph((uint8_t)(unicode & 0x7F));
@@ -349,10 +354,52 @@ Glyph getglyph(uint16_t unicode) {
         default:
             return INVALIDCHAR;
     }
-} 
+}
+
+Glyph getOctDigit(uint32_t dig) {
+    while (dig >= 8) {
+        dig >>= 3;
+    }
+    switch (dig) {
+        case 0: return NUMBER_0;
+        case 1: return NUMBER_1;
+        case 2: return NUMBER_2;
+        case 3: return NUMBER_3;
+        case 4: return NUMBER_4;
+        case 5: return NUMBER_5;
+        case 6: return NUMBER_6;
+        case 7: return NUMBER_7;
+        default: return LATIN_UPPERCASE_O;
+    }
+}
+
+Glyph getHexDigit(uint32_t dig) {
+    while (dig >= 16) {
+        dig >>= 4;
+    }
+    switch (dig) {
+        case 0: return NUMBER_0;
+        case 1: return NUMBER_1;
+        case 2: return NUMBER_2;
+        case 3: return NUMBER_3;
+        case 4: return NUMBER_4;
+        case 5: return NUMBER_5;
+        case 6: return NUMBER_6;
+        case 7: return NUMBER_7;
+        case 8: return NUMBER_8;
+        case 9: return NUMBER_9;
+        case 10: return LATIN_UPPERCASE_A;
+        case 11: return LATIN_UPPERCASE_B;
+        case 12: return LATIN_UPPERCASE_C;
+        case 13: return LATIN_UPPERCASE_D;
+        case 14: return LATIN_UPPERCASE_E;
+        case 15: return LATIN_UPPERCASE_F;
+        default: return LATIN_UPPERCASE_X;
+    }
+}
 
 bool isnullglyph(Glyph g) {
-    for (int i = 0; i < 24; i++) {
+    for (uint8_t i = 0; i < 24; i++) {
         if (g.lines[i] != 0)
             return false;
     }
@@ -361,7 +408,7 @@ bool isnullglyph(Glyph g) {
 
 void putglyph(Glyph glyph, uint16_t x, uint16_t y, uint32_t letter_col, uint32_t back_col) {
     uint32_t offset = y * pitch + x * (bpp/8);
-    for (int i = 0; i < 24; i++) {
+    for (uint8_t i = 0; i < 24; i++) {
         uint32_t line = glyph.lines[i];
         uint16_t mask = 1 << 15;
         for (int j = 0; j < 16; j++) {
@@ -375,10 +422,150 @@ void putglyph(Glyph glyph, uint16_t x, uint16_t y, uint32_t letter_col, uint32_t
     }
 }
 
-void kprint(const char str[]) {
+void printchar(Glyph glyph, uint32_t charCol, uint32_t bgCol) {
+    putglyph(glyph, textCurX * 16, textCurY * 24, charCol, bgCol);
+    textCurX++;
+    if (textCurX >= (screenWidth / 16 - 1)) {
+        textCurX = 1;
+        textCurY ++;
+    }
+}
+
+void printchar(uint8_t c, uint32_t charCol, uint32_t bgCol) {
+    Glyph g = getglyph(c);
+    printchar(g, charCol, bgCol);
+}
+
+void printBinUInt(uint32_t num, uint32_t charCol, uint32_t bgCol) {
+    uint32_t mask = 1;
+    uint8_t digits = 0;
+    while (mask <= num) {
+        mask <<= 1;
+        digits ++;
+    }
+    mask >>= 1;
+    digits --;
+    if (textCurX + digits >= (screenWidth / 16 - 1)) {
+        textCurX = 1;
+        textCurY ++;
+    }
+    printchar('0', charCol, bgCol);
+    printchar('b', charCol, bgCol);
+    while (mask > 0) {
+        Glyph g;
+        if (num & mask)
+            g = NUMBER_1;
+        else
+            g = NUMBER_0;
+        printchar(g, charCol, bgCol);
+        mask >>= 1;
+    }
+}
+
+void printOctUInt(uint32_t num, uint32_t charCol, uint32_t bgCol) {
+    uint32_t mask = 7;
+    uint8_t digits = 1;
+    while (mask < num) {
+        mask <<= 3;
+        digits ++;
+    }
+    if (textCurX + digits >= (screenWidth / 16 - 1)) {
+        textCurX = 1;
+        textCurY ++;
+    }
+    if (!(num & mask))
+        mask >>= 3;
+    printchar('0', charCol, bgCol);
+    printchar('o', charCol, bgCol);
+    while (mask > 0) {
+        Glyph g = getOctDigit(num & mask);
+        printchar(g, charCol, bgCol);
+        mask >>= 3;
+    }
+}
+
+void printHexUInt(uint32_t num, uint32_t charCol, uint32_t bgCol) {
+    uint32_t mask = 0xF;
+    uint8_t digits = 1;
+    while (mask < num) {
+        mask <<= 4;
+        digits ++;
+    }
+    if (textCurX + digits >= (screenWidth / 16 - 1)) {
+        textCurX = 1;
+        textCurY ++;
+    }
+    if (!(num & mask))
+        mask >>= 4;
+    printchar('0', charCol, bgCol);
+    printchar('x', charCol, bgCol);
+    while (mask > 0) {
+        Glyph g = getHexDigit(num & mask);
+        printchar(g, charCol, bgCol);
+        mask >>= 4;
+    }
+}
+
+void printDecUInt(uint32_t num, uint32_t charCol, uint32_t bgCol) {
+    uint32_t numclone = num;
+    uint8_t digits = 0;
+    *(uint8_t*)0x100300 = 1;
+    while (numclone > 0) {
+        digits ++;
+        numclone /= 10;
+    }
+    if (textCurX + digits >= (screenWidth / 16 - 1)) {
+        textCurX = 1;
+        textCurY ++;
+    }
+    textCurX += digits - 1;
+    while (num > 0) {
+        uint8_t digit = num % 10;
+        Glyph g = getglyph((uint8_t)(0x30 + digit));
+        printchar(g, charCol, bgCol);
+        num /= 10;
+        textCurX -= 2;
+    }
+    textCurX += digits + 1;
+}
+
+void printFloat(double num, uint32_t charCol, uint32_t bgCol) {
+    if (num < 0) {
+        printchar('-', charCol, bgCol);
+        num = -num;
+    }
+    uint32_t wholenum = (uint32_t)num;
+    printDecUInt(wholenum, charCol, bgCol);
+    if (wholenum == num)
+        return;
+    printchar(',', charCol, bgCol);
+    num -= wholenum;
+    for (uint8_t i = 0; i < 3; i++) {
+        num *= 10;
+        uint8_t digit = (uint8_t)num;
+        num -= digit;
+        Glyph g = getglyph((uint8_t)(0x30 + digit));
+        printchar(g, charCol, bgCol);
+        if (num == 0)
+            break;
+    }
+    num *= 10;
+    uint8_t digit = (uint8_t)num;
+    num -= digit;
+    num *= 10;
+    if ((uint8_t)num >= 5 && digit < 9)
+        digit ++;
+    Glyph g = getglyph((uint8_t)(0x30 + digit));
+    printchar(g, charCol, bgCol);
+}
+
+void kprint(const char* text, ...) {
+    va_list l;
+    va_start(l, text);
     uint8_t state = 0;
-    unsigned char symb = *str;
-    while (*str != 0) {
+    uint8_t *dbgPtr = (uint8_t*)0x100300;
+    unsigned char symb = *text;
+    while (*text != 0) {
         if (symb >= 0x80)
             state = 1;
         else if (symb == CR)
@@ -387,23 +574,43 @@ void kprint(const char str[]) {
             state = 3;
         else if (symb == 0x20)
             state = 4;
+        else if (symb == '%') {
+            *dbgPtr = symb;
+            dbgPtr ++;
+            text ++;
+            symb = *text;
+            *dbgPtr = symb;
+            dbgPtr++;
+            if (symb == '%')
+                state = 0;
+            else if (symb == 'x')
+                state = 16;
+            else if (symb == 'd')
+                state = 10;
+            else if (symb == 'o')
+                state = 8;
+            else if (symb == 'b')
+                state = 5;
+            else if (symb == 'f')
+                state = 6;
+        }
         else
             state = 0;
         uint16_t unicode = 0;
+        uint32_t arg;
+        double flarg;
         switch (Glyph g; state) {
             case 0:
                 g = getglyph(symb);
-                putglyph(g, textCurX * 16, textCurY * 24, defaultTextCol, defaultBGCol);
-                textCurX ++;
+                printchar(g, defaultTextCol, defaultBGCol);
                 break;
             case 1:
                 unicode = symb << 8;
-                str++;
-                symb = *str;
+                text++;
+                symb = *text;
                 unicode += symb;
                 g = getglyph(unicode);
-                putglyph(g, textCurX * 16, textCurY * 24, defaultTextCol, defaultBGCol);
-                textCurX++;
+                printchar(g, defaultTextCol, defaultBGCol);
                 break;
             case 2:
                 textCurX = 1;
@@ -413,115 +620,41 @@ void kprint(const char str[]) {
                 textCurX = 1;
                 break;
             case 4:
-                putglyph(NULLGLYPH, textCurX * 16, textCurY * 24, defaultTextCol, defaultBGCol);
-                textCurX ++;
+                printchar(NULLGLYPH, defaultTextCol, defaultBGCol);  
+                break;
+            case 5:
+                arg = va_arg(l, unsigned int);
+                printBinUInt(arg, defaultTextCol, defaultBGCol);
+                break;
+            case 6:
+                flarg = va_arg(l, double);
+                printFloat(flarg, defaultTextCol, defaultBGCol);
+                break;
+            case 8:
+                arg = va_arg(l, unsigned int);
+                printOctUInt(arg, defaultTextCol, defaultBGCol);
+                break;
+            case 10:
+                arg = va_arg(l, unsigned int);
+                printDecUInt(arg, defaultTextCol, defaultBGCol);
+                break;
+            case 16:
+                arg = va_arg(l, unsigned int);
+                printHexUInt(arg, defaultTextCol, defaultBGCol);
                 break;
         }
-        if (textCurX >= screenWidth / 16) {
-            textCurX = 1;
-            textCurY ++;
-        }
-        str++;
-        symb = *str;
+        text++;
+        symb = *text;
     }
+    va_end(l);
     textCurX = 1;
     textCurY ++;
 }
 
-void kwarn(const char str[]) {
-    uint8_t state = 0;
-    unsigned char symb = *str;
-    while (*str != 0) {
-        if (symb >= 0x80)
-            state = 1;
-        else if (symb == CR)
-            state = 2;
-        else if (symb == LF)
-            state = 3;
-        else if (symb == 0x20)
-            state = 4;
-        else
-            state = 0;
-        uint16_t unicode = 0;
-        switch (Glyph g; state) {
-            case 0:
-                g = getglyph(symb);
-                putglyph(g, textCurX * 16, textCurY * 24, warnTextCol, warnBGCol);
-                textCurX ++;
-                break;
-            case 1:
-                unicode = symb << 8;
-                str++;
-                symb = *str;
-                unicode += symb;
-                g = getglyph(unicode);
-                putglyph(g, textCurX * 16, textCurY * 24, warnTextCol, warnBGCol);
-                textCurX++;
-                break;
-            case 2:
-                textCurX = 1;
-                break;
-            case 3:
-                textCurY ++;
-                textCurX = 1;
-                break;
-            case 4:
-                putglyph(NULLGLYPH, textCurX * 16, textCurY * 24, warnTextCol, warnBGCol);
-                textCurX ++;
-                break;
-        }
-        str++;
-        symb = *str;
-    }
-    textCurX = 1;
-    textCurY ++;
+void kwarn(const char* text, ...) {
+    
 }
 
-void kerror(const char str[]) {
-    uint8_t state = 0;
-    unsigned char symb = *str;
-    while (*str != 0) {
-        if (symb >= 0x80)
-            state = 1;
-        else if (symb == CR)
-            state = 2;
-        else if (symb == LF)
-            state = 3;
-        else if (symb == 0x20)
-            state = 4;
-        else
-            state = 0;
-        uint16_t unicode = 0;
-        switch (Glyph g; state) {
-            case 0:
-                g = getglyph(symb);
-                putglyph(g, textCurX * 16, textCurY * 24, errorTextCol, errorBGCol);
-                textCurX ++;
-                break;
-            case 1:
-                unicode = symb << 8;
-                str++;
-                symb = *str;
-                unicode += symb;
-                g = getglyph(unicode);
-                putglyph(g, textCurX * 16, textCurY * 24, errorTextCol, errorBGCol);
-                textCurX++;
-                break;
-            case 2:
-                textCurX = 1;
-                break;
-            case 3:
-                textCurY ++;
-                textCurX = 1;
-                break;
-            case 4:
-                putglyph(NULLGLYPH, textCurX * 16, textCurY * 24, errorTextCol, errorBGCol);
-                textCurX ++;
-                break;
-        }
-        str++;
-        symb = *str;
-    }
-    textCurX = 1;
-    textCurY ++;
+void kerror(const char* text, ...) {
+    
 }

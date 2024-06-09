@@ -99,12 +99,50 @@ __attribute__((interrupt)) void align_check(IntFrame* frame) {
 }
 
 __attribute__((interrupt)) void irq3(IntFrame* frame) {
-    kprint("Пришло сообщение от COM2");
+    disableInts();
+    uint16_t ioPort = getIOPort(2);
+    uint8_t iir = inb(ioPort + 2);
+    uint8_t intState = iir & 6;
+
+    if (intState == COM_IIR_RECEIVE_LINE_STATUS) {
+        uint8_t lsr = inb(ioPort + 5);
+        if (lsr & COM_LSR_OVERRUN_ERR)
+            kerror("ОШИБКА: COM2: утрачены данные");
+        if (lsr & COM_LSR_PARITY_ERR)
+            kerror("ОШИБКА: COM2: нарушена целостность данных");
+        if (lsr & COM_LSR_FRAMING_ERR)
+            kerror("ОШИБКА: COM2: отсутствует бит остановки");
+        if (lsr & COM_LSR_BREAK_IN)
+            kwarn("ВНИМАНИЕ: COM2: ввод данных прерван");
+        if (lsr & COM_LSR_IMPEND_ERR)
+            kerror("ОШИБКА: COM2: неправильные передаваемые данные");
+    }
+    else if (intState == COM_IIR_RECEIVE_DATA_AVL) {
+        comIn(2);
+    }
+    else if (intState == COM_IIR_TRANS_HOL_REG_EMPTY) {
+        comSend(2);
+    }
+    else if (intState == COM_IIR_MODEM_STATUS) {
+        uint8_t msr = inb(ioPort + 6);
+        if (msr & COM_MSR_DATA_SET_READY)
+            kwarn("ВНИМАНИЕ: COM2: модем не готов к работе");
+        if (msr & COM_MSR_RING_INDICATOR)
+            kprint("COM2: поступил звонок");
+        if (msr & COM_MSR_DATA_CARRIER_DETECT)
+            kwarn("ВНИМАНИЕ: COM2: модем разорвал соединение");
+        if (msr & COM_MSR_CLEAR_TO_SEND)
+            kwarn("ВНИМАНИЕ: COM2: устройство не готово к чтению");
+        else
+            kprint("COM2: устройство готово к чтению");
+    }
+    enableInts();
     int_exit_master();
 }
 
 __attribute__((interrupt)) void irq4(IntFrame* frame) {
-    uint16_t ioPort = 0x3F8;
+    disableInts();
+    uint16_t ioPort = getIOPort(1);
     uint8_t iir = inb(ioPort + 2);
     uint8_t intState = iir & 6;
 
@@ -137,9 +175,7 @@ __attribute__((interrupt)) void irq4(IntFrame* frame) {
             kwarn("ВНИМАНИЕ: COM1: модем разорвал соединение");
         if (msr & COM_MSR_CLEAR_TO_SEND)
             kwarn("ВНИМАНИЕ: COM1: устройство не готово к чтению");
-        else
-            kprint("COM1: устройство готово к чтению");
     }
-
+    enableInts();
     int_exit_master();
 }

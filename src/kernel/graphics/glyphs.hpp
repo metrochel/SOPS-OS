@@ -46,16 +46,46 @@ Glyph getglyph(uint8_t code);
 void putglyph(Glyph glyph, uint16_t x, uint16_t y, uint32_t letter_col, uint32_t back_col);
 
 /// @brief Выводит строку на экран.
-/// @param str Строка
-void kprint(const char* str);
+/// @param text Штуки на вывод
+void kprint(const char* text, ...);
 
 /// @brief Выводит на экран предупреждение.
-/// @param str Сообщение предупреждения
-void kwarn(const char* str);
+/// @param text Штуки на вывод
+void kwarn(const char* text, ...);
 
 /// @brief Выводит на экран ошибку.
-/// @param str Сообщение ошибки.
-void kerror(const char* str);
+/// @param text Штуки на вывод
+void kerror(const char* text, ...);
+
+/// @brief Выводит на экран число в двоичном представлении.
+/// @param num Число
+/// @param charCol Цвет числа
+/// @param bgCol Цвет заднего фона
+void printBinUInt(uint32_t num, uint32_t charCol, uint32_t bgCol);
+
+/// @brief Выводит на экран число в восьмеричном представлении.
+/// @param num Число
+/// @param charCol Цвет числа
+/// @param bgCol Цвет заднего фона
+void printOctUInt(uint32_t num, uint32_t charCol, uint32_t bgCol);
+
+/// @brief Выводит на экран число.
+/// @param num Число
+/// @param charCol Цвет числа
+/// @param bgCol Цвет заднего фона
+void printDecUInt(uint32_t num, uint32_t charCol, uint32_t bgCol);
+
+/// @brief Выводит на экран число в шестнадцатеричном представлении.
+/// @param num Число
+/// @param charCol Цвет числа
+/// @param bgCol Цвет заднего фона
+void printHexUInt(uint32_t num, uint32_t charCol, uint32_t bgCol);
+
+/// @brief Выводит на экран дробное число.
+/// @param num Число
+/// @param charCol Цвет числа
+/// @param bgCol Цвет заднего фона
+void printFloat(double num, uint32_t charCol, uint32_t bgCol);
 
 // Нулевой символ
 extern const Glyph NULLGLYPH;

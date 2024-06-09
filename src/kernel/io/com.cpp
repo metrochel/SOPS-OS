@@ -73,7 +73,6 @@ inline uint32_t getComBaseW(uint8_t port) {
 }
 
 bool initCom(uint8_t port) {
-    *(uint16_t*)0x100300 = uart;
     uint16_t ioPort = getIOPort(port);
 
     outb(ioPort + 1, 0);
