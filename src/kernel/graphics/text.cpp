@@ -1,9 +1,10 @@
-#include "graphics.hpp"
-#include "glyphs.hpp"
 #include <stdarg.h>
+#include "glyphs.hpp"
 
 uint16_t textCurX = 1;
 uint16_t textCurY = 1;
+bool textCurOnScreen = false;
+bool textCurAllowed = false;
 
 uint32_t defaultTextCol;
 uint32_t defaultBGCol;
@@ -16,6 +17,8 @@ uint32_t errorBGCol;
 
 uint16_t screenWidth;
 uint16_t screenHeight;
+
+uint8_t ticks = 0;
 
 Glyph getglyph(uint8_t code) {
     switch (code)
@@ -436,6 +439,63 @@ void printchar(uint8_t c, uint32_t charCol, uint32_t bgCol) {
     printchar(g, charCol, bgCol);
 }
 
+void hideCursor() {
+    uint32_t offset = textCurY * 24 * pitch + textCurX * 16 * (bpp/8);
+    for (uint8_t i = 0; i < 24; i++) {
+        uint32_t line = CURSOR.lines[i];
+        uint16_t mask = 1 << 15;
+        for (int j = 0; j < 16; j++) {
+            if (line & mask)
+                putpixel(offset, defaultBGCol);
+            mask >>= 1;
+            offset += bpp/8;
+        }
+        offset -= 16*(bpp/8);
+        offset += pitch;
+    }
+    textCurOnScreen = false;
+}
+
+void disableCursor() {
+    hideCursor();
+    textCurAllowed = false;
+}
+
+void showCursor() {
+    uint32_t offset = textCurY * 24 * pitch + textCurX * 16 * (bpp/8);
+    for (uint8_t i = 0; i < 24; i++) {
+        uint32_t line = CURSOR.lines[i];
+        uint16_t mask = 1 << 15;
+        for (int j = 0; j < 16; j++) {
+            if (line & mask)
+                putpixel(offset, defaultTextCol);
+            mask >>= 1;
+            offset += bpp/8;
+        }
+        offset -= 16*(bpp/8);
+        offset += pitch;
+    }
+    textCurOnScreen = true;
+}
+
+void enableCursor() {
+    showCursor();
+    textCurAllowed = true;
+}
+
+void updateCursor() {
+    if (!textCurAllowed)
+        return;
+    ticks ++;
+    if (ticks >= 10) {
+        ticks = 0;
+        if (textCurOnScreen)
+            hideCursor();
+        else
+            showCursor();
+    }
+}
+
 void printBinUInt(uint32_t num, uint32_t charCol, uint32_t bgCol) {
     uint32_t mask = 1;
     uint8_t digits = 0;
@@ -559,10 +619,10 @@ void printFloat(double num, uint32_t charCol, uint32_t bgCol) {
 }
 
 void kprint(const char* text, ...) {
+    disableCursor();
     va_list l;
     va_start(l, text);
     uint8_t state = 0;
-    uint8_t *dbgPtr = (uint8_t*)0x100300;
     unsigned char symb = *text;
     while (*text != 0) {
         if (symb >= 0x80)
@@ -642,11 +702,11 @@ void kprint(const char* text, ...) {
         symb = *text;
     }
     va_end(l);
-    textCurX = 1;
-    textCurY ++;
+    enableCursor();
 }
 
 void kwarn(const char* text, ...) {
+    disableCursor();
     va_list l;
     va_start(l, text);
     uint8_t state = 0;
@@ -734,11 +794,11 @@ void kwarn(const char* text, ...) {
         symb = *text;
     }
     va_end(l);
-    textCurX = 1;
-    textCurY ++;
+    enableCursor();
 }
 
 void kerror(const char* text, ...) {
+    disableCursor();
     va_list l;
     va_start(l, text);
     uint8_t state = 0;
@@ -826,6 +886,5 @@ void kerror(const char* text, ...) {
         symb = *text;
     }
     va_end(l);
-    textCurX = 1;
-    textCurY ++;
+    enableCursor();
 }

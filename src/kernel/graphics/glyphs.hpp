@@ -1,4 +1,7 @@
 #include <stdint.h>
+#ifndef GRAPHICS_SIG
+#include "graphics.hpp"
+#endif
 // ======================================== Работа с текстом ============================================
 
 #define LF 0x0A
@@ -87,10 +90,15 @@ void printHexUInt(uint32_t num, uint32_t charCol, uint32_t bgCol);
 /// @param bgCol Цвет заднего фона
 void printFloat(double num, uint32_t charCol, uint32_t bgCol);
 
+/// @brief Обновляет курсор.
+void updateCursor();
+
 // Нулевой символ
 extern const Glyph NULLGLYPH;
 // Несуществующий символ
 extern const Glyph INVALIDCHAR;
+// Текстовый курсор
+extern const Glyph CURSOR;
 
 // Латинский алфавит
 

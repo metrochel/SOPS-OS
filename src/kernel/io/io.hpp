@@ -1,5 +1,7 @@
 #include <stdint.h>
 
+#define IO_SIG 5
+
 //
 //  Стандартные IO-функции
 //

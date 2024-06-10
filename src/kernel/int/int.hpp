@@ -1,5 +1,9 @@
 #include <stdint.h>
+#ifndef IO_SIG
 #include "../io/io.hpp"
+#endif
+
+#define INT_SIG 4
 
 struct IDT_Register {
     uint16_t size;
