@@ -87,7 +87,10 @@ __attribute__((interrupt)) void general_prot_fault(IntFrame* frame) {
 }
 
 __attribute__((interrupt)) void page_fault(IntFrame* frame) {
+    uint32_t errorcode;
+    __asm__ ("pop %l0" : "=r"(errorcode) : );
     kerror("ОШИБКА: Страничный сбой");
+    kerror("Адрес сбоя: %x", frame->IP);
 }
 
 __attribute__((interrupt)) void float_exception(IntFrame* frame) {

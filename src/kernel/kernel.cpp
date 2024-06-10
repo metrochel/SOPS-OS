@@ -12,6 +12,7 @@
 #include "graphics/glyphs.hpp"
 #include "io/com.hpp"
 #include "int/int.hpp"
+#include "memmgr/memmgr.hpp"
 
 // Структура с данными из загрузчика
 struct BootLoaderData {
@@ -19,6 +20,8 @@ struct BootLoaderData {
     uint32_t CPUID_Flags1;      // Флаги ЦП-1
     uint32_t CPUID_Flags2;      // Флаги ЦП-2
     VBEModeInfo VBEInfo;        // Информация о графическом режиме
+    uint32_t MaxAddr1;
+    uint32_t MaxAddr2;
 } __attribute__((packed));
 
 // Указатель на данные загрузчика

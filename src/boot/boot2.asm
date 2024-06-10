@@ -474,10 +474,15 @@ getram:
 
 .maxaddrfound:
     ; Поиск закончен, теперь кладём адрес в нашу область
-    mov eax, dword [MAXBLOCKADDR + 4]
-    add eax, dword [MAXBLOCKLEN  + 4]
-    mov ebx, dword [MAXBLOCKADDR]
-    adc ebx, dword [MAXBLOCKLEN]
+    mov si, bp
+    mov ebx, dword [MAXBLOCKADDR + 4]
+    add ebx, dword [MAXBLOCKLEN  + 4]
+    mov eax, dword [MAXBLOCKADDR]
+    adc eax, dword [MAXBLOCKLEN]
+    stosd
+    mov eax, ebx
+    stosd
+    mov bp, si
     popa
     ret
 
@@ -676,7 +681,7 @@ main:
 ; Физический адрес, на который следует загрузить ядро в память
 %define KERNEL_PHYSADDR 0xA000000
 ; Виртуальный адрес, на котором будет находиться ядро
-%define KERNEL_VIRTADDR 0x4000000
+%define KERNEL_VIRTADDR 0x1000000
 ; Длина ядра в секторах диска
 %define KERNEL_LEN      256
 ; ELF-подпись файла
@@ -997,7 +1002,7 @@ paging_time:
 
     ; Помещаем ядро на странички с
     ; виртуальным адресом 0x1000000
-    mov edi, PAGING_BASE + ((KERNEL_VIRTADDR & 0xFFC00000) >> 10)
+    mov edi, PAGING_BASE + ((KERNEL_VIRTADDR & 0xFFC00000) >> 22) * 0x1000 * 4
     mov ebx, KERNEL_PHYSADDR
     mov ecx, 0
 .map_kernel:
@@ -1038,7 +1043,7 @@ paging_time:
     or  eax, 3
     stosd
     mov edi, PAGING_BASE + ((KERNEL_VIRTADDR & 0xFFC00000) >> 22) * 4
-    mov eax, PAGING_BASE + (KERNEL_VIRTADDR & 0xFFC00000) + 0x1000
+    mov eax, PAGING_BASE + ((KERNEL_VIRTADDR & 0xFFC00000) >> 12) * 4 + 0x1000
     or  eax, 3
     stosd
     mov edi, PAGING_BASE + (0x3F0 * 4)

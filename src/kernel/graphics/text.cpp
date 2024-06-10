@@ -439,7 +439,7 @@ void printchar(uint8_t c, uint32_t charCol, uint32_t bgCol) {
 void printBinUInt(uint32_t num, uint32_t charCol, uint32_t bgCol) {
     uint32_t mask = 1;
     uint8_t digits = 0;
-    while (mask <= num) {
+    while (mask <= num && mask < (uint32_t)(1 << 31)) {
         mask <<= 1;
         digits ++;
     }
@@ -465,7 +465,7 @@ void printBinUInt(uint32_t num, uint32_t charCol, uint32_t bgCol) {
 void printOctUInt(uint32_t num, uint32_t charCol, uint32_t bgCol) {
     uint32_t mask = 7;
     uint8_t digits = 1;
-    while (mask < num) {
+    while (mask < num && mask < (uint32_t)(1 << 31)) {
         mask <<= 3;
         digits ++;
     }
@@ -487,7 +487,7 @@ void printOctUInt(uint32_t num, uint32_t charCol, uint32_t bgCol) {
 void printHexUInt(uint32_t num, uint32_t charCol, uint32_t bgCol) {
     uint32_t mask = 0xF;
     uint8_t digits = 1;
-    while (mask < num) {
+    while (mask < num && mask < (uint32_t)(1 << 31)) {
         mask <<= 4;
         digits ++;
     }
@@ -509,7 +509,6 @@ void printHexUInt(uint32_t num, uint32_t charCol, uint32_t bgCol) {
 void printDecUInt(uint32_t num, uint32_t charCol, uint32_t bgCol) {
     uint32_t numclone = num;
     uint8_t digits = 0;
-    *(uint8_t*)0x100300 = 1;
     while (numclone > 0) {
         digits ++;
         numclone /= 10;
@@ -575,12 +574,8 @@ void kprint(const char* text, ...) {
         else if (symb == 0x20)
             state = 4;
         else if (symb == '%') {
-            *dbgPtr = symb;
-            dbgPtr ++;
             text ++;
             symb = *text;
-            *dbgPtr = symb;
-            dbgPtr++;
             if (symb == '%')
                 state = 0;
             else if (symb == 'x')
