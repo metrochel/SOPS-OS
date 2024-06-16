@@ -1,6 +1,9 @@
 #include "int.hpp"
 #include "../graphics/glyphs.hpp"
 #include "../io/com.hpp"
+#ifndef KB_BUF_BASE
+#include "../keyboard/keyboard.hpp"
+#endif
 
 IDT_Register idtr{ 50*8-1, (uint8_t*)0x10000  };
 
@@ -23,6 +26,7 @@ void initInts() {
     encode_idt_entry(align_check, 0x11);
 
     encode_idt_entry(irq0, 0x20);
+    encode_idt_entry(irq1, 0x21);
     encode_idt_entry(irq3, 0x23);
     encode_idt_entry(irq4, 0x24);
 
@@ -107,6 +111,74 @@ __attribute__((interrupt)) void align_check(IntFrame* frame) {
 __attribute__((interrupt)) void irq0(IntFrame* frame) {
     updateCursor();
     int_exit_master();
+}
+
+__attribute__((interrupt)) void irq1(IntFrame* frame) {
+    while (!(inb(0x64) & 1)) {io_wait();}
+    uint8_t scancode = inb(0x60);
+    for (int i = 0; i < 100; i++) {io_wait();}
+    if (scancode == KB_ACK) {
+        uint8_t ackdCmd = *(uint8_t*)KB_CMD_BUF_BASE;
+        uint8_t bufLen = (uint32_t)kbCmdBufPtr - KB_CMD_BUF_BASE;
+        for (uint8_t i = 0; i < bufLen; i++) {
+            *(uint16_t*)(KB_CMD_BUF_BASE + i) >>= 8;
+        }
+        bufLen --;
+        if (ackdCmd == KB_CMD_KEYSET || ackdCmd == KB_CMD_SET_LEDS || ackdCmd == KB_CMD_SET_TYPEMATIC) {
+            for (uint8_t i = 0; i < bufLen - 1; i++) {
+                *(uint16_t*)(KB_CMD_BUF_BASE + i) >>= 8;
+            }
+            bufLen --;
+        }
+        uint8_t nextCmd = *(uint8_t*)KB_CMD_BUF_BASE;
+        if (nextCmd == 0) {
+            int_exit_master();
+            return;
+        }
+        sendPS2DevCommand(1, nextCmd);
+        if (nextCmd == KB_CMD_KEYSET || nextCmd == KB_CMD_SET_LEDS || nextCmd == KB_CMD_SET_TYPEMATIC) {
+            uint8_t arg = *(uint8_t*)(KB_CMD_BUF_BASE + 1);
+            sendPS2DevCommand(1, arg);
+        }
+        int_exit_master();
+        return;
+    }
+    // if (scancode == KB_RESEND) {
+    //     cmdNeedsResending = true;
+    //     int_exit_master();
+    //     return;
+    // }
+    if (cmdAwaitingResponse) {
+        *kbBufPtr = inb(0x60);
+        io_wait();
+        return;
+    }
+    *kbBufPtr = scancode;
+    kbBufPtr ++;
+    if (scancode == 0xF0) {
+        releaseScancode = true;
+        int_exit_master();
+        return;
+    }
+    if (scancode == 0xE0 || scancode == 0xE1) {
+        int_exit_master();
+        return;
+    }
+    while (inb(0x64) & 1) {
+        io_wait();
+        *kbBufPtr = inb(0x60);
+        io_wait();
+        if (*kbBufPtr == 0xF0)
+            releaseScancode = true;
+        kbBufPtr ++;
+    }
+    updateKB();
+    int_exit_master();
+}
+
+__attribute__((interrupt)) void irq12(IntFrame* frame) {
+    kprint("IRQ 12\n");
+    int_exit_slave();
 }
 
 __attribute__((interrupt)) void irq3(IntFrame* frame) {

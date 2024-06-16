@@ -49,14 +49,14 @@ static inline void outw(uint16_t port, uint16_t value) {
     __asm__ volatile ("outb %w0, %w1" : : "a"(value), "Nd"(port) : "memory");
 }
 
-/// @brief Выводит двойное слово на порт
+/// @brief Выводит двойное слово на порт.
 /// @param value Двойное слово
 /// @param port Порт
 static inline void outl(uint16_t port, uint32_t value) {
     __asm__ volatile ("outb %l0, %w1" : : "a"(value), "Nd"(port) : "memory");
 }
 
-/// @brief Создаёт небольшую задержку, чтобы устройство сумело обработать команду
+/// @brief Создаёт небольшую задержку, чтобы устройство сумело обработать команду.
 static inline void io_wait() {
     outb(0x80, 0);
 }

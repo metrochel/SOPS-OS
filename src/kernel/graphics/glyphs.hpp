@@ -48,17 +48,6 @@ Glyph getglyph(uint8_t code);
 /// @param back_col Цвет заднего фона символа
 void putglyph(Glyph glyph, uint16_t x, uint16_t y, uint32_t letter_col, uint32_t back_col);
 
-/// @brief Выводит строку на экран.
-/// @param text Штуки на вывод
-void kprint(const char* text, ...);
-
-/// @brief Выводит на экран предупреждение.
-/// @param text Штуки на вывод
-void kwarn(const char* text, ...);
-
-/// @brief Выводит на экран ошибку.
-/// @param text Штуки на вывод
-void kerror(const char* text, ...);
 
 /// @brief Выводит на экран число в двоичном представлении.
 /// @param num Число
@@ -90,8 +79,27 @@ void printHexUInt(uint32_t num, uint32_t charCol, uint32_t bgCol);
 /// @param bgCol Цвет заднего фона
 void printFloat(double num, uint32_t charCol, uint32_t bgCol);
 
+/// @brief Стирает один символ
+void eraseChar();
+
 /// @brief Обновляет курсор.
 void updateCursor();
+
+// ========================================
+
+/// @brief Выводит на экран простой текст.
+/// @param text Форматированный текст
+void kprint(const char* text, ...);
+
+/// @brief Выводит на экран предупреждение.
+/// @param text Форматированное сообщение предупреждения
+void kwarn(const char* text, ...);
+
+/// @brief Выводит на экран ошибку.
+/// @param text Форматированное сообщение ошибки
+void kerror(const char* text, ...);
+
+// ========================================
 
 // Нулевой символ
 extern const Glyph NULLGLYPH;
@@ -292,6 +300,8 @@ extern const Glyph APOSTROPHE;
 extern const Glyph QUOTATION_MARK;
 // Тильда
 extern const Glyph TILDA;
+// Акут
+extern const Glyph ACUTE;
 // Нижнее подчёркивание
 extern const Glyph UNDERSCORE;
 

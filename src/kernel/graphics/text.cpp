@@ -207,6 +207,8 @@ Glyph getglyph(uint8_t code) {
         return QUOTATION_MARK;
     case '~':
         return TILDA;
+    case '`':
+        return ACUTE;
     case '_':
         return UNDERSCORE;
     default:
@@ -497,6 +499,12 @@ void updateCursor() {
 }
 
 void printBinUInt(uint32_t num, uint32_t charCol, uint32_t bgCol) {
+    if (num == 0) {
+        printchar('0', charCol, bgCol);
+        printchar('b', charCol, bgCol);
+        printchar('0', charCol, bgCol);
+        return;
+    }
     uint32_t mask = 1;
     uint8_t digits = 0;
     while (mask <= num && mask < (uint32_t)(1 << 31)) {
@@ -523,6 +531,12 @@ void printBinUInt(uint32_t num, uint32_t charCol, uint32_t bgCol) {
 }
 
 void printOctUInt(uint32_t num, uint32_t charCol, uint32_t bgCol) {
+    if (num == 0) {
+        printchar('0', charCol, bgCol);
+        printchar('o', charCol, bgCol);
+        printchar('0', charCol, bgCol);
+        return;
+    }
     uint32_t mask = 7;
     uint8_t digits = 1;
     while (mask < num && mask < (uint32_t)(1 << 31)) {
@@ -545,6 +559,12 @@ void printOctUInt(uint32_t num, uint32_t charCol, uint32_t bgCol) {
 }
 
 void printHexUInt(uint32_t num, uint32_t charCol, uint32_t bgCol) {
+    if (num == 0) {
+        printchar('0', charCol, bgCol);
+        printchar('x', charCol, bgCol);
+        printchar('0', charCol, bgCol);
+        return;
+    }
     uint32_t mask = 0xF;
     uint8_t digits = 1;
     while (mask < num && mask < (uint32_t)(1 << 31)) {
@@ -567,6 +587,10 @@ void printHexUInt(uint32_t num, uint32_t charCol, uint32_t bgCol) {
 }
 
 void printDecUInt(uint32_t num, uint32_t charCol, uint32_t bgCol) {
+    if (num == 0) {
+        printchar('0', charCol, bgCol);
+        return;
+    }
     uint32_t numclone = num;
     uint8_t digits = 0;
     while (numclone > 0) {
@@ -618,6 +642,18 @@ void printFloat(double num, uint32_t charCol, uint32_t bgCol) {
     printchar(g, charCol, bgCol);
 }
 
+void eraseChar() {
+    disableCursor();
+    if (textCurX == 1) {
+        textCurY --;
+        textCurX = screenWidth / 16 - 2;
+    } else {
+        textCurX --;
+    }
+    putglyph(NULLGLYPH, textCurX * 16, textCurY * 24, defaultTextCol, defaultBGCol);
+    enableCursor();
+}
+
 void kprint(const char* text, ...) {
     disableCursor();
     va_list l;
@@ -631,7 +667,7 @@ void kprint(const char* text, ...) {
             state = 2;
         else if (symb == LF)
             state = 3;
-        else if (symb == 0x20)
+        else if (symb == ' ')
             state = 4;
         else if (symb == '%') {
             text ++;

@@ -11,9 +11,11 @@
 #include "graphics/graphics.hpp"
 #include "graphics/glyphs.hpp"
 #include "io/com.hpp"
+#include "io/ps2.hpp"
 #include "int/int.hpp"
 #include "int/pic.hpp"
 #include "memmgr/memmgr.hpp"
+#include "keyboard/keyboard.hpp"
 #include "timing/pit.hpp"
 
 // Структура с данными из загрузчика
@@ -28,6 +30,8 @@ struct BootLoaderData {
 
 // Указатель на данные загрузчика
 BootLoaderData* bld;
+
+uint8_t *stdin = (uint8_t*)0x9300;
 
 /// @brief Инициализирует данные, добытые в загрузчике.
 void initBLD() {
@@ -82,10 +86,29 @@ int main() {
         kwarn("ВНИМАНИЕ: COM4 на данный момент не работает.\nИзвините, пока не доделали.\n");
     }
 
+    if (!initPS2())
+        kerror("ОШИБКА: Контроллер PS/2 не инициализирован\n");
+    else {
+        kprint("Контроллер PS/2 успешно инициализирован!\n");
+        unmaskIRQ(1);
+        if (firstPortAvailable && initKB()) {
+            kprint("Клавиатура успешно инициализирована!\n");
+        }
+        else {
+            kerror("ОШИБКА: Не удалось инициализировать клавиатуру\n");
+            maskIRQ(1);
+        }
+    }
+
     setPITTimer(500000);
     unmaskIRQ(0);
 
-    kprint("\n>");
     while (true) {
+        kprint("\n>");
+        kread(stdin);
+        stdin = (uint8_t*)0x9300;
+        kerror("\nОШИБКА: Команды или исполняемого файла \"");
+        kerror((const char*)stdin);
+        kerror("\" не существует.\nПроверьте правильность написания команды.");
     }
 }
