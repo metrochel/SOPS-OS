@@ -14,7 +14,7 @@
 #include "io/ps2.hpp"
 #include "int/int.hpp"
 #include "int/pic.hpp"
-#include "disk/disk.cpp"
+#include "disk/disk.hpp"
 #include "memmgr/memmgr.hpp"
 #include "keyboard/keyboard.hpp"
 #include "timing/pit.hpp"
@@ -132,7 +132,7 @@ int main() {
                 kprint("\nДиск А поддерживает LBA48");
             else
                 kprint("\nДиск А не поддерживает LBA48");
-            kprint("\nНа диске А доступно\n    %d секторов в режиме LBA28;\n    %d секторов в режиме LBA48");
+            kprint("\nНа диске А доступно\n    %d секторов в режиме LBA28;\n    %d секторов в режиме LBA48", d.TotalLBA28Sectors, d.TotalLBA48Sectors);
         } else {
             kerror("ОШИБКА: Команды или исполняемого файла \"");
             kerror((const char*)stdin);
