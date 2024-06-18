@@ -14,7 +14,7 @@
 #include "io/ps2.hpp"
 #include "int/int.hpp"
 #include "int/pic.hpp"
-#include "disk/disk.hpp"
+#include "disk/disk.cpp"
 #include "memmgr/memmgr.hpp"
 #include "keyboard/keyboard.hpp"
 #include "timing/pit.hpp"
@@ -108,27 +108,31 @@ int main() {
     while (true) {
         kprint("\n>");
         kread(stdin);
-        stdin = (uint8_t*)0x9300;
         kprint("\n");
+        stdin = (uint8_t*)0x9300;
         if (strcmp((char*)stdin, (char*)"iddisk")) {
-            kprint("Начата проверка дисков...\n");
             DiskData d = identifyDisk();
-            if (d.DiskType == DISK_TYPE_NONE) {
-                kprint("Диск А не подключён");
-            } else if (d.DiskType == DISK_TYPE_ATA) {
-                kprint("Тип диска А - ATA");
-            } else if (d.DiskType == DISK_TYPE_ATAPI) {
-                kprint("Тип диска А - ATAPI");
-            } else if (d.DiskType == DISK_TYPE_SATA) {
-                kprint("Тип диска А - SATA");
+            switch (d.DiskType) {
+                case DISK_TYPE_NONE:
+                    kprint("Диск А не подключён");
+                    break;
+                case DISK_TYPE_ATA:
+                    kprint("Тип диска А - ATA");
+                    break;
+                case DISK_TYPE_ATAPI:
+                    kprint("Тип диска А - ATAPI");
+                    break;
+                case DISK_TYPE_SATA:
+                    kprint("Тип диска А - SATA");
+                    break;
             }
-            if (d.DiskType == DISK_TYPE_NONE)
+            if (d.DiskType == 0)
                 continue;
             if (d.LBA48Supported)
                 kprint("\nДиск А поддерживает LBA48");
             else
                 kprint("\nДиск А не поддерживает LBA48");
-            kprint("\nНа диске А доступно\n%d секторов в режиме LBA28;\n%d секторов в режиме LBA48", d.TotalLBA28Sectors, d.TotalLBA48Sectors);
+            kprint("\nНа диске А доступно\n    %d секторов в режиме LBA28;\n    %d секторов в режиме LBA48");
         } else {
             kerror("ОШИБКА: Команды или исполняемого файла \"");
             kerror((const char*)stdin);
