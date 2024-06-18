@@ -14,9 +14,11 @@
 #include "io/ps2.hpp"
 #include "int/int.hpp"
 #include "int/pic.hpp"
+#include "disk/disk.hpp"
 #include "memmgr/memmgr.hpp"
 #include "keyboard/keyboard.hpp"
 #include "timing/pit.hpp"
+#include "str/str.hpp"
 
 // Структура с данными из загрузчика
 struct BootLoaderData {
@@ -107,8 +109,30 @@ int main() {
         kprint("\n>");
         kread(stdin);
         stdin = (uint8_t*)0x9300;
-        kerror("\nОШИБКА: Команды или исполняемого файла \"");
-        kerror((const char*)stdin);
-        kerror("\" не существует.\nПроверьте правильность написания команды.");
+        kprint("\n");
+        if (strcmp((char*)stdin, (char*)"iddisk")) {
+            kprint("Начата проверка дисков...\n");
+            DiskData d = identifyDisk();
+            if (d.DiskType == DISK_TYPE_NONE) {
+                kprint("Диск А не подключён");
+            } else if (d.DiskType == DISK_TYPE_ATA) {
+                kprint("Тип диска А - ATA");
+            } else if (d.DiskType == DISK_TYPE_ATAPI) {
+                kprint("Тип диска А - ATAPI");
+            } else if (d.DiskType == DISK_TYPE_SATA) {
+                kprint("Тип диска А - SATA");
+            }
+            if (d.DiskType == DISK_TYPE_NONE)
+                continue;
+            if (d.LBA48Supported)
+                kprint("\nДиск А поддерживает LBA48");
+            else
+                kprint("\nДиск А не поддерживает LBA48");
+            kprint("\nНа диске А доступно\n%d секторов в режиме LBA28;\n%d секторов в режиме LBA48", d.TotalLBA28Sectors, d.TotalLBA48Sectors);
+        } else {
+            kerror("ОШИБКА: Команды или исполняемого файла \"");
+            kerror((const char*)stdin);
+            kerror("\" не существует.\nПроверьте правильность написания команды.");
+        }
     }
 }

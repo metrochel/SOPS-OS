@@ -6,6 +6,7 @@
 #endif
 
 IDT_Register idtr{ 50*8-1, (uint8_t*)0x10000  };
+uint64_t *dbgPtr = (uint64_t*)0x100300;
 
 void initInts() {
     for (int i = 0; i < idtr.size; i++)
@@ -114,53 +115,47 @@ __attribute__((interrupt)) void irq0(IntFrame* frame) {
 }
 
 __attribute__((interrupt)) void irq1(IntFrame* frame) {
+    disableInts();
     while (!(inb(0x64) & 1)) {io_wait();}
     uint8_t scancode = inb(0x60);
-    for (int i = 0; i < 100; i++) {io_wait();}
+    io_wait();
     if (scancode == KB_ACK) {
         uint8_t ackdCmd = *(uint8_t*)KB_CMD_BUF_BASE;
-        uint8_t bufLen = (uint32_t)kbCmdBufPtr - KB_CMD_BUF_BASE;
-        for (uint8_t i = 0; i < bufLen; i++) {
-            *(uint16_t*)(KB_CMD_BUF_BASE + i) >>= 8;
-        }
-        bufLen --;
-        if (ackdCmd == KB_CMD_KEYSET || ackdCmd == KB_CMD_SET_LEDS || ackdCmd == KB_CMD_SET_TYPEMATIC) {
-            for (uint8_t i = 0; i < bufLen - 1; i++) {
-                *(uint16_t*)(KB_CMD_BUF_BASE + i) >>= 8;
-            }
-            bufLen --;
-        }
-        uint8_t nextCmd = *(uint8_t*)KB_CMD_BUF_BASE;
-        if (nextCmd == 0) {
-            int_exit_master();
-            return;
-        }
-        sendPS2DevCommand(1, nextCmd);
-        if (nextCmd == KB_CMD_KEYSET || nextCmd == KB_CMD_SET_LEDS || nextCmd == KB_CMD_SET_TYPEMATIC) {
-            uint8_t arg = *(uint8_t*)(KB_CMD_BUF_BASE + 1);
-            sendPS2DevCommand(1, arg);
-        }
+        shiftKBCmdQueue();
+        *dbgPtr++ = *(uint64_t*)KB_CMD_BUF_BASE;
+        cmdAwaitingResponse = ackdCmd == KB_CMD_RESEND_LAST || ackdCmd == KB_CMD_RESET;
+        if (!cmdAwaitingResponse)
+            sendKBCmd();
+        enableInts();
         int_exit_master();
         return;
     }
-    // if (scancode == KB_RESEND) {
-    //     cmdNeedsResending = true;
-    //     int_exit_master();
-    //     return;
-    // }
+    if (scancode == KB_RESEND) {
+        sendKBCmd();
+        enableInts();
+        int_exit_master();
+        return;
+    }
     if (cmdAwaitingResponse) {
         *kbBufPtr = inb(0x60);
         io_wait();
+        cmdAwaitingResponse = false;
+        shiftKBCmdQueue();
+        sendKBCmd();
+        enableInts();
+        int_exit_master();
         return;
     }
     *kbBufPtr = scancode;
     kbBufPtr ++;
     if (scancode == 0xF0) {
         releaseScancode = true;
+        enableInts();
         int_exit_master();
         return;
     }
     if (scancode == 0xE0 || scancode == 0xE1) {
+        enableInts();
         int_exit_master();
         return;
     }
@@ -173,6 +168,7 @@ __attribute__((interrupt)) void irq1(IntFrame* frame) {
         kbBufPtr ++;
     }
     updateKB();
+    enableInts();
     int_exit_master();
 }
 

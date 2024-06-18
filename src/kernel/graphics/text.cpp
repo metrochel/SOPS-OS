@@ -483,6 +483,7 @@ void showCursor() {
 void enableCursor() {
     showCursor();
     textCurAllowed = true;
+    ticks = 0;
 }
 
 void updateCursor() {
@@ -746,7 +747,6 @@ void kwarn(const char* text, ...) {
     va_list l;
     va_start(l, text);
     uint8_t state = 0;
-    uint8_t *dbgPtr = (uint8_t*)0x100300;
     unsigned char symb = *text;
     while (*text != 0) {
         if (symb >= 0x80)
@@ -758,15 +758,9 @@ void kwarn(const char* text, ...) {
         else if (symb == 0x20)
             state = 4;
         else if (symb == '%') {
-            *dbgPtr = symb;
-            dbgPtr ++;
             text ++;
             symb = *text;
-            *dbgPtr = symb;
-            dbgPtr++;
-            if (symb == '%')
-                state = 0;
-            else if (symb == 'x')
+            if (symb == 'x')
                 state = 16;
             else if (symb == 'd')
                 state = 10;
@@ -776,6 +770,8 @@ void kwarn(const char* text, ...) {
                 state = 5;
             else if (symb == 'f')
                 state = 6;
+            else
+                state = 0;
         }
         else
             state = 0;
@@ -838,7 +834,6 @@ void kerror(const char* text, ...) {
     va_list l;
     va_start(l, text);
     uint8_t state = 0;
-    uint8_t *dbgPtr = (uint8_t*)0x100300;
     unsigned char symb = *text;
     while (*text != 0) {
         if (symb >= 0x80)
@@ -850,12 +845,8 @@ void kerror(const char* text, ...) {
         else if (symb == 0x20)
             state = 4;
         else if (symb == '%') {
-            *dbgPtr = symb;
-            dbgPtr ++;
             text ++;
             symb = *text;
-            *dbgPtr = symb;
-            dbgPtr++;
             if (symb == '%')
                 state = 0;
             else if (symb == 'x')

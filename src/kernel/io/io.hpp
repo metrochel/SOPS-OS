@@ -22,7 +22,7 @@ static inline uint8_t inb(uint16_t port) {
 /// @return Считанное слово
 static inline uint16_t inw(uint16_t port) {
     uint16_t ret;
-    __asm__ volatile ("inb %w1, %w0" : "=a"(ret) : "Nd"(port) : "memory");
+    __asm__ volatile ("inw %w1, %w0" : "=a"(ret) : "Nd"(port) : "memory");
     return ret;
 }
 
@@ -31,7 +31,7 @@ static inline uint16_t inw(uint16_t port) {
 /// @return Считанное двойное слово
 static inline uint32_t inl(uint16_t port) {
     uint32_t ret;
-    __asm__ volatile ("inb %w1, %l0" : "=a"(ret) : "Nd"(port) : "memory");
+    __asm__ volatile ("inl %w1, %l0" : "=a"(ret) : "Nd"(port) : "memory");
     return ret;
 }
 
@@ -46,14 +46,14 @@ static inline void outb(uint16_t port, uint8_t value) {
 /// @param value Слово
 /// @param port Порт
 static inline void outw(uint16_t port, uint16_t value) {
-    __asm__ volatile ("outb %w0, %w1" : : "a"(value), "Nd"(port) : "memory");
+    __asm__ volatile ("outw %w0, %w1" : : "a"(value), "Nd"(port) : "memory");
 }
 
 /// @brief Выводит двойное слово на порт.
 /// @param value Двойное слово
 /// @param port Порт
 static inline void outl(uint16_t port, uint32_t value) {
-    __asm__ volatile ("outb %l0, %w1" : : "a"(value), "Nd"(port) : "memory");
+    __asm__ volatile ("outl %l0, %w1" : : "a"(value), "Nd"(port) : "memory");
 }
 
 /// @brief Создаёт небольшую задержку, чтобы устройство сумело обработать команду.

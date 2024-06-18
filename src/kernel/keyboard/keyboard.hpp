@@ -58,10 +58,15 @@ void updateKB();
 /// @brief Инициализирует клавиатуру.
 bool initKB();
 
-/// @brief Отправляет на клавиатуру команду.
+/// @brief Сдвигает очередь команд клавиатуры.
+void shiftKBCmdQueue();
+/// @brief Отправляет на клавиатуру следующую команду в очереди.
+void sendKBCmd();
+
+/// @brief Добавляет команду в очередь на отправку.
 /// @param cmd Команда
 bool sendKBCommand(uint8_t cmd);
-/// @brief Отправляет на клавиатуру команду.
+/// @brief Добавляет команду в очередь на отправку.
 /// @param cmd Команда
 /// @param arg Аргумент команды
 bool sendKBCommand(uint8_t cmd, uint8_t arg);

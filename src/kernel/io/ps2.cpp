@@ -65,19 +65,13 @@ bool initPS2() {
     if (firstPortAvailable) {
         sendPS2ConCommand(PS2_CMD_ENABLE_FIR_PORT);
         sendPS2ConCommand(PS2_CMD_READFROMRAM);
-        while (!(inb(PS2_STATUS) & 1));
+        while (!(inb(PS2_STATUS) & 1)) {io_wait();}
         ccb = inb(PS2_DATA);
         ccb |= 1;
         sendPS2ConCommand(PS2_CMD_WRITETORAM);
-        while (inb(PS2_STATUS) & 2);
+        while (inb(PS2_STATUS) & 2) {io_wait();}
         outb(PS2_DATA, ccb);
         io_wait();
-        // if (!sendPS2DevCommand(1, PS2_DEVCMD_RESET))
-        //     firstPortAvailable = false;
-        // while (!(inb(PS2_STATUS) & 1));
-        // inb(PS2_DATA);
-        // while (!(inb(PS2_STATUS) & 1));
-        // inb(PS2_DATA);
     }
 
     if (secondPortAvailable) {
@@ -89,15 +83,13 @@ bool initPS2() {
         while (inb(PS2_STATUS) & 2);
         outb(PS2_DATA, ccb);
         io_wait();
-        // if (!sendPS2DevCommand(2, PS2_DEVCMD_RESET))
-        //     secondPortAvailable = false;
     }
 
     return firstPortAvailable | secondPortAvailable;
 }
 
 bool sendPS2ConCommand(uint8_t cmd) {
-    while (inb(PS2_STATUS) & 2);
+    while (inb(PS2_STATUS) & 2) {io_wait();}
     outb(PS2_COMMAND, cmd);
     io_wait();
     return true;
@@ -111,6 +103,7 @@ bool sendPS2DevCommand(uint8_t port, uint8_t cmd) {
             break;
         if (timeout == 0xFE)
             return false;
+        io_wait();
     }
     outb(PS2_DATA, cmd);
     io_wait();

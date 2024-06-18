@@ -1,7 +1,5 @@
 #include "paging.hpp"
 
-uint32_t *dbgPtr = (uint32_t*)0x100300;
-
 void createPageTable(uint32_t vaddr) {
     uint16_t tableNo = (vaddr & 0xFFC00000) >> 22;
     uint32_t *dirEntryPtr = (uint32_t*)(PAGING_BASE + tableNo * 4);
@@ -26,7 +24,5 @@ void createPage(uint32_t vaddr, uint32_t paddr) {
     if (!(*dirEntryPtr & 0x1))
         createPageTable(vaddr);
     uint32_t *pagePtr = (uint32_t*)(PAGING_BASE + ((vaddr & 0x3FF000) >> 12) * 4 + (tableNo + 1) * 0x1000);
-    *dbgPtr = (uint32_t)pagePtr;
-    dbgPtr ++;
     *pagePtr = paddr | 3;
 }

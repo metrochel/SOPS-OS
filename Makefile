@@ -13,7 +13,7 @@ LINKERSCRIPT    =linker.ld
 #
 #	Полная сборка СОПС
 #
-all: $(BUILDDIR) $(DISKFILE) $(BOOTBINS) $(KERNELBIN)
+all: $(BUILDDIR) $(DISKFILE) $(BINSDIR) $(BOOTBINS) $(KERNELBIN)
 	cat $(BOOTBINS) $(KERNELBIN) | mcat -i $(DISKFILE) -w
 
 #
@@ -45,7 +45,7 @@ $(BOOTBINS): $(BOOTSRC)
 #	Создание файла дискеты
 #
 $(DISKFILE):
-	dd if=/dev/zero of=$(DISKFILE) count=4000 bs=512
+	dd if=/dev/zero of=$(DISKFILE) count=16000 bs=512
 
 #
 #	Компиляция файлов ядра

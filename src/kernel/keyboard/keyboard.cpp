@@ -262,6 +262,34 @@ uint8_t getSymbol(uint8_t keycode) {
     }
 }
 
+void shiftKBCmdQueue() {
+    uint8_t cmd = *(uint8_t*)KB_CMD_BUF_BASE;
+    uint8_t bufLen = (uint32_t)kbCmdBufPtr - KB_CMD_BUF_BASE;
+    for (uint8_t i = 0; i < bufLen; i++) {
+        *(uint16_t*)(KB_CMD_BUF_BASE + i) >>= 8;
+    }
+    bufLen --;
+    kbCmdBufPtr --;
+    if (cmd == KB_CMD_KEYSET || cmd == KB_CMD_SET_LEDS || cmd == KB_CMD_SET_TYPEMATIC) {
+        for (uint8_t i = 0; i < bufLen; i++) {
+            *(uint16_t*)(KB_CMD_BUF_BASE + i) >>= 8;
+        }
+        kbCmdBufPtr --;
+    }
+}
+
+void sendKBCmd() {
+    uint8_t nextCmd = *(uint8_t*)KB_CMD_BUF_BASE;
+    if (nextCmd == 0) {
+        return;
+    }
+    sendPS2DevCommand(1, nextCmd);
+    if (nextCmd == KB_CMD_KEYSET || nextCmd == KB_CMD_SET_LEDS || nextCmd == KB_CMD_SET_TYPEMATIC) {
+        uint8_t arg = *(uint8_t*)(KB_CMD_BUF_BASE + 1);
+        sendPS2DevCommand(1, arg);
+    }
+}
+
 void updateKB() {
     if (!inputAllowed) {
         releaseScancode = false;
@@ -335,6 +363,14 @@ void updateKB() {
 }
 
 bool initKB() {
+    kbBufPtr = (uint8_t*)KB_BUF_BASE;
+    for (uint8_t i = 0; i < 8; i++) {
+        *(kbBufPtr + i) = 0;
+    }
+    kbCmdBufPtr = (uint8_t*)KB_CMD_BUF_BASE;
+    for (uint16_t i = 0; i < 0x100; i ++) {
+        *(kbCmdBufPtr + i) = 0;
+    }
     if (!sendKBCommand(KB_CMD_RESET))
         return false;
     if (!sendKBCommand(KB_CMD_SET_LEDS, 0))
@@ -345,10 +381,10 @@ bool initKB() {
         return false;
     if (!sendKBCommand(KB_CMD_ENABLE_SCANNING))
         return false;
-    kbBufPtr = (uint8_t*)KB_BUF_BASE;
-    for (uint8_t i = 0; i < 8; i++) {
-        *(kbBufPtr + i) = 0;
-    }
+    while (*(uint8_t*)KB_BUF_BASE == 0) {io_wait();}
+    if (*(uint8_t*)KB_BUF_BASE != 0xAA)
+        return false;
+    *(uint8_t*)KB_BUF_BASE = 0;
     return true;
 }
 
