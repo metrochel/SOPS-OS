@@ -811,6 +811,7 @@ tinydiskdriver:
     in  al, dx
     or  al, al
     jz  .disk_doesnt_exist
+    mov dx, 0x3F6
 ._statusloop:
     in  al, dx
     and al, 0x80
@@ -823,7 +824,7 @@ tinydiskdriver:
     or  al, bl
     jnz .disk_not_ata
 
-    mov dx, 0x1F7
+    mov dx, 0x3F6
 ._statusloop2:
     in  al, dx
     mov bl, al
@@ -923,7 +924,7 @@ tinydiskdriver:
     rep insw
 
     ; Чуть-чуть ждём, пока диск выдохнет
-    mov dx, 0x1F7
+    mov dx, 0x3F6
     in  al, dx
     in  al, dx
     in  al, dx
@@ -936,7 +937,7 @@ tinydiskdriver:
 
 ; Ожидание контроллера диска
 .poll:
-    mov dx, 0x1F7       ; Читаем статус
+    mov dx, 0x3F6       ; Читаем статус
     in  al, dx
     test al, 0x80       ; Проверяем флаг BSY (диск занят)
     jnz  .poll

@@ -17,6 +17,12 @@ uint32_t stdinBase = 0x9100;
 
 uint8_t kbStatus = 0;
 
+void cleanKBBuf() {
+    while ((uint32_t)kbBufPtr > KB_BUF_BASE) {
+        *kbBufPtr-- = 0;
+    }
+}
+
 uint8_t getSymbol(uint8_t keycode) {
     if (kbStatus & (KB_STATUS_CTRL | KB_STATUS_ALT))
         return 0;
@@ -293,6 +299,7 @@ void sendKBCmd() {
 void updateKB() {
     if (!inputAllowed) {
         releaseScancode = false;
+        cleanKBBuf();
         return;
     }
     uint8_t kbBufLen = (uint32_t)kbBufPtr - KB_BUF_BASE;
@@ -338,19 +345,22 @@ void updateKB() {
         *stdinPtr = 0;
         eraseChar();
         releaseScancode = false;
+        cleanKBBuf();
         return;
     }
     if (keycode == KEYCODE_ENTER && !releaseScancode) {
         inputFinished = true;
         releaseScancode = false;
+        cleanKBBuf();
         return;
     }
-    uint8_t symbol = getSymbol(keycode);
     uint32_t stdinLen = (uint32_t)stdinPtr - stdinBase;
     if (stdinLen + 1 > 0x200) {
         releaseScancode = false;
+        cleanKBBuf();
         return;
     }
+    uint8_t symbol = getSymbol(keycode);
     if (!releaseScancode && symbol != 0) {
         *stdinPtr = symbol;
         if (symbol == '%')
@@ -360,6 +370,7 @@ void updateKB() {
         stdinPtr ++;
     }
     releaseScancode = false;
+    cleanKBBuf();
 }
 
 bool initKB() {
@@ -394,7 +405,7 @@ bool sendKBCommand(uint8_t cmd) {
     *kbCmdBufPtr = cmd;
     kbCmdBufPtr ++;
     if ((uint32_t)kbCmdBufPtr == KB_CMD_BUF_BASE + 1) {
-        sendPS2DevCommand(1, cmd);
+        sendKBCmd();
     }
     return true;
 }
@@ -407,8 +418,7 @@ bool sendKBCommand(uint8_t cmd, uint8_t arg) {
     *kbCmdBufPtr = arg;
     kbCmdBufPtr ++;
     if ((uint32_t)kbCmdBufPtr == KB_CMD_BUF_BASE + 2) {
-        sendPS2DevCommand(1, cmd);
-        sendPS2DevCommand(1, arg);
+        sendKBCmd();
     }
     return true;
 }

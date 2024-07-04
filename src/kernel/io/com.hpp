@@ -138,6 +138,12 @@ void enableTraInt(uint8_t port);
 /// @param port Порт
 void disableTraInt(uint8_t port);
 
+//=========================
+
+/// @brief Высылает отладочный текст на отладчик.
+/// @param text Текст
+void kdebug(const char* text, ...);
+
 uint32_t getComBaseR(uint8_t port);
 
 uint32_t getComBaseW(uint8_t port);

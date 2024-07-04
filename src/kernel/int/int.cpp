@@ -4,9 +4,11 @@
 #ifndef KB_BUF_BASE
 #include "../keyboard/keyboard.hpp"
 #endif
+#ifndef IDE_COMMAND_PRIMARY
+#include "../disk/ide.hpp"
+#endif
 
 IDT_Register idtr{ 50*8-1, (uint8_t*)0x10000  };
-uint64_t *dbgPtr = (uint64_t*)0x100300;
 
 void initInts() {
     for (int i = 0; i < idtr.size; i++)
@@ -26,10 +28,13 @@ void initInts() {
     encode_idt_entry(float_exception, 0x10);
     encode_idt_entry(align_check, 0x11);
 
-    encode_idt_entry(irq0, 0x20);
-    encode_idt_entry(irq1, 0x21);
-    encode_idt_entry(irq3, 0x23);
-    encode_idt_entry(irq4, 0x24);
+    encode_idt_entry(irq0,  0x20);
+    encode_idt_entry(irq1,  0x21);
+    encode_idt_entry(irq2,  0x22);
+    encode_idt_entry(irq3,  0x23);
+    encode_idt_entry(irq4,  0x24);
+    encode_idt_entry(irq14, 0x2E);
+    encode_idt_entry(irq15, 0x2F);
 
     lidt(idtr);
     enableInts();
@@ -38,14 +43,11 @@ void initInts() {
 void encode_idt_entry(void (*handlePtr)(IntFrame*), uint8_t intNum) {
     uint16_t *entryPtr = (uint16_t*)idtr.base + 4 * intNum;
     uint16_t offset1 = (uint32_t)handlePtr & 0xFFFF;
-    *entryPtr = offset1;
-    entryPtr++;
+    *entryPtr++ = offset1;
     uint16_t selector = 0x8;
-    *entryPtr = selector;
-    entryPtr++;
+    *entryPtr++ = selector;
     uint16_t flags = 0x8E00;
-    *entryPtr = flags;
-    entryPtr++;
+    *entryPtr++ = flags;
     uint16_t offset2 = (uint32_t)handlePtr >> 16;
     *entryPtr = offset2;
 }
@@ -95,10 +97,11 @@ __attribute__((interrupt)) void general_prot_fault(IntFrame* frame) {
 }
 
 __attribute__((interrupt)) void page_fault(IntFrame* frame) {
-    uint32_t errorcode;
-    __asm__ ("pop %l0" : "=r"(errorcode) : );
+    uint32_t addr;
+    __asm__ ("mov %%cr2, %%eax; mov %%eax, %d0" : "=m"(addr) : );
     kerror("\nОШИБКА: Страничный сбой\n");
-    kerror("Адрес сбоя: %x\n", frame->IP);
+
+    kerror("Адрес сбоя: %x\n", addr);
 }
 
 __attribute__((interrupt)) void float_exception(IntFrame* frame) {
@@ -122,7 +125,6 @@ __attribute__((interrupt)) void irq1(IntFrame* frame) {
     if (scancode == KB_ACK) {
         uint8_t ackdCmd = *(uint8_t*)KB_CMD_BUF_BASE;
         shiftKBCmdQueue();
-        *dbgPtr++ = *(uint64_t*)KB_CMD_BUF_BASE;
         cmdAwaitingResponse = ackdCmd == KB_CMD_RESEND_LAST || ackdCmd == KB_CMD_RESET;
         if (!cmdAwaitingResponse)
             sendKBCmd();
@@ -174,6 +176,61 @@ __attribute__((interrupt)) void irq1(IntFrame* frame) {
 
 __attribute__((interrupt)) void irq12(IntFrame* frame) {
     kprint("IRQ 12\n");
+    int_exit_slave();
+}
+
+__attribute__((interrupt)) void irq14(IntFrame* frame) {
+    kdebug("\nВызвано IRQ 14.\nПрерывание вызвал ");
+    uint8_t ideStatus = inb(IDE_STATUS_PRIMARY);
+    if (!(ideStatus & 4)) {
+        kdebug("не диск.\nВНИМАНИЕ: Прерывание вызвано не диском, обработка прервана");
+        int_exit_slave();
+        return;
+    }
+    kdebug("диск.\n");
+    kdebug("Статус IDE-контроллера: %b\n", ideStatus);
+    uint8_t cmd = inb(IDE_COMMAND_PRIMARY);
+    kdebug("Команда была на ");
+    kdebug((cmd & 8) ? "чтение.\n" : "запись.");
+    PRD donePrd = *prdt1base++;
+    kdebug("Обработанный PRD:\n\tФиз. адрес данных: %x\n\tРазмер блока данных: %d Б\n\tПоследний ли? ", donePrd.base, donePrd.count, donePrd.msb);
+    kdebug((donePrd.msb & 0x80) ? "Да\n" : "Нет\n");
+    if (prdt1base == prdt1) {
+        kdebug("Обработка PRDT завершена. Производится очистка.\n");
+        cleanPRDT1();
+    }
+    outb(IDE_STATUS_PRIMARY, 4);
+    kdebug("Новый статус: %b.\n", inb(IDE_STATUS_PRIMARY));
+    kdebug("Обработка прерывания завершена успешно.\n\n");
+    int_exit_slave();
+    inb(ATA_STATUS_PRIMARY);
+}
+
+__attribute__((interrupt)) void irq15(IntFrame* frame) {
+    kdebug("\nВызвано IRQ 15.\nПрерывание вызвал ");
+    uint8_t ideStatus = inb(IDE_STATUS_SECONDARY);
+    if (!(ideStatus & 4)) {
+        kdebug("не диск.\nВНИМАНИЕ: Прерывание вызвано не диском, обработка прервана");
+        int_exit_slave();
+        return;
+    }
+    kdebug("диск.\n");
+    kdebug("Статус IDE-контроллера: %b\n", ideStatus);
+    uint8_t cmd = inb(IDE_COMMAND_SECONDARY);
+    kdebug("Команда была на ");
+    kdebug((cmd & 8) ? "чтение.\n" : "запись.");
+    PRD donePrd = *prdt2base++;
+    kdebug("Обработанный PRD:\n\tФиз. адрес данных: %x\n\tРазмер блока данных: %d Б\n\tПоследний ли? ", donePrd.base, donePrd.count, donePrd.msb);
+    kdebug((donePrd.msb & 0x80) ? "Да\n" : "Нет\n");
+    if (prdt2base == prdt2) {
+        kdebug("Обработка PRDT завершена. Производится очистка.\n");
+        cleanPRDT2();
+    }
+    outb(IDE_STATUS_SECONDARY, 4);
+    kdebug("Новый статус: %b.\n", inb(IDE_STATUS_SECONDARY));
+    kdebug("Обработка прерывания завершена успешно.\n\n");
+    int_exit_slave();
+    inb(ATA_STATUS_SECONDARY);
     int_exit_slave();
 }
 
@@ -245,16 +302,12 @@ __attribute__((interrupt)) void irq4(IntFrame* frame) {
         comSend(1);
     }
     else if (intState == COM_IIR_MODEM_STATUS) {
-        uint8_t msr = inb(ioPort + 6);
-        if (msr & COM_MSR_DATA_SET_READY)
-            kwarn("ВНИМАНИЕ: COM1: модем не готов к работе\n");
-        if (msr & COM_MSR_RING_INDICATOR)
-            kprint("COM1: поступил звонок\n");
-        if (msr & COM_MSR_DATA_CARRIER_DETECT)
-            kwarn("ВНИМАНИЕ: COM1: модем разорвал соединение\n");
-        if (msr & COM_MSR_CLEAR_TO_SEND)
-            kwarn("ВНИМАНИЕ: COM1: устройство не готово к чтению\n");
+        inb(ioPort + 6);
     }
     enableInts();
+    int_exit_master();
+}
+
+__attribute__((interrupt)) void irq2(IntFrame* frame) {
     int_exit_master();
 }

@@ -23,3 +23,12 @@ void maskIRQ(uint8_t irq);
 /// @brief Разрешает данное IRQ.
 /// @param irq Номер IRQ
 void unmaskIRQ(uint8_t irq);
+
+/// @brief Достаёт регистр обрабатываемых прерываний.
+uint16_t getISR();
+
+/// @brief Достаёт регистр прерываний, ожидающих обработки.
+uint16_t getIRR();
+
+/// @brief Достаёт "маску" IRQ. 
+uint16_t getIRQMask();
