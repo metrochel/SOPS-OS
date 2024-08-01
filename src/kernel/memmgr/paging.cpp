@@ -26,3 +26,12 @@ void createPage(uint32_t vaddr, uint32_t paddr) {
     uint32_t *pagePtr = (uint32_t*)(PAGING_BASE + ((vaddr & 0x3FF000) >> 12) * 4 + (tableNo + 1) * 0x1000);
     *pagePtr = paddr | 3;
 }
+
+uint32_t getPhysAddr(uint32_t vaddr) {
+    uint16_t tableNo = (vaddr & 0xFFC00000) >> 22;
+    uint32_t *dirEntryPtr = (uint32_t*)(PAGING_BASE + tableNo * 4);
+    if (!(*dirEntryPtr & 0x1))
+        return 0;
+    uint32_t *pagePtr = (uint32_t*)(PAGING_BASE + ((vaddr & 0x3FF000) >> 12) * 4 + (tableNo + 1) * 0x1000);
+    return (*pagePtr & 0xFFFF000) + (vaddr & 0xFFF);
+}

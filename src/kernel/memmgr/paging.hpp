@@ -23,3 +23,7 @@ void createPages(uint32_t vaddr, uint32_t paddr, uint16_t count);
 /// @brief Создаёт таблицу страниц по данному адресу.
 /// @param vaddr Виртуальный адрес
 void createPageTable(uint32_t vaddr);
+
+/// @brief Определяет физический адрес для данного виртуального адреса.
+/// @param vaddr Виртуальный адрес
+uint32_t getPhysAddr(uint32_t vaddr);

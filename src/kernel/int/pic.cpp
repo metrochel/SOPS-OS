@@ -38,3 +38,19 @@ void unmaskIRQ(uint8_t irq) {
     mask &= ~(1 << (irq % 8));
     outb(ioPort, mask);
 }
+
+uint16_t getISR() {
+    outb(PIC1_CMD, 0x0B);
+    outb(PIC2_CMD, 0x0B);
+    return (inb(PIC2_CMD) << 8) | inb(PIC1_CMD);
+}
+
+uint16_t getIRR() {
+    outb(PIC1_CMD, 0x0A);
+    outb(PIC2_CMD, 0x0A);
+    return (inb(PIC2_CMD) << 8) | inb(PIC1_CMD);
+}
+
+uint16_t getIRQMask() {
+    return (inb(PIC2_DATA) << 8) | inb(PIC1_DATA);
+}

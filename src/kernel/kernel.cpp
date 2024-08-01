@@ -14,11 +14,13 @@
 #include "io/ps2.hpp"
 #include "int/int.hpp"
 #include "int/pic.hpp"
+#include "pci/pci.hpp"
 #include "disk/disk.hpp"
 #include "memmgr/memmgr.hpp"
 #include "keyboard/keyboard.hpp"
 #include "timing/pit.hpp"
 #include "str/str.hpp"
+#include "llutil/llutil.hpp"
 
 // Структура с данными из загрузчика
 struct BootLoaderData {
@@ -70,13 +72,17 @@ int main() {
     initGraphics();
     setPICOffsets(0x20, 0x28);
     initInts();
+    unmaskIRQ(1);
+    unmaskIRQ(2);
     unmaskIRQ(3);
     unmaskIRQ(4);
     identifyUART();
 
     kprint("Добро пожаловать в СОПС вер. 1.0.0-АЛЬФА!\n\n");
-    if (initCom(1))
+    if (initCom(1)) {
         kprint("COM1 успешно инициализирован!\n");
+        kdebug("=============== ОТЛАДЧИК СОПС ===============\nВерсия 1.0.0-АЛЬФА\n\n");
+    }
     if (initCom(2))
         kprint("COM2 успешно инициализирован!\n");
     if (initCom(3)) {
@@ -92,7 +98,6 @@ int main() {
         kerror("ОШИБКА: Контроллер PS/2 не инициализирован\n");
     else {
         kprint("Контроллер PS/2 успешно инициализирован!\n");
-        unmaskIRQ(1);
         if (firstPortAvailable && initKB()) {
             kprint("Клавиатура успешно инициализирована!\n");
         }
@@ -104,7 +109,24 @@ int main() {
 
     setPITTimer(500000);
     unmaskIRQ(0);
+    
+    unmaskIRQ(14);
+    unmaskIRQ(15);
+    if (initIDE()) {
+        kprint("Контроллер IDE успешно инициализирован!\n");
+    } else {
+        kerror("ОШИБКА: Контроллер IDE не инициализирован\n");
+        maskIRQ(14);
+        maskIRQ(15);
+    }
 
+    createPages(0x2000000, 0x5000000, 10);
+    uint8_t* out = (uint8_t*)0x2000000;
+    readSectorsATA(1, 2, 0, out);
+    writeSectorsATA(500, 2, 0, out);
+    readSectorsATA(19, 10, 0, out);
+    readSectorsATA(1, 2, 0, out);
+    writeSectorsATA(345, 5, 0, out);
     while (true) {
         kprint("\n>");
         kread(stdin);
@@ -125,6 +147,9 @@ int main() {
                 case DISK_TYPE_SATA:
                     kprint("Тип диска А - SATA");
                     break;
+                case DISK_TYPE_SATAPI:
+                    kprint("Тип диска А - SATAPI");
+                    break;
             }
             if (d.DiskType == 0)
                 continue;
@@ -133,6 +158,7 @@ int main() {
             else
                 kprint("\nДиск А не поддерживает LBA48");
             kprint("\nНа диске А доступно\n    %d секторов в режиме LBA28;\n    %d секторов в режиме LBA48", d.TotalLBA28Sectors, d.TotalLBA48Sectors);
+            kprint("\nМаксимальный режим UDMA - %d, активен %d", d.MaxUDMAMode, d.ActUDMAMode);
         } else {
             kerror("ОШИБКА: Команды или исполняемого файла \"");
             kerror((const char*)stdin);

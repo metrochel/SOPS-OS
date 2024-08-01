@@ -9,7 +9,7 @@ bool strcmp(char* str1, char* str2) {
         str1 ++;
         str2 ++;
     }
-    return true;
+    return *str1 == *str2;
 }
 
 bool strstartswith(char* str, char* substr) {
@@ -19,5 +19,14 @@ bool strstartswith(char* str, char* substr) {
         str ++;
         substr ++;
     }
-    return true;
+    return *substr == *str;
+}
+
+uint32_t strlen(char* str) {
+    uint32_t len = 0;
+    while (*str != 0) {
+        len ++;
+        str ++;
+    }
+    return len;
 }
