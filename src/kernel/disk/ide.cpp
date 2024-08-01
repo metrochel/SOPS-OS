@@ -25,12 +25,17 @@ PRD* prdt2base = nullptr;
 bool prdt1read = false;
 bool prdt2read = false;
 
+bool transferring = false;
+
+uint16_t *dbgPtr = (uint16_t*)0x100300;
+
 void cleanPRDT1() {
     while ((uint32_t)prdt1 > 0x9500) {
         *prdt1-- = {0,0,0,0};
     }
     *prdt1 = {0,0,0,0};
     prdt1base = prdt1;
+    outl(IDE_PRDT_ADDR_PRIMARY, (uint32_t)prdt1base);
 }
 
 void cleanPRDT2() {
@@ -39,7 +44,20 @@ void cleanPRDT2() {
     }
     *prdt2 = {0,0,0,0};
     prdt2base = prdt2;
+    outl(IDE_PRDT_ADDR_SECONDARY, (uint32_t)prdt2base);
 }
+
+// void stopDMAPrim() {
+//     uint8_t cmd = inb(IDE_COMMAND_PRIMARY);
+//     cmd &= 0xFE;
+//     outb(IDE_COMMAND_PRIMARY, cmd);
+// }
+
+// void startDMAPrim() {
+//     uint8_t cmd = inb(IDE_COMMAND_PRIMARY);
+//     cmd |= 1;
+//     outb(IDE_COMMAND_PRIMARY, cmd);
+// }
 
 bool initIDE() {
     kdebug("Начата инициализация IDE-контроллера.\nОпределение ключа контроллера... ");
@@ -99,30 +117,29 @@ bool initIDE() {
 
         dma = true;
     }
+    outb(ATA_DRIVE_CONTROL_PRIMARY, 4);
+    io_wait();
     outb(ATA_DRIVE_CONTROL_PRIMARY, 0);
-    inb(ATA_STATUS_PRIMARY);
+    kdebug("1 канал ATA сброшен.\n");
+
+    outb(ATA_DRIVE_CONTROL_SECONDARY, 4);
+    io_wait();
     outb(ATA_DRIVE_CONTROL_SECONDARY, 0);
-    inb(ATA_STATUS_SECONDARY);
+    kdebug("2 канал ATA сброшен.\n");
+
     kdebug("Инициализация контроллера IDE завершена успешно.\n\n");
     return true;
 }
 
 void readSectorsATA(uint32_t startLBA, uint8_t sectorsCount, uint8_t driveNo, uint8_t *out) {
+    transferring = true;
     kdebug("Получена команда на считывание %d секторов с LBA %d с диска %d.\n", sectorsCount, startLBA, driveNo);
     kdebug("Начата подготовка к исполнению команды.\n");
     bool secondary = driveNo & 2;
     bool slave = driveNo & 1;
     if (!secondary && dma) {
         while (!prdt1read && prdt1 > (PRD*)0x9500) {if (prdt1read) break;}
-        if (prdt1 == (PRD*)0x9500) {
-            kdebug("PRDT1 пуста. Контроллер переводится в режим чтения.\n");
-            outb(IDE_COMMAND_PRIMARY, 0);
-            outb(IDE_COMMAND_PRIMARY, 9);
-            if (inb(IDE_COMMAND_PRIMARY) != 9)
-                kdebug("ВНИМАНИЕ: Перевод провален\n");
-            else
-                kdebug("Перевод в режим чтения успешно совершён.\n");
-        }
+        prdt1read = true;
         PRD prd = {getPhysAddr((uint32_t)out), (uint16_t)(sectorsCount * 512), 0, 0x80};
         kdebug("Собрана структура PRD:\n\tФиз. адрес передачи - %x\n\tЧисло байтов для передачи - %d\n\tВерхний байт - %x\n", prd.base, prd.count, prd.msb);
         if (prdt1 == (PRD*)0x9500) {
@@ -139,8 +156,8 @@ void readSectorsATA(uint32_t startLBA, uint8_t sectorsCount, uint8_t driveNo, ui
         do {
             kdebug("Вхождение %d:\n", i+1);
             kdebug("\tФиз. адрес: %x\n", dbgPtr->base);
-            kdebug("\tЧисло байт для считывания: %d\n", dbgPtr->count);
-            kdebug("\tФинальный ли? ");
+            kdebug("\tЧисло байтов для считывания: %d\n", dbgPtr->count);
+            kdebug("\tПоследний ли? ");
             kdebug(dbgPtr->msb ? "Да\n" : "Нет\n");
             if (dbgPtr->msb)
                 break;
@@ -158,25 +175,26 @@ void readSectorsATA(uint32_t startLBA, uint8_t sectorsCount, uint8_t driveNo, ui
         kdebug("LBA средний: %x\n", inb(ATA_LBA_MID_PRIMARY));
         outb(ATA_LBA_HIGH_PRIMARY, (startLBA >> 16) & 0xFF);
         kdebug("LBA высший: %x\n", inb(ATA_LBA_HIGH_PRIMARY));
-        outb(ATA_COMMAND_PRIMARY, 0xC8);
-        kdebug("Выслана команда 0xC8.\n");
-        if (inb(IDE_STATUS_PRIMARY) & 1)
-            kdebug("Режим DMA успешно активирован.\n\n");
-        else
-            kdebug("ВНИМАНИЕ: Режим DMA не был активирован или передача уже завершилась\n\n");
-        return;
-    }
-    if (secondary && dma) {
-        while (!prdt2read && prdt2 > (PRD*)0x9700) {if (prdt2read) break;}
-        if (prdt2 == (PRD*)0x9700) {
-            kdebug("PRDT2 пуста. Контроллер переводится в режим чтения.\n");
-            outb(IDE_COMMAND_SECONDARY, 0);
-            outb(IDE_COMMAND_SECONDARY, 9);
-            if (inb(IDE_COMMAND_SECONDARY) != 9)
+        kdebug("%x\n", (uint32_t)prdt1);
+        if (prdt1 == (PRD*)0x9508) {
+            kdebug("PRDT1 пуста. Контроллер переводится в режим чтения.\n");
+            outb(IDE_COMMAND_PRIMARY, 0);
+            outb(IDE_COMMAND_PRIMARY, 9);
+            if (inb(IDE_COMMAND_PRIMARY) != 9)
                 kdebug("ВНИМАНИЕ: Перевод провален\n");
             else
                 kdebug("Перевод в режим чтения успешно совершён.\n");
         }
+        outb(ATA_COMMAND_PRIMARY, 0xC8);
+        kdebug("Выслана команда READ DMA.\n");
+        if (inb(IDE_COMMAND_PRIMARY) & 1)
+            kdebug("Режим DMA успешно активирован.\n");
+        else
+            kdebug("ВНИМАНИЕ: Режим DMA не был активирован или передача уже завершилась\n");
+    }
+    else if (secondary && dma) {
+        while (!prdt2read && prdt2 > (PRD*)0x9700) {if (prdt2read) break;}
+        prdt2read = true;
         PRD prd = {getPhysAddr((uint32_t)out), (uint16_t)(sectorsCount * 512), 0, 0x80};
         kdebug("Собрана структура PRD:\n\tФиз. адрес передачи - %x\n\tЧисло байтов для передачи - %d\n\tВерхний байт - %x\n", prd.base, prd.count, prd.msb);
         if (prdt2 == (PRD*)0x9700) {
@@ -193,8 +211,8 @@ void readSectorsATA(uint32_t startLBA, uint8_t sectorsCount, uint8_t driveNo, ui
         do {
             kdebug("Вхождение %d:\n", i+1);
             kdebug("\tФиз. адрес: %x\n", dbgPtr->base);
-            kdebug("\tЧисло байт для считывания: %d\n", dbgPtr->count);
-            kdebug("\tФинальный ли? ");
+            kdebug("\tЧисло байтов для считывания: %d\n", dbgPtr->count);
+            kdebug("\tПоследний ли? ");
             kdebug(dbgPtr->msb ? "Да\n" : "Нет\n");
             if (dbgPtr->msb)
                 break;
@@ -212,12 +230,140 @@ void readSectorsATA(uint32_t startLBA, uint8_t sectorsCount, uint8_t driveNo, ui
         kdebug("LBA средний: %x\n", inb(ATA_LBA_MID_SECONDARY));
         outb(ATA_LBA_HIGH_SECONDARY, (startLBA >> 16) & 0xFF);
         kdebug("LBA высший: %x\n", inb(ATA_LBA_HIGH_SECONDARY));
+        if (prdt2 == (PRD*)0x9708) {
+            kdebug("PRDT2 пуста. Контроллер переводится в режим чтения.\n");
+            outb(IDE_COMMAND_SECONDARY, 9);
+            outb(IDE_COMMAND_SECONDARY, 9);
+            if (inb(IDE_COMMAND_SECONDARY) != 9)
+                kdebug("ВНИМАНИЕ: Перевод провален\n");
+            else
+                kdebug("Перевод в режим чтения успешно совершён.\n");
+        }
         outb(ATA_COMMAND_SECONDARY, 0xC8);
-        kdebug("Выслана команда 0xC8.\n");
-        if (inb(IDE_STATUS_SECONDARY) & 1)
-            kdebug("Режим DMA успешно активирован.\n\n");
+        kdebug("Выслана команда READ DMA.\n");
+        if (inb(IDE_COMMAND_SECONDARY) & 1)
+            kdebug("Режим DMA успешно активирован.\n");
         else
-            kdebug("ВНИМАНИЕ: Режим DMA не был активирован или передача уже завершилась\n\n");
-        return;
+            kdebug("ВНИМАНИЕ: Режим DMA не был активирован или передача уже завершилась\n");
     }
+    while (transferring) {if (!transferring) break;}
+    kdebug("Чтение с диска успешно завершено.\n\n");
+}
+
+void writeSectorsATA(uint32_t startLBA, uint8_t sectorsCount, uint8_t driveNo, uint8_t *out) {
+    transferring = true;
+    kdebug("Получена команда на запись %d секторов с LBA %d на диск %d.\n", sectorsCount, startLBA, driveNo);
+    kdebug("Начинается подготовка к записи на диск.\n");
+    bool slave = driveNo & 1;
+    bool secondary = driveNo & 2;
+    if (!secondary && dma) {
+        while (prdt1read && prdt1 > (PRD*)0x9500) {if (!prdt1read) break;}
+        prdt1read = false;
+        PRD prd = {getPhysAddr((uint32_t)out), (uint16_t)(sectorsCount * 512), 0, 0x80};
+        kdebug("Собрана структура PRD:\n\tФиз. адрес передачи: %x\n\tЧисло байтов для передачи: %d\n\tВерхний байт: %x\n", prd.base, prd.count, prd.msb);
+        if (prdt1 == (PRD*)0x9500) {
+            *prdt1 = prd;
+            prdt1 ++;
+        } else {
+            (--prdt1)->msb = 0;
+            *(++prdt1) = prd;
+            prdt1++;
+        }
+        kdebug("Теперь PRDT1 выглядит так:\n");
+        uint8_t i = 0;
+        PRD* dbgPRDPtr = (PRD*)0x9500;
+        while (true) {
+            kdebug("Вхождение %d:\n", i+1);
+            kdebug("\tФиз. адрес: %x\n", dbgPRDPtr->base);
+            kdebug("\tЧисло байтов для записи: %d\n", dbgPRDPtr->count);
+            kdebug("\tПоследний ли? ");
+            kdebug(dbgPRDPtr->msb ? "Да\n" : "Нет\n");
+            if (dbgPRDPtr->msb)
+                break;
+            if (dbgPRDPtr->base == 0 && dbgPRDPtr->count == 0 && dbgPRDPtr->msb == 0) {
+                kdebug("Пустое вхождение.\n");
+                break;
+            }
+            dbgPRDPtr ++;
+            i ++;
+        }
+        kdebug("Задаются параметры...\n");
+        outb(ATA_DRIVE_HEAD_PRIMARY, slave ? 0xF0 : 0xE0);
+        kdebug("Регистр выбора диска: %x\n", inb(ATA_DRIVE_HEAD_PRIMARY));
+        outb(ATA_SECTOR_COUNT_PRIMARY, sectorsCount);
+        kdebug("Регистр числа секторов: %d\n", inb(ATA_SECTOR_COUNT_PRIMARY));
+        outb(ATA_LBA_LOW_PRIMARY, startLBA & 0xFF);
+        kdebug("LBA низший: %x\n", inb(ATA_LBA_LOW_PRIMARY));
+        outb(ATA_LBA_MID_PRIMARY, (startLBA >> 8) & 0xFF);
+        kdebug("LBA средний: %x\n", inb(ATA_LBA_MID_PRIMARY));
+        outb(ATA_LBA_HIGH_PRIMARY, (startLBA >> 16) & 0xFF);
+        kdebug("LBA высший: %x\n", inb(ATA_LBA_HIGH_PRIMARY));
+        if (prdt1 == (PRD*)0x9508) {
+            kdebug("PRDT1 пуста. Контроллер переводится в режим записи.\n");
+            outb(IDE_COMMAND_PRIMARY, 0);
+            outb(IDE_COMMAND_PRIMARY, 1);
+        }
+        outb(ATA_COMMAND_PRIMARY, 0xCA);
+        kdebug("Выслана команда WRITE DMA.\n");
+        if (inb(IDE_COMMAND_PRIMARY) & 1)
+            kdebug("Режим DMA успешно активирован.\n");
+        else
+            kdebug("ВНИМАНИЕ: Режим DMA не активирован\nОжидалось значение 1, получено %d\n", inb(IDE_COMMAND_PRIMARY));
+
+    } else if (dma && secondary) {
+        while (prdt2read && prdt2 > (PRD*)0x9500) {if (!prdt2read) break;}
+        prdt2read = false;
+        PRD prd = {getPhysAddr((uint32_t)out), (uint16_t)(sectorsCount * 512), 0, 0x80};
+        kdebug("Собрана структура PRD:\n\tФиз. адрес передачи: %x\n\tЧисло байтов для передачи: %d\n\tВерхний байт: %x\n", prd.base, prd.count, prd.msb);
+        if (prdt2 == (PRD*)0x9700) {
+            *prdt2 = prd;
+            prdt2 ++;
+        } else {
+            (--prdt2)->msb = 0;
+            *(++prdt2) = prd;
+            prdt2++;
+        }
+        kdebug("Теперь PRDT2 выглядит так:\n");
+        uint8_t i = 0;
+        PRD* dbgPRDPtr = (PRD*)0x9700;
+        while (true) {
+            kdebug("Вхождение %d:\n", i+1);
+            kdebug("\tФиз. адрес: %x\n", dbgPRDPtr->base);
+            kdebug("\tЧисло байтов для записи: %d\n", dbgPRDPtr->count);
+            kdebug("\tПоследний ли? ");
+            kdebug(dbgPRDPtr->msb ? "Да\n" : "Нет\n");
+            if (dbgPRDPtr->msb)
+                break;
+            if (dbgPRDPtr->base == 0 && dbgPRDPtr->count == 0 && dbgPRDPtr->msb == 0) {
+                kdebug("Пустое вхождение.\n");
+                break;
+            }
+            dbgPRDPtr ++;
+            i ++;
+        }
+        kdebug("Задаются параметры...\n");
+        outb(ATA_DRIVE_HEAD_SECONDARY, slave ? 0xF0 : 0xE0);
+        kdebug("Регистр выбора диска: %x\n", inb(ATA_DRIVE_HEAD_SECONDARY));
+        outb(ATA_SECTOR_COUNT_SECONDARY, sectorsCount);
+        kdebug("Регистр числа секторов: %d\n", inb(ATA_SECTOR_COUNT_SECONDARY));
+        outb(ATA_LBA_LOW_SECONDARY, startLBA & 0xFF);
+        kdebug("LBA низший: %x\n", inb(ATA_LBA_LOW_SECONDARY));
+        outb(ATA_LBA_MID_SECONDARY, (startLBA >> 8) & 0xFF);
+        kdebug("LBA средний: %x\n", inb(ATA_LBA_MID_SECONDARY));
+        outb(ATA_LBA_HIGH_SECONDARY, (startLBA >> 16) & 0xFF);
+        kdebug("LBA высший: %x\n", inb(ATA_LBA_HIGH_SECONDARY));
+        if (prdt2 == (PRD*)0x9708) {
+            kdebug("prdt2 пуста. Контроллер переводится в режим записи.\n");
+            outb(IDE_COMMAND_SECONDARY, 0);
+            outb(IDE_COMMAND_SECONDARY, 1);
+        }
+        outb(ATA_COMMAND_SECONDARY, 0xCA);
+        kdebug("Выслана команда WRITE DMA.\n");
+        if (inb(IDE_COMMAND_SECONDARY) & 1)
+            kdebug("Режим DMA успешно активирован.\n");
+        else
+            kdebug("ВНИМАНИЕ: Режим DMA не активирован\nОжидалось значение 1, получено %d\n", inb(IDE_COMMAND_SECONDARY));
+    }
+    while (transferring) {if (!transferring) break;}
+    kdebug("Запись на диск успешно завершена.\n\n");
 }

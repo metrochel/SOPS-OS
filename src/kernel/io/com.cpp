@@ -1,5 +1,8 @@
 #include "com.hpp"
 #include "io.hpp"
+#ifndef STR_SIG
+#include "../str/str.hpp"
+#endif
 #include <stdarg.h>
 
 uint8_t *comReadBuffers[]  = {nullptr, nullptr, nullptr, nullptr};
@@ -189,7 +192,6 @@ void comSend(uint8_t port) {
             comBasePtrs[port-1] ++;
         }
     }
-
     if (!comWriteBufferLength(port)) {
         disableTraInt(port);
         cleanComWBuffer(port);
@@ -310,6 +312,12 @@ void writeComHexUInt(uint32_t num, uint8_t port) {
 void kdebug(const char* text, ...) {
     if (!initPorts[0])
         return;
+    uint32_t len = strlen((char*)text);
+    if (comWriteBufferLength(1) + len > 0xA000) {
+        enableTraInt(1);
+        while(comWriteBufferLength(1) + len > 0xA000) {io_wait();}
+        disableTraInt(1);
+    }
     va_list l;
     va_start(l, text);
     uint8_t state;

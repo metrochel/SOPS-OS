@@ -65,6 +65,15 @@ extern PRD* prdt1base;
 extern PRD* prdt2;
 extern PRD* prdt2base;
 
+/// @brief ШУФ-ключ контроллера IDE
+extern uint32_t ideCon;
+
+// Флаг; если установлен, PRDT1 предназначена для чтения
+extern bool prdt1read;
+// Флаг; если установлен, PRDT2 предназначена для чтения
+extern bool prdt2read;
+// Флаг; если установлен, на данный момент происходит обмен данными
+extern bool transferring;
 /// @brief Инициализирует IDE-контроллер.
 bool initIDE();
 
@@ -74,6 +83,13 @@ bool initIDE();
 /// @param driveNo Номер диска
 /// @param out Буфер приёма
 void readSectorsATA(uint32_t startLBA, uint8_t sectorsCount, uint8_t driveNo, uint8_t *out);
+
+/// @brief Записывает секторы на ATA-диск.
+/// @param startLBA LBA начала
+/// @param sectorsCount Число секторов
+/// @param driveNo Номер диска
+/// @param out Буфер данных
+void writeSectorsATA(uint32_t startLBA, uint8_t sectorsCount, uint8_t driveNo, uint8_t *out);
 
 /// @brief Очищает таблицу PRD для 1 канала.
 void cleanPRDT1();

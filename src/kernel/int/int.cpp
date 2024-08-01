@@ -7,6 +7,9 @@
 #ifndef IDE_COMMAND_PRIMARY
 #include "../disk/ide.hpp"
 #endif
+#ifndef PCI_CONFIG_ADDRESS
+#include "../pci/pci.hpp"
+#endif
 
 IDT_Register idtr{ 50*8-1, (uint8_t*)0x10000  };
 
@@ -182,35 +185,50 @@ __attribute__((interrupt)) void irq12(IntFrame* frame) {
 __attribute__((interrupt)) void irq14(IntFrame* frame) {
     kdebug("\nВызвано IRQ 14.\nПрерывание вызвал ");
     uint8_t ideStatus = inb(IDE_STATUS_PRIMARY);
+    uint8_t ataStatus = inb(ATA_STATUS_PRIMARY);
     if (!(ideStatus & 4)) {
-        kdebug("не диск.\nВНИМАНИЕ: Прерывание вызвано не диском, обработка прервана");
+        kdebug("не диск.\nВНИМАНИЕ: Прерывание вызвано не диском, обработка прервана\n\n");
         int_exit_slave();
         return;
     }
     kdebug("диск.\n");
-    kdebug("Статус IDE-контроллера: %b\n", ideStatus);
+    kdebug("Статус 1 канала: %b\n", ideStatus);
+    kdebug("Статус контроллера: %b\n", pciConfigReadW(ideCon >> 16, ideCon >> 8, ideCon, 6));
+    kdebug("Статус диска: %b\n", ataStatus);
+    if ((ideStatus & 2) || (ataStatus & ATA_STATUS_ERROR)) {
+        kdebug("ВНИМАНИЕ: Была зафиксирована ошибка\n");
+        kdebug("Статус диска: %b\n", inb(ATA_ERROR_PRIMARY));
+        uint32_t errSector = (inb(ATA_LBA_HIGH_PRIMARY) << 16) | (inb(ATA_LBA_MID_PRIMARY) << 8) | inb(ATA_LBA_LOW_PRIMARY);
+        kdebug("Проблемный сектор: %d\n", errSector);
+    }
     uint8_t cmd = inb(IDE_COMMAND_PRIMARY);
+    kdebug("Команда 1 канала: %b\n", cmd);
     kdebug("Команда была на ");
-    kdebug((cmd & 8) ? "чтение.\n" : "запись.");
+    bool read = cmd & 8;
+    kdebug(read ? "чтение.\n" : "запись.\n");
     PRD donePrd = *prdt1base++;
     kdebug("Обработанный PRD:\n\tФиз. адрес данных: %x\n\tРазмер блока данных: %d Б\n\tПоследний ли? ", donePrd.base, donePrd.count, donePrd.msb);
     kdebug((donePrd.msb & 0x80) ? "Да\n" : "Нет\n");
     if (prdt1base == prdt1) {
         kdebug("Обработка PRDT завершена. Производится очистка.\n");
         cleanPRDT1();
+        prdt1read = read;
+        outb(IDE_COMMAND_PRIMARY, 0);
+    } else {
+        kdebug("Обработка PRDT продолжается.\n");
     }
     outb(IDE_STATUS_PRIMARY, 4);
     kdebug("Новый статус: %b.\n", inb(IDE_STATUS_PRIMARY));
     kdebug("Обработка прерывания завершена успешно.\n\n");
+    transferring = false;
     int_exit_slave();
-    inb(ATA_STATUS_PRIMARY);
 }
 
 __attribute__((interrupt)) void irq15(IntFrame* frame) {
     kdebug("\nВызвано IRQ 15.\nПрерывание вызвал ");
     uint8_t ideStatus = inb(IDE_STATUS_SECONDARY);
     if (!(ideStatus & 4)) {
-        kdebug("не диск.\nВНИМАНИЕ: Прерывание вызвано не диском, обработка прервана");
+        kdebug("не диск.\nВНИМАНИЕ: Прерывание вызвано не диском, обработка прервана\n\n");
         int_exit_slave();
         return;
     }
@@ -218,19 +236,21 @@ __attribute__((interrupt)) void irq15(IntFrame* frame) {
     kdebug("Статус IDE-контроллера: %b\n", ideStatus);
     uint8_t cmd = inb(IDE_COMMAND_SECONDARY);
     kdebug("Команда была на ");
-    kdebug((cmd & 8) ? "чтение.\n" : "запись.");
+    bool read = cmd & 8;
+    kdebug(read ? "чтение.\n" : "запись.");
     PRD donePrd = *prdt2base++;
     kdebug("Обработанный PRD:\n\tФиз. адрес данных: %x\n\tРазмер блока данных: %d Б\n\tПоследний ли? ", donePrd.base, donePrd.count, donePrd.msb);
     kdebug((donePrd.msb & 0x80) ? "Да\n" : "Нет\n");
     if (prdt2base == prdt2) {
         kdebug("Обработка PRDT завершена. Производится очистка.\n");
         cleanPRDT2();
+        prdt2read = read;
+        outb(IDE_COMMAND_SECONDARY, 0);
     }
     outb(IDE_STATUS_SECONDARY, 4);
     kdebug("Новый статус: %b.\n", inb(IDE_STATUS_SECONDARY));
     kdebug("Обработка прерывания завершена успешно.\n\n");
-    int_exit_slave();
-    inb(ATA_STATUS_SECONDARY);
+    transferring = false;
     int_exit_slave();
 }
 

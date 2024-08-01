@@ -21,3 +21,12 @@ bool strstartswith(char* str, char* substr) {
     }
     return *substr == *str;
 }
+
+uint32_t strlen(char* str) {
+    uint32_t len = 0;
+    while (*str != 0) {
+        len ++;
+        str ++;
+    }
+    return len;
+}

@@ -115,19 +115,18 @@ int main() {
     if (initIDE()) {
         kprint("Контроллер IDE успешно инициализирован!\n");
     } else {
-        kerror("ОШИБКА: Контроллер IDE не инициализирован");
+        kerror("ОШИБКА: Контроллер IDE не инициализирован\n");
         maskIRQ(14);
         maskIRQ(15);
     }
 
-    createPage(0x2000000, 0x5000000);
+    createPages(0x2000000, 0x5000000, 10);
     uint8_t* out = (uint8_t*)0x2000000;
-    readSectorsATA(0, 2, 0, out);
-    out += 0x400;
-    readSectorsATA(9, 1, 0, out);
-    out += 0x200;
-    readSectorsATA(0, 2, 1, out);
-    
+    readSectorsATA(1, 2, 0, out);
+    writeSectorsATA(500, 2, 0, out);
+    readSectorsATA(19, 10, 0, out);
+    readSectorsATA(1, 2, 0, out);
+    writeSectorsATA(345, 5, 0, out);
     while (true) {
         kprint("\n>");
         kread(stdin);
