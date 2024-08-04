@@ -19,6 +19,7 @@
 #include "memmgr/memmgr.hpp"
 #include "keyboard/keyboard.hpp"
 #include "timing/pit.hpp"
+#include "timing/cmos.hpp"
 #include "str/str.hpp"
 #include "llutil/llutil.hpp"
 
@@ -78,10 +79,18 @@ int main() {
     unmaskIRQ(4);
     identifyUART();
 
+
     kprint("Добро пожаловать в СОПС вер. 1.0.0-АЛЬФА!\n\n");
+
+    uint8_t cmosStatusB = readCMOSReg(0x0B);
+    cmosStatusB |= 16;
+    outb(CMOS_REGISTER_SELECT, 0x0B);
+    outb(CMOS_REGISTER, cmosStatusB);
+    unmaskIRQ(8);
+
     if (initCom(1)) {
         kprint("COM1 успешно инициализирован!\n");
-        kdebug("=============== ОТЛАДЧИК СОПС ===============\nВерсия 1.0.0-АЛЬФА\n\n");
+        writeCom("=============== ОТЛАДЧИК СОПС ===============\nВерсия 1.0.0-АЛЬФА\n\n", 1);
     }
     if (initCom(2))
         kprint("COM2 успешно инициализирован!\n");
@@ -120,13 +129,18 @@ int main() {
         maskIRQ(15);
     }
 
-    createPages(0x2000000, 0x5000000, 10);
-    uint8_t* out = (uint8_t*)0x2000000;
-    readSectorsATA(1, 2, 0, out);
-    writeSectorsATA(500, 2, 0, out);
-    readSectorsATA(19, 10, 0, out);
-    readSectorsATA(1, 2, 0, out);
-    writeSectorsATA(345, 5, 0, out);
+    while (kgettime() == Time()) {tinyWait();}
+    kprint("Сейчас ");
+    Time time = kgettime();
+    char* out = (char*)0x11000;
+    out += time.asStringWeekday(out);
+    *out++ = ',';
+    *out++ = ' ';
+    time.asStringFull(out);
+    out -= 6;
+    kprint(out);
+    kprint(".\n");
+
     while (true) {
         kprint("\n>");
         kread(stdin);
@@ -159,6 +173,18 @@ int main() {
                 kprint("\nДиск А не поддерживает LBA48");
             kprint("\nНа диске А доступно\n    %d секторов в режиме LBA28;\n    %d секторов в режиме LBA48", d.TotalLBA28Sectors, d.TotalLBA48Sectors);
             kprint("\nМаксимальный режим UDMA - %d, активен %d", d.MaxUDMAMode, d.ActUDMAMode);
+        }
+        else if (strcmp((char*)stdin, (char*)"time")) {
+            kprint("Сейчас ");
+            Time time = kgettime();
+            out = (char*)0x11000;
+            out += time.asStringWeekday(out);
+            *out++ = ',';
+            *out++ = ' ';
+            time.asStringFull(out);
+            out -= 6;
+            kprint(out);
+            kprint(".");
         } else {
             kerror("ОШИБКА: Команды или исполняемого файла \"");
             kerror((const char*)stdin);

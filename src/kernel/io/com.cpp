@@ -4,6 +4,9 @@
 #include "../str/str.hpp"
 #endif
 #include <stdarg.h>
+#ifndef CMOS_REGISTER_SELECT
+#include "../timing/cmos.hpp"
+#endif
 
 uint8_t *comReadBuffers[]  = {nullptr, nullptr, nullptr, nullptr};
 uint8_t *comWriteBuffers[] = {nullptr, nullptr, nullptr, nullptr};

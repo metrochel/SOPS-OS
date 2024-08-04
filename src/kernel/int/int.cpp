@@ -10,6 +10,9 @@
 #ifndef PCI_CONFIG_ADDRESS
 #include "../pci/pci.hpp"
 #endif
+#ifndef CMOS_REGISTER
+#include "../timing/cmos.hpp"
+#endif
 
 IDT_Register idtr{ 50*8-1, (uint8_t*)0x10000  };
 
@@ -36,6 +39,7 @@ void initInts() {
     encode_idt_entry(irq2,  0x22);
     encode_idt_entry(irq3,  0x23);
     encode_idt_entry(irq4,  0x24);
+    encode_idt_entry(irq8,  0x28);
     encode_idt_entry(irq14, 0x2E);
     encode_idt_entry(irq15, 0x2F);
 
@@ -326,6 +330,40 @@ __attribute__((interrupt)) void irq4(IntFrame* frame) {
     }
     enableInts();
     int_exit_master();
+}
+
+__attribute__ ((interrupt)) void irq8(IntFrame* frame) {
+    uint8_t cmosStatusB = readCMOSReg(0x0B);
+    cmosStatusB |= 16;
+    outb(CMOS_REGISTER_SELECT, 0x0B);
+    outb(CMOS_REGISTER, cmosStatusB);
+
+    Time newtime;
+    newtime.seconds = readCMOSReg(0);
+    newtime.minutes = readCMOSReg(2);
+    uint8_t hours = readCMOSReg(4);
+    if (hours & 0x80)
+        hours = ((hours & 0x7F) + 12) % 24;
+    newtime.hours = hours;
+    newtime.day = readCMOSReg(7);
+    newtime.month = readCMOSReg(8);
+    newtime.year = readCMOSReg(50) * 100 + readCMOSReg(9);
+    newtime.weekday = readCMOSReg(6);
+
+    if (!(cmosStatusB & 4)) {
+        newtime.seconds = ((newtime.seconds & 0xF0) >> 1) + ((newtime.seconds & 0xF0) >> 3) + (newtime.seconds & 0xf);
+        newtime.minutes = ((newtime.minutes & 0xF0) >> 1) + ((newtime.minutes & 0xF0) >> 3) + (newtime.minutes & 0xf);
+        newtime.hours = ((newtime.hours & 0xF0) >> 1) + ((newtime.hours & 0xF0) >> 3) + (newtime.hours & 0xf);
+        newtime.day = ((newtime.day & 0xF0) >> 1) + ((newtime.day & 0xF0) >> 3) + (newtime.day & 0xf);
+        newtime.month = ((newtime.month & 0xF0) >> 1) + ((newtime.month & 0xF0) >> 3) + (newtime.month & 0xf);
+        uint8_t year = ((readCMOSReg(9) & 0xF0) >> 1) + ((readCMOSReg(9) & 0xF0) >> 3) + (readCMOSReg(9) & 0xf);
+        uint8_t century = ((readCMOSReg(50) & 0xF0) >> 1) + ((readCMOSReg(50) & 0xF0) >> 3) + (readCMOSReg(50) & 0xf);
+        newtime.year = century * 100 + year;
+    }
+    ksettime(newtime);
+
+    readCMOSReg(0x0C);
+    int_exit_slave();
 }
 
 __attribute__((interrupt)) void irq2(IntFrame* frame) {
