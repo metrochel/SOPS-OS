@@ -335,8 +335,7 @@ __attribute__((interrupt)) void irq4(IntFrame* frame) {
 __attribute__ ((interrupt)) void irq8(IntFrame* frame) {
     uint8_t cmosStatusB = readCMOSReg(0x0B);
     cmosStatusB |= 16;
-    outb(CMOS_REGISTER_SELECT, 0x0B);
-    outb(CMOS_REGISTER, cmosStatusB);
+    writeCMOSReg(0x0B, cmosStatusB);
 
     Time newtime;
     newtime.seconds = readCMOSReg(0);

@@ -8,6 +8,7 @@
 */
 
 #include <stdint.h>
+#include "acpi/acpi.hpp"
 #include "graphics/graphics.hpp"
 #include "graphics/glyphs.hpp"
 #include "io/com.hpp"
@@ -29,11 +30,11 @@ struct BootLoaderData {
     uint32_t CPUID_Flags1;      // Флаги ЦП-1
     uint32_t CPUID_Flags2;      // Флаги ЦП-2
     VBEModeInfo VBEInfo;        // Информация о графическом режиме
-    uint32_t MaxAddr1;
+    uint32_t MaxAddr01;
     uint32_t MaxAddr2;
 } __attribute__((packed));
 
-// Указатель на данные загрузчика
+// Указатель на данные0 загрузчика
 BootLoaderData* bld;
 
 uint8_t *stdin = (uint8_t*)0x9300;
@@ -79,13 +80,11 @@ int main() {
     unmaskIRQ(4);
     identifyUART();
 
-
     kprint("Добро пожаловать в СОПС вер. 1.0.0-АЛЬФА!\n\n");
 
     uint8_t cmosStatusB = readCMOSReg(0x0B);
     cmosStatusB |= 16;
-    outb(CMOS_REGISTER_SELECT, 0x0B);
-    outb(CMOS_REGISTER, cmosStatusB);
+    writeCMOSReg(0x0B, cmosStatusB);
     unmaskIRQ(8);
 
     if (initCom(1)) {
@@ -102,6 +101,11 @@ int main() {
         kprint("COM4 успешно инициализирован!\n");
         kwarn("ВНИМАНИЕ: COM4 на данный момент не работает.\nИзвините, пока не доделали.\n");
     }
+
+    if (!initACPI())
+        kerror("ОШИБКА: ACPI не инициализирован\n");
+    else
+        kprint("ACPI успешно инициализирован!\n");
 
     if (!initPS2())
         kerror("ОШИБКА: Контроллер PS/2 не инициализирован\n");
