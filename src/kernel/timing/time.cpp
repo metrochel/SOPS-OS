@@ -1,7 +1,5 @@
 #include "time.hpp"
-#ifndef STR_SIG
 #include "../str/str.hpp"
-#endif
 
 Time systime = {0,0,0,0,0,0,0};
 

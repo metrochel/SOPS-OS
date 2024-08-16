@@ -1,9 +1,7 @@
 #include "keyboard.hpp"
 #include "keycodes.hpp"
 #include <stdarg.h>
-#ifndef GRAPHICS_SIG
 #include "../graphics/glyphs.hpp"
-#endif
 
 bool cmdAwaitingResponse = false;
 bool releaseScancode = false;

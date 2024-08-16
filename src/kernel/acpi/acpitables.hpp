@@ -42,16 +42,16 @@ struct GAS {
 // ### FADT
 // Fixed ACPI Description Table - эта таблица описывает фиксированные параметры ACPI.
 struct FADT {
-    ACPITableHeader header;
-    uint32_t facsAddr;
-    uint32_t dsdtAddr;
-    uint8_t reserved;
-    uint8_t preferredPMP;
-    uint16_t sciInt;
-    uint32_t smiCmdPort;
-    uint8_t acpiEnable;
-    uint8_t acpiDisable;
-    uint8_t s4bios_req;
+    ACPITableHeader header;         // Заголовок (подпись "FACP")
+    uint32_t facsAddr;              // Адрес FACS
+    uint32_t dsdtAddr;              // Адрес DSDT
+    uint8_t reserved;               // (резервировано)
+    uint8_t preferredPMP;           // Предпочитаемый режим питания
+    uint16_t sciInt;                // Номер прерывания SCI
+    uint32_t smiCmdPort;            // Порт команды SMI
+    uint8_t acpiEnable;             // Значение включения ACPI
+    uint8_t acpiDisable;            // Значение выключения ACPI
+    uint8_t s4bios_req;             
     uint8_t pstateCtrl;
     uint32_t pm1aEventBlock;
     uint32_t pm1bEventBlock;
@@ -126,13 +126,31 @@ struct MADT {
 // ### DSDT
 // Differentiated System Description Table - эта таблица содержит AML-код.
 struct DSDT {
-    ACPITableHeader header;
-    char aml[];
-};
+    ACPITableHeader header;     // Заголовок (подпись "DSDT")
+    char aml[];                 // AML-код
+} __attribute__((packed));
 
 // ### SSDT
 // Secondary System Description Table - эта таблица содержит AML-код.
 struct SSDT {
-    ACPITableHeader header;
-    char aml[];
-};
+    ACPITableHeader header;     // Заголовок (подпись "SSDT")
+    char aml[];                 // AML-код
+} __attribute__((packed));
+
+// ### HPETT
+// High Precision Event Timer Table - эта таблица описывает HPET, установленный в системе.
+struct HPETT {
+    ACPITableHeader header;         // Заголовок (подпись "HPET")
+    uint32_t eventTimerBlock;       // (TODO: уточнить)
+    GAS baseAddr;                   // Основа адреса HPETа
+    uint8_t hpetNo;                 // Номер HPETа
+    uint16_t minTicksPeriodic;      // Минимальная тактовая частота, с которой периодический режим будет работать без перебоев
+    uint8_t pageProtAndOemAttr;     // Страничная защита и атрибуты OEM
+} __attribute__((packed));
+
+// ### WAET
+// Windows ACPI Emulated Devices Table - таблица, говорящая ОС Windows (и, получается, нам), что ОС является гостевой.
+struct WAET {
+    ACPITableHeader header;         // Заголовок (подпись "WAET")
+    uint32_t emDevFlags;            // Флаги эмулируемых устройств
+} __attribute__((packed));

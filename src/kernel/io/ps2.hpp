@@ -4,10 +4,11 @@
 //
 //  - Обрабатывает сигналы с PS/2-контроллера.
 //
+#ifndef _PS2_INCL
+#define _PS2_INCL
+
 #include <stdint.h>
-#ifndef IO_SIG
 #include "../io/io.hpp"
-#endif
 
 #define PS2_DATA                    0x60
 #define PS2_STATUS                  0x64
@@ -69,3 +70,5 @@ bool sendPS2ConCommand(uint8_t cmd);
 /// @param cmd Команда
 /// @return Успешность операции
 bool sendPS2DevCommand(uint8_t port, uint8_t cmd);
+
+#endif

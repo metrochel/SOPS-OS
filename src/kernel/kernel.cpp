@@ -1,10 +1,10 @@
 /*
-
-Наконец-то это случилось! Теперь мы можем писать
-на плюсах!
-
-Так будет сильно проще, чем на ассемблере.
-
+* 
+* Наконец-то это случилось! Теперь мы можем писать
+* на плюсах!
+* 
+* Так будет сильно проще, чем на ассемблере.
+*
 */
 
 #include <stdint.h>
@@ -22,7 +22,7 @@
 #include "timing/pit.hpp"
 #include "timing/cmos.hpp"
 #include "str/str.hpp"
-#include "llutil/llutil.hpp"
+#include "util/util.hpp"
 
 // Структура с данными из загрузчика
 struct BootLoaderData {
@@ -30,11 +30,11 @@ struct BootLoaderData {
     uint32_t CPUID_Flags1;      // Флаги ЦП-1
     uint32_t CPUID_Flags2;      // Флаги ЦП-2
     VBEModeInfo VBEInfo;        // Информация о графическом режиме
-    uint32_t MaxAddr01;
+    uint32_t MaxAddr1;
     uint32_t MaxAddr2;
 } __attribute__((packed));
 
-// Указатель на данные0 загрузчика
+// Указатель на данные загрузчика
 BootLoaderData* bld;
 
 uint8_t *stdin = (uint8_t*)0x9300;
@@ -89,7 +89,7 @@ int main() {
 
     if (initCom(1)) {
         kprint("COM1 успешно инициализирован!\n");
-        writeCom("=============== ОТЛАДЧИК СОПС ===============\nВерсия 1.0.0-АЛЬФА\n\n", 1);
+        writeCom("=============== ОТЛАДЧИК СОПС ===============\nВерсия 1.0.0-АЛЬФА\n", 1);
     }
     if (initCom(2))
         kprint("COM2 успешно инициализирован!\n");

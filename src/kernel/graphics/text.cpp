@@ -20,6 +20,8 @@ uint16_t screenHeight;
 
 uint8_t ticks = 0;
 
+uint64_t *dbgPtr = (uint64_t*)0x100300;
+
 Glyph getglyph(uint8_t code) {
     switch (code)
     {
@@ -361,7 +363,7 @@ Glyph getglyph(uint16_t unicode) {
     }
 }
 
-Glyph getOctDigit(uint32_t dig) {
+Glyph getOctDigit(uint64_t dig) {
     while (dig >= 8) {
         dig >>= 3;
     }
@@ -378,7 +380,7 @@ Glyph getOctDigit(uint32_t dig) {
     }
 }
 
-Glyph getHexDigit(uint32_t dig) {
+Glyph getHexDigit(uint64_t dig) {
     while (dig >= 16) {
         dig >>= 4;
     }
@@ -411,7 +413,7 @@ bool isnullglyph(Glyph g) {
     return true;
 }
 
-void putglyph(Glyph glyph, uint16_t x, uint16_t y, uint32_t letter_col, uint32_t back_col) {
+inline void putglyph(Glyph glyph, uint16_t x, uint16_t y, uint32_t letter_col, uint32_t back_col) {
     uint32_t offset = y * pitch + x * (bpp/8);
     for (uint8_t i = 0; i < 24; i++) {
         uint32_t line = glyph.lines[i];
@@ -427,7 +429,7 @@ void putglyph(Glyph glyph, uint16_t x, uint16_t y, uint32_t letter_col, uint32_t
     }
 }
 
-void printchar(Glyph glyph, uint32_t charCol, uint32_t bgCol) {
+inline void printchar(Glyph glyph, uint32_t charCol, uint32_t bgCol) {
     putglyph(glyph, textCurX * 16, textCurY * 24, charCol, bgCol);
     textCurX++;
     if (textCurX >= (screenWidth / 16 - 1)) {
@@ -436,7 +438,7 @@ void printchar(Glyph glyph, uint32_t charCol, uint32_t bgCol) {
     }
 }
 
-void printchar(uint8_t c, uint32_t charCol, uint32_t bgCol) {
+inline void printchar(uint8_t c, uint32_t charCol, uint32_t bgCol) {
     Glyph g = getglyph(c);
     printchar(g, charCol, bgCol);
 }
@@ -499,16 +501,16 @@ void updateCursor() {
     }
 }
 
-void printBinUInt(uint32_t num, uint32_t charCol, uint32_t bgCol) {
+void printBinUInt(uint64_t num, uint32_t charCol, uint32_t bgCol) {
     if (num == 0) {
         printchar('0', charCol, bgCol);
         printchar('b', charCol, bgCol);
         printchar('0', charCol, bgCol);
         return;
     }
-    uint32_t mask = 1;
+    uint64_t mask = 1;
     uint8_t digits = 0;
-    while (mask <= num && mask < (uint32_t)(1 << 31)) {
+    while (mask <= num && mask < (uint64_t)(0x8000000000000000)) {
         mask <<= 1;
         digits ++;
     }
@@ -531,16 +533,16 @@ void printBinUInt(uint32_t num, uint32_t charCol, uint32_t bgCol) {
     }
 }
 
-void printOctUInt(uint32_t num, uint32_t charCol, uint32_t bgCol) {
+void printOctUInt(uint64_t num, uint32_t charCol, uint32_t bgCol) {
     if (num == 0) {
         printchar('0', charCol, bgCol);
         printchar('o', charCol, bgCol);
         printchar('0', charCol, bgCol);
         return;
     }
-    uint32_t mask = 7;
+    uint64_t mask = 7;
     uint8_t digits = 1;
-    while (mask < num && mask < (uint32_t)(1 << 31)) {
+    while (mask < num && mask < (uint64_t)(0x8000000000000000)) {
         mask <<= 3;
         digits ++;
     }
@@ -559,16 +561,17 @@ void printOctUInt(uint32_t num, uint32_t charCol, uint32_t bgCol) {
     }
 }
 
-void printHexUInt(uint32_t num, uint32_t charCol, uint32_t bgCol) {
+void printHexUInt(uint64_t num, uint32_t charCol, uint32_t bgCol) {
     if (num == 0) {
         printchar('0', charCol, bgCol);
         printchar('x', charCol, bgCol);
         printchar('0', charCol, bgCol);
         return;
     }
-    uint32_t mask = 0xF;
+    *dbgPtr++ = num;
+    uint64_t mask = 0xF;
     uint8_t digits = 1;
-    while (mask < num && mask < (uint32_t)(1 << 31)) {
+    while (mask < num && mask < (uint64_t)(0xF000000000000000)) {
         mask <<= 4;
         digits ++;
     }
@@ -587,12 +590,12 @@ void printHexUInt(uint32_t num, uint32_t charCol, uint32_t bgCol) {
     }
 }
 
-void printDecUInt(uint32_t num, uint32_t charCol, uint32_t bgCol) {
+void printDecUInt(uint64_t num, uint32_t charCol, uint32_t bgCol) {
     if (num == 0) {
         printchar('0', charCol, bgCol);
         return;
     }
-    uint32_t numclone = num;
+    uint64_t numclone = num;
     uint8_t digits = 0;
     while (numclone > 0) {
         digits ++;
@@ -655,10 +658,8 @@ void eraseChar() {
     enableCursor();
 }
 
-void kprint(const char* text, ...) {
+void printStr(const char* text, va_list args, uint32_t charCol, uint32_t bgCol) {
     disableCursor();
-    va_list l;
-    va_start(l, text);
     uint8_t state = 0;
     unsigned char symb = *text;
     while (*text != 0) {
@@ -677,24 +678,32 @@ void kprint(const char* text, ...) {
                 state = 0;
             else if (symb == 'x')
                 state = 16;
+            else if (symb == 'X')
+                state = 64;
             else if (symb == 'd')
                 state = 10;
+            else if (symb == 'D')
+                state = 100;
             else if (symb == 'o')
                 state = 8;
+            else if (symb == 'O')
+                state = 88;
             else if (symb == 'b')
-                state = 5;
+                state = 22;
+            else if (symb == 'B')
+                state = 222;
             else if (symb == 'f')
                 state = 6;
         }
         else
             state = 0;
         uint16_t unicode = 0;
-        uint32_t arg;
+        uint64_t arg;
         double flarg;
         switch (Glyph g; state) {
             case 0:
                 g = getglyph(symb);
-                printchar(g, defaultTextCol, defaultBGCol);
+                printchar(g, charCol, bgCol);
                 break;
             case 1:
                 unicode = symb << 8;
@@ -702,7 +711,7 @@ void kprint(const char* text, ...) {
                 symb = *text;
                 unicode += symb;
                 g = getglyph(unicode);
-                printchar(g, defaultTextCol, defaultBGCol);
+                printchar(g, charCol, bgCol);
                 break;
             case 2:
                 textCurX = 1;
@@ -712,34 +721,60 @@ void kprint(const char* text, ...) {
                 textCurX = 1;
                 break;
             case 4:
-                printchar(NULLGLYPH, defaultTextCol, defaultBGCol);  
+                printchar(NULLGLYPH, charCol, bgCol);  
                 break;
-            case 5:
-                arg = va_arg(l, unsigned int);
-                printBinUInt(arg, defaultTextCol, defaultBGCol);
+            case 22:
+                arg = va_arg(args, uint32_t);
+                arg &= 0xFFFFFFFF;
+                printBinUInt(arg, charCol, bgCol);
+                break;
+            case 222:
+                arg = va_arg(args, uint64_t);
+                printBinUInt(arg, charCol, bgCol);
                 break;
             case 6:
-                flarg = va_arg(l, double);
-                printFloat(flarg, defaultTextCol, defaultBGCol);
+                flarg = va_arg(args, double);
+                printFloat(flarg, charCol, bgCol);
                 break;
             case 8:
-                arg = va_arg(l, unsigned int);
-                printOctUInt(arg, defaultTextCol, defaultBGCol);
+                arg = va_arg(args, uint32_t);
+                arg &= 0xFFFFFFFF;
+                printOctUInt(arg, charCol, bgCol);
+                break;
+            case 88:
+                arg = va_arg(args, uint64_t);
+                printOctUInt(arg, charCol, bgCol);
                 break;
             case 10:
-                arg = va_arg(l, unsigned int);
-                printDecUInt(arg, defaultTextCol, defaultBGCol);
+                arg = va_arg(args, uint32_t);
+                arg &= 0xFFFFFFFF;
+                printDecUInt(arg, charCol, bgCol);
+                break;
+            case 100:
+                arg = va_arg(args, uint64_t);
+                printDecUInt(arg, charCol, bgCol);
                 break;
             case 16:
-                arg = va_arg(l, unsigned int);
-                printHexUInt(arg, defaultTextCol, defaultBGCol);
+                arg = va_arg(args, uint32_t);
+                arg &= 0xFFFFFFFF;
+                printHexUInt(arg, charCol, bgCol);
+                break;
+            case 64:
+                arg = va_arg(args, uint64_t);
+                printHexUInt(arg, charCol, bgCol);
                 break;
         }
         text++;
         symb = *text;
     }
-    va_end(l);
+    va_end(args);
     enableCursor();
+}
+
+void kprint(const char* text, ...) {
+    va_list l;
+    va_start(l, text);
+    printStr(text, l, defaultTextCol, defaultBGCol);
 }
 
 void kwarn(const char* text, ...) {
@@ -802,7 +837,7 @@ void kwarn(const char* text, ...) {
                 printchar(NULLGLYPH, warnTextCol, warnBGCol);  
                 break;
             case 5:
-                arg = va_arg(l, unsigned int);
+                arg = va_arg(l, uint64_t);
                 printBinUInt(arg, warnTextCol, warnBGCol);
                 break;
             case 6:
@@ -810,15 +845,15 @@ void kwarn(const char* text, ...) {
                 printFloat(flarg, warnTextCol, warnBGCol);
                 break;
             case 8:
-                arg = va_arg(l, unsigned int);
+                arg = va_arg(l, uint64_t);
                 printOctUInt(arg, warnTextCol, warnBGCol);
                 break;
             case 10:
-                arg = va_arg(l, unsigned int);
+                arg = va_arg(l, uint64_t);
                 printDecUInt(arg, warnTextCol, warnBGCol);
                 break;
             case 16:
-                arg = va_arg(l, unsigned int);
+                arg = va_arg(l, uint64_t);
                 printHexUInt(arg, warnTextCol, warnBGCol);
                 break;
         }

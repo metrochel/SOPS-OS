@@ -1,4 +1,5 @@
 #include "paging.hpp"
+#include "../io/com.hpp"
 
 void createPageTable(uint32_t vaddr) {
     uint16_t tableNo = (vaddr & 0xFFC00000) >> 22;

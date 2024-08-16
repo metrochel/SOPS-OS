@@ -1,9 +1,8 @@
 #include <stdint.h>
-#ifndef IO_SIG
-#include "../io/io.hpp"
-#endif
 
-#define INT_SIG 4
+#ifndef _INT_INCL
+#define _INT_INCL
+#include "../io/io.hpp"
 
 struct IDT_Register {
     uint16_t size;
@@ -139,3 +138,5 @@ inline void int_exit_slave() {
 }
 
 void encode_idt_entry(void (*handlePtr)(IntFrame*), uint8_t intNum);
+
+#endif

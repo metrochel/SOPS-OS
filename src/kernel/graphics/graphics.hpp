@@ -7,7 +7,8 @@
 //    Отвечает за графику.
 //
 
-#define GRAPHICS_SIG 1
+#ifndef _GRAPHICS_INCL
+#define _GRAPHICS_INCL
 
 // ============================================== Основы ============================
 
@@ -29,7 +30,6 @@ extern uint8_t reservedshift;
 
 extern uint16_t screenWidth;
 extern uint16_t screenHeight;
-
 
 // Структура режима VBE
 struct VBEModeInfo {
@@ -77,7 +77,23 @@ struct VBEModeInfo {
 
 uint32_t encodeRGB(float r, float g, float b);
 
-void putpixel(uint16_t x, uint16_t y, uint32_t col);
+/// @brief Помещает по выбранному сдвигу пиксел выбранного цвета.
+/// @param offset Сдвиг по буферу
+/// @param col Цвет
 void putpixel(uint32_t offset, uint32_t col);
 
+/// @brief Помещает пиксел в видеопамять.
+/// @param x Абсцисса пиксела
+/// @param y Ордината пиксела
+/// @param col Цвет пиксела
+void putpixel(uint16_t x, uint16_t y, uint32_t col);
+
+/// @brief Размещает на данных координатах прямоугольник.
+/// @param x1 Абсцисса первой вершины
+/// @param y1 Ордината первой вершины
+/// @param x2 Абсцисса второй вершины
+/// @param y2 Ордината второй вершины
+/// @param col Цвет прямоугольника
 void putrect(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint32_t col);
+
+#endif

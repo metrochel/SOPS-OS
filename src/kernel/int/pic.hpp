@@ -1,10 +1,11 @@
 //
 //  Библиотека для управления контроллером прерываний.
 //
+
+#ifndef _PIC_INCL
+#define _PIC_INCL
 #include <stdint.h>
-#ifndef IO_SIG
 #include "../io/io.hpp"
-#endif
 
 #define PIC1_CMD    0x20
 #define PIC1_DATA   0x21
@@ -32,3 +33,5 @@ uint16_t getIRR();
 
 /// @brief Достаёт "маску" IRQ. 
 uint16_t getIRQMask();
+
+#endif

@@ -1,7 +1,5 @@
 #include "ps2.hpp"
-#ifndef GRAPHICS_SIG
 #include "../graphics/glyphs.hpp"
-#endif
 
 bool firstPortAvailable = false;
 bool secondPortAvailable = false;

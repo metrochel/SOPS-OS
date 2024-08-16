@@ -3,8 +3,8 @@
 //
 //  - Управляет временем. (:
 //
-
-#define TIME_SIG
+#ifndef _TIME_INCL
+#define _TIME_INCL
 
 #include <stdint.h>
 
@@ -46,3 +46,5 @@ inline Time kgettime() {
 inline void ksettime(Time newtime) {
     systime = newtime;
 }
+
+#endif

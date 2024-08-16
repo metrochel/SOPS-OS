@@ -1,12 +1,13 @@
 #include <stdint.h>
 
-#define IO_SIG 5
-
 //
 //  Стандартные IO-функции
 //
 //  - Позволяет использовать вывод на IO-порты ЦП.
 //
+
+#ifndef _IO_INCL
+#define _IO_INCL
 
 /// @brief Считывает байт с порта.
 /// @param port Порт
@@ -60,3 +61,5 @@ static inline void outl(uint16_t port, uint32_t value) {
 static inline void io_wait() {
     outb(0x80, 0);
 }
+
+#endif

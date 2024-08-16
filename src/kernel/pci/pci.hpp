@@ -3,13 +3,13 @@
 //
 //  - Контроллирует работу устройств, подключённых через шину PCI.
 //
+
+#ifndef _PCI_INCL
+#define _PCI_INCL
+
 #include <stdint.h>
-#ifndef IO_SIG
 #include "../io/io.hpp"
-#endif
-#ifndef GRAPHICS_SIG
 #include "../graphics/glyphs.hpp"
-#endif
 
 #define PCI_CONFIG_ADDRESS                  0xCF8
 #define PCI_CONFIG_DATA                     0xCFC
@@ -148,3 +148,5 @@ uint32_t pciFindDevice(uint8_t devclass, uint8_t devsubclass, uint8_t progIF);
 /// @param devsubclass Подкласс устройства
 /// @return ШУФ-ключ искомого устройства
 uint32_t pciFindDevice(uint8_t devclass, uint8_t devsubclass);
+
+#endif

@@ -3,10 +3,11 @@
 //
 //  - Управляет временем. Ну, почти.
 //
+#ifndef _PIT_INCL
+#define _PIT_INCL
+
 #include <stdint.h>
-#ifndef IO_SIG
 #include "../io/io.hpp"
-#endif
 
 #define PIT_CHANNEL_0_PORT  0x40
 #define PIT_CHANNEL_1_PORT  0x41
@@ -45,3 +46,5 @@ uint16_t computeCounter(uint32_t mcs);
 /// @brief Задаёт PITу период.
 /// @param microseconds Период
 void setPITTimer(uint32_t microseconds);
+
+#endif

@@ -3,11 +3,11 @@
 //
 //  - Реализует управление жёсткими дисками и компакт-дисками.
 //
+#ifndef _DISK_INCL
+#define _DISK_INCL
 #include <stdint.h>
 #include "ide.hpp"
-#ifndef IO_SIG
 #include "../io/io.hpp"
-#endif
 
 #define DISK_TYPE_NONE   0
 #define DISK_TYPE_ATA    1
@@ -34,3 +34,5 @@ void readSectors(uint8_t *buf, uint32_t lba, uint32_t count);
 
 void writeSector(uint8_t* buf, uint32_t lba);
 void writeSectors(uint8_t* buf, uint32_t lba, uint32_t count);
+
+#endif

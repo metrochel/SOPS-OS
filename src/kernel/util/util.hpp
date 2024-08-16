@@ -1,9 +1,11 @@
 //
-//  Библиотека с низкоуровневыми функциями
+//  Библиотека с вспомогательными функциями
 //
-//  - Вспомогательные функции из Ассемблера.
+//  - Разные полезные штуки.
 //
 #include <stdint.h>
+#ifndef _UTIL_INCL
+#define _UTIL_INCL
 
 /// @brief Считывает содержимое регистра FLAGS.
 inline uint16_t getFlags() {
@@ -17,3 +19,13 @@ inline uint16_t getFlags() {
 inline void interrupt(uint8_t intNo) {
     __asm__ ("int %b0" : : "a"(intNo));
 }
+
+/// @brief Меняет значения A и B местами.
+inline void swap(char* a, char* b) {
+    char c;
+    c = *b;
+    *b = *a;
+    *a = c;
+}
+
+#endif

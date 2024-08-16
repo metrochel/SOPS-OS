@@ -683,7 +683,7 @@ main:
 ; Виртуальный адрес, на котором будет находиться ядро
 %define KERNEL_VIRTADDR 0x1000000
 ; Длина ядра в секторах диска
-%define KERNEL_LEN      256
+%define KERNEL_LEN      512
 ; ELF-подпись файла
 %define ELF_SIGNATURE   0x464C457F
 
@@ -735,6 +735,7 @@ int_06:
 int_0E:
     mov eax, '#PF '
     pop ebx
+    mov ebx, cr2
     jmp boot_error
 
 ; Прерывание 0x0D - общий сбой защиты

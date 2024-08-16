@@ -7,6 +7,9 @@
 //    подключёнными через COM-порт.
 //
 
+#ifndef _COM_INCL
+#define _COM_INCL
+
 // Максимальная скорость обмена данными
 #define COM_MAX_BAUD_RATE           115200
 
@@ -147,3 +150,5 @@ void kdebug(const char* text, ...);
 uint32_t getComBaseR(uint8_t port);
 
 uint32_t getComBaseW(uint8_t port);
+
+#endif

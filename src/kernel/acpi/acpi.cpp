@@ -8,6 +8,7 @@
 #ifndef IO_SIG
 #include "../io/io.hpp"
 #endif
+#include "aml.hpp"
 
 uint32_t *globalLock = nullptr;
 uint32_t *apics = (uint32_t*)0x13000;
@@ -52,17 +53,33 @@ RSDP findRSDP() {
 }
 
 bool parseTable(uint32_t *table) {
+    kdebug("Адрес таблицы: %x.\n", (uint32_t)table);
     if (*table == 'PCAF') {
-        kdebug("Вид таблицы - FADT.\n");
+        kdebug("Тип таблицы - FADT.\n");
         FADT* _fadt = (FADT*)table;
         fadt = *_fadt;
         if (!verifyHeader(&(_fadt->header))) {
             kdebug("ОШИБКА: FADT повреждена.\n");
             return false;
         }
+        kdebug("Вид системы ");
+        switch (_fadt->preferredPMP) {
+            case 1: kdebug("- компьютер.\n"); break;
+            case 2: kdebug("- мобильное устройство.\n"); break;
+            case 3: kdebug("- рабочая станция.\n"); break;
+            case 4: kdebug("- сервер.\n"); break;
+            case 5: kdebug("- сервер SOHO.\n"); break;
+            case 6: kdebug("- ПК.\n"); break;
+            case 7: kdebug("- производительный сервер.\n"); break;
+            case 8: kdebug("- планшет.\n"); break;
+            default: kdebug("не определён (%d).\n", _fadt->preferredPMP); break;
+        }
+        kdebug("Прерывания SCI настроены на номер %d.\n", _fadt->sciInt);
         kdebug("Адрес FACS: %x.\n", _fadt->facsAddr);
+        createPages(_fadt->facsAddr, _fadt->facsAddr, 4);
         parseTable((uint32_t*)_fadt->facsAddr);
         kdebug("Адрес DSDT: %x.\n", _fadt->dsdtAddr);
+        createPages(_fadt->dsdtAddr, _fadt->dsdtAddr, 4);
         return parseTable((uint32_t*)_fadt->dsdtAddr);
     }
     else if (*table == 'SCAF') {
@@ -109,6 +126,7 @@ bool parseTable(uint32_t *table) {
             return false;
         }
         kdebug("В таблице %d байтов AML по адресу %x.\n", dsdt->header.length, dsdt);
+        parseDefBlock((uint8_t*)dsdt);
         return true;
     }
     else if (*table == 'TDSS') {
@@ -119,6 +137,30 @@ bool parseTable(uint32_t *table) {
             return false;
         }
         kdebug("В таблице %d байтов AML по адресу %x.\n", ssdt->header.length, ssdt);
+        return true;
+    }
+    else if (*table == 'TEPH') {
+        kdebug("Тип таблицы - HPET.\n");
+        HPETT *hpet = (HPETT*)table;
+        if (!verifyHeader(&(hpet->header))) {
+            kdebug("ОШИБКА: HPET повреждена.\n");
+            kdebug("ВНИМАНИЕ: Это не значит, что таймер HPET не работоспособен!\n");
+            return false;
+        }
+        kdebug("Основа адресов HPETа: %x.\n", hpet->baseAddr.addr);
+        return true;
+    }
+    else if (*table == 'TEAW') {
+        kdebug("Тип таблицы - WAET.\n");
+        WAET* waet = (WAET*)table;
+        if (waet->emDevFlags & 1)
+            kdebug("RTC пропатчен.\n");
+        else
+            kdebug("RTC не пропатчен.\n");
+        if (waet->emDevFlags & 2)
+            kdebug("Таймер PM ACPI пропатчен.\n");
+        else
+            kdebug("Таймер PM ACPI не пропатчен.\n");
         return true;
     }
     else {
@@ -152,7 +194,7 @@ bool initACPI() {
     kdebug("\tРевизия: %d\n", rsdp.revision);
     kdebug("\tАдрес RSDT: %x\n", rsdp.rsdtAddr);
 
-    createPages(rsdp.rsdtAddr, rsdp.rsdtAddr, 10);
+    createPages(rsdp.rsdtAddr, rsdp.rsdtAddr, 4);
     uint32_t *rsdt = (uint32_t*)rsdp.rsdtAddr;
     if (!verifyHeader((ACPITableHeader*)rsdt)) {
         kdebug("ОШИБКА: RSDT повреждена.\n\n");
@@ -162,9 +204,9 @@ bool initACPI() {
     uint8_t tables = ((*(ACPITableHeader*)rsdt).length - sizeof(ACPITableHeader)) / 4;
     rsdt += sizeof(ACPITableHeader) / 4;
     kdebug("Найдено %d таблиц.\n", tables);
-
     for (uint8_t i = 0; i < tables; i++) {
         kdebug("Обработка таблицы %d...\n", i+1);
+        createPages(rsdt[i], rsdt[i], 4);
         if (!parseTable((uint32_t*)rsdt[i])) return false;
     }
 

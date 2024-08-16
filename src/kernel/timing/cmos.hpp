@@ -3,12 +3,11 @@
 //
 //  - Управляет CMOS-часами ПК.
 //
-#ifndef TIME_SIG
+#ifndef _CMOS_INCL
+#define _CMOS_INCL
+
 #include "time.hpp"
-#endif
-#ifndef IO_SIG
 #include "../io/io.hpp"
-#endif
 #include <stdint.h>
 
 #define CMOS_REGISTER_SELECT 0x70
@@ -23,3 +22,5 @@ inline void writeCMOSReg(uint8_t regNo, uint8_t newValue) {
     outb(CMOS_REGISTER_SELECT, regNo);
     outb(CMOS_REGISTER, newValue);
 }
+
+#endif

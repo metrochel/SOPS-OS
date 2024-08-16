@@ -3,9 +3,10 @@
 //
 //  - Позволяет работать со строками. А вы что думали?
 //
-#include <stdint.h>
+#ifndef _STR_INCL
+#define _STR_INCL
 
-#define STR_SIG 9
+#include <stdint.h>
 
 bool strcmp(char* str1, char* str2);
 
@@ -18,3 +19,5 @@ uint8_t strcpy(char* str1, char* str2);
 uint32_t strlen(char* str);
 
 uint8_t numasstr(uint32_t num, char* str);
+
+#endif

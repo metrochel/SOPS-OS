@@ -1,12 +1,7 @@
 #include "com.hpp"
 #include "io.hpp"
-#ifndef STR_SIG
 #include "../str/str.hpp"
-#endif
 #include <stdarg.h>
-#ifndef CMOS_REGISTER_SELECT
-#include "../timing/cmos.hpp"
-#endif
 
 uint8_t *comReadBuffers[]  = {nullptr, nullptr, nullptr, nullptr};
 uint8_t *comWriteBuffers[] = {nullptr, nullptr, nullptr, nullptr};
@@ -161,6 +156,7 @@ void writeCom(const char str[], uint8_t port) {
 void writeCom(uint8_t b, uint8_t port) {
     if (!initPorts[port-1])
         return;
+    while (comWriteBufferLength(port) >= 0x9FFF) {__asm__ ("nop");} 
     *comWriteBuffers[port-1] = b;
     comWriteBuffers[port-1] ++;
     enableTraInt(port);
@@ -212,16 +208,16 @@ inline void enableTraInt(uint8_t port) {
         outb(ioPort + 1, inb(ioPort+1) | COM_INT_TRA_EMPTY);
 }
 
-void writeComBinUInt(uint32_t num, uint8_t port) {
+void writeComBinUInt(uint64_t num, uint8_t port) {
     if (num == 0) {
         *comWriteBuffers[port-1]++ = '0';
         *comWriteBuffers[port-1]++ = 'b';
         *comWriteBuffers[port-1]++ = '0';
         return;
     }
-    uint32_t mask = 1;
+    uint64_t mask = 1;
     uint8_t digits = 0;
-    while (mask <= num && mask < (uint32_t)(1 << 31)) {
+    while (mask <= num && mask < (uint64_t)(0x8000000000000000)) {
         mask <<= 1;
         digits ++;
     }
@@ -238,16 +234,16 @@ void writeComBinUInt(uint32_t num, uint8_t port) {
     }
 }
 
-void writeComOctUInt(uint32_t num, uint8_t port) {
+void writeComOctUInt(uint64_t num, uint8_t port) {
     if (num == 0) {
         *comWriteBuffers[port-1]++ = '0';
         *comWriteBuffers[port-1]++ = 'o';
         *comWriteBuffers[port-1]++ = '0';
         return;
     }
-    uint32_t mask = 7;
+    uint64_t mask = 7;
     uint8_t digits = 1;
-    while (mask < num && mask < (uint32_t)(1 << 31)) {
+    while (mask < num && mask < (uint64_t)(0x8000000000000000)) {
         mask <<= 3;
         digits ++;
     }
@@ -256,7 +252,7 @@ void writeComOctUInt(uint32_t num, uint8_t port) {
     *comWriteBuffers[port-1]++ = '0';
     *comWriteBuffers[port-1]++ = 'o';
     while (mask > 0) {
-        uint32_t digit = num & mask;
+        uint64_t digit = num & mask;
         while (digit > 7)
             digit >>= 3;
         *comWriteBuffers[port-1]++ = digit + 0x30;
@@ -264,13 +260,42 @@ void writeComOctUInt(uint32_t num, uint8_t port) {
     }
 }
 
-void writeComDecUInt(uint32_t num, uint8_t port) {
+void writeComHexUInt(uint64_t num, uint8_t port) {
+    if (num == 0) {
+        *comWriteBuffers[port-1]++ = '0';
+        *comWriteBuffers[port-1]++ = 'x';
+        *comWriteBuffers[port-1]++ = '0';
+        return;
+    }
+    uint64_t mask = 0xF;
+    uint8_t digits = 1;
+    while (mask < num && mask < (uint64_t)(0x8000000000000000)) {
+        mask <<= 4;
+        digits ++;
+    }
+    if (!(num & mask))
+        mask >>= 4;
+    *comWriteBuffers[port-1]++ = '0';
+    *comWriteBuffers[port-1]++ = 'x';
+    while (mask > 0) {
+        uint64_t digit = num & mask;
+        while (digit > 0xF)
+            digit >>= 4;
+        if (digit < 10)
+            *comWriteBuffers[port-1]++ = digit + 0x30;
+        else
+            *comWriteBuffers[port-1]++ = digit - 10 + 0x41;
+        mask >>= 4;
+    }
+}
+
+void writeComDecUInt(uint64_t num, uint8_t port) {
     if (num == 0) {
         *comWriteBuffers[port-1]++ = '0';
         return;
     }
     uint8_t digits = 0;
-    uint32_t numclone = num;
+    uint64_t numclone = num;
     while (numclone > 0) {
         digits ++;
         numclone /= 10;
@@ -283,39 +308,10 @@ void writeComDecUInt(uint32_t num, uint8_t port) {
     comWriteBuffers[port-1] += digits + 1;
 }
 
-void writeComHexUInt(uint32_t num, uint8_t port) {
-    if (num == 0) {
-        *comWriteBuffers[port-1]++ = '0';
-        *comWriteBuffers[port-1]++ = 'x';
-        *comWriteBuffers[port-1]++ = '0';
-        return;
-    }
-    uint32_t mask = 0xF;
-    uint8_t digits = 1;
-    while (mask < num && mask < (uint32_t)(1 << 31)) {
-        mask <<= 4;
-        digits ++;
-    }
-    if (!(num & mask))
-        mask >>= 4;
-    *comWriteBuffers[port-1]++ = '0';
-    *comWriteBuffers[port-1]++ = 'x';
-    while (mask > 0) {
-        uint32_t digit = num & mask;
-        while (digit > 0xF)
-            digit >>= 4;
-        if (digit < 10)
-            *comWriteBuffers[port-1]++ = digit + 0x30;
-        else
-            *comWriteBuffers[port-1]++ = digit - 10 + 0x41;
-        mask >>= 4;
-    }
-}
-
 void kdebug(const char* text, ...) {
     if (!initPorts[0])
         return;
-    uint32_t len = strlen((char*)text);
+    uint64_t len = strlen((char*)text);
     if (comWriteBufferLength(1) + len > 0xA000) {
         enableTraInt(1);
         while(comWriteBufferLength(1) + len > 0xA000) {io_wait();}
@@ -330,18 +326,26 @@ void kdebug(const char* text, ...) {
             c = *(++text);
             if (c == 'd')
                 state = 10;
+            else if (c == 'D')
+                state = 100;
             else if (c == 'x')
                 state = 16;
+            else if (c == 'X')
+                state = 64;
             else if (c == 'o')
                 state = 8;
+            else if (c == 'O')
+                state = 88;
             else if (c == 'b')
                 state = 2;
+            else if (c == 'B')
+                state = 22;
             else
                 state = 0;
         }
         else
             state = 0;
-        uint32_t arg;
+        uint64_t arg;
         switch (state) {
             case 0:
                 if (c == 0x0A)
@@ -349,19 +353,39 @@ void kdebug(const char* text, ...) {
                 *comWriteBuffers[0]++ = c;
                 break;
             case 2:
-                arg = va_arg(l, unsigned int);
+                arg = va_arg(l, uint32_t);
+                arg &= 0xFFFFFFFF;
+                writeComBinUInt(arg, 1);
+                break;
+            case 22:
+                arg = va_arg(l, uint64_t);
                 writeComBinUInt(arg, 1);
                 break;
             case 8:
-                arg = va_arg(l, unsigned int);
+                arg = va_arg(l, uint32_t);
+                arg &= 0xFFFFFFFF;
+                writeComOctUInt(arg, 1);
+                break;
+            case 88:
+                arg = va_arg(l, uint64_t);
                 writeComOctUInt(arg, 1);
                 break;
             case 10:
-                arg = va_arg(l, unsigned int);
+                arg = va_arg(l, uint32_t);
+                arg &= 0xFFFFFFFF;
+                writeComDecUInt(arg, 1);
+                break;
+            case 100:
+                arg = va_arg(l, uint64_t);
                 writeComDecUInt(arg, 1);
                 break;
             case 16:
-                arg = va_arg(l, unsigned int);
+                arg = va_arg(l, uint32_t);
+                arg &= 0xFFFFFFFF;
+                writeComHexUInt(arg, 1);
+                break;
+            case 64:
+                arg = va_arg(l, uint64_t);
                 writeComHexUInt(arg, 1);
                 break;
         }

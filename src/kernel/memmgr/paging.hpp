@@ -5,9 +5,10 @@
 //  - Руководит страницами памяти.
 //
 
-#ifndef PAGING_BASE
+#ifndef _PAGING_INCL
+#define _PAGING_INCL
+
 #define PAGING_BASE 0x101000
-#endif
 
 /// @brief Создаёт страницу по данному адресу.
 /// @param vaddr Виртуальный адрес страницы
@@ -27,3 +28,5 @@ void createPageTable(uint32_t vaddr);
 /// @brief Определяет физический адрес для данного виртуального адреса.
 /// @param vaddr Виртуальный адрес
 uint32_t getPhysAddr(uint32_t vaddr);
+
+#endif

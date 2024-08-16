@@ -5,6 +5,9 @@
 //  - Здесь расписаны все коды клавиш для клавиатуры.
 //
 
+#ifndef _KCODE_INCL
+#define _KCODE_INCL
+
 #define KEYCODE_SPACEBAR 0
 #define KEYCODE_A 1
 #define KEYCODE_B 2
@@ -95,3 +98,5 @@
 /// @param scancode Сканкод
 /// @return Код клавиши
 uint8_t getKeyCode(uint64_t scancode);
+
+#endif

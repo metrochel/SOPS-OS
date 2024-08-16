@@ -1,18 +1,11 @@
 #include "int.hpp"
 #include "../graphics/glyphs.hpp"
 #include "../io/com.hpp"
-#ifndef KB_BUF_BASE
+#include "../memmgr/paging.hpp"
 #include "../keyboard/keyboard.hpp"
-#endif
-#ifndef IDE_COMMAND_PRIMARY
 #include "../disk/ide.hpp"
-#endif
-#ifndef PCI_CONFIG_ADDRESS
 #include "../pci/pci.hpp"
-#endif
-#ifndef CMOS_REGISTER
 #include "../timing/cmos.hpp"
-#endif
 
 IDT_Register idtr{ 50*8-1, (uint8_t*)0x10000  };
 
@@ -98,17 +91,38 @@ __attribute__((interrupt)) void stack_seg_fault(IntFrame* frame) {
 }
 
 __attribute__((interrupt)) void general_prot_fault(IntFrame* frame) {
+    uint32_t errcode = (uint32_t)frame;
     kerror("\nОШИБКА: Общий сбой защиты\n");
-    kerror("Адрес сбоя: %x\n", frame->IP);
-    __asm__ ("hlt");
+    kerror("Код ошибки: %b\n", errcode);
+    if (errcode & 1)
+        kerror("Ошибка вызвана не процессором\n");
+    else
+        kerror("Ошибка вызвана процессором\n");
+    switch ((errcode & 0b110) >> 1) {
+        case 0b00:
+            kerror("Сегмент ошибки в GDT\n");
+            break;
+        case 0b01:
+            kerror("Сегмент ошибки в IDT\n");
+            break;
+        case 0b10:
+            kerror("Сегмент ошибки в LDT\n");
+            break;
+        case 0b11:
+            kerror("Сегмент ошибки в IDT\n");
+            break;
+    }
+    kerror("Номер сегмента: %d\n", (errcode >> 3) & 0xFFFF);
+    enableInts();
+    while (true) {io_wait();}
 }
 
 __attribute__((interrupt)) void page_fault(IntFrame* frame) {
-    uint32_t addr;
-    __asm__ ("mov %%cr2, %%eax; mov %%eax, %d0" : "=m"(addr) : );
-    kerror("\nОШИБКА: Страничный сбой\n");
-
-    kerror("Адрес сбоя: %x\n", addr);
+    uint32_t faultAddr;
+    __asm__ ("mov %%cr2, %%eax; mov %%eax, %d0" : "=m"(faultAddr) : );
+    kerror("ОШИБКА: Страничный сбой\n");
+    kerror("Адрес сбоя: %x\n", faultAddr);
+    kerror("Код ошибки: %b\n", (uint32_t)frame);
 }
 
 __attribute__((interrupt)) void float_exception(IntFrame* frame) {

@@ -27,8 +27,6 @@ bool prdt2read = false;
 
 bool transferring = false;
 
-uint16_t *dbgPtr = (uint16_t*)0x100300;
-
 void cleanPRDT1() {
     while ((uint32_t)prdt1 > 0x9500) {
         *prdt1-- = {0,0,0,0};
@@ -46,18 +44,6 @@ void cleanPRDT2() {
     prdt2base = prdt2;
     outl(IDE_PRDT_ADDR_SECONDARY, (uint32_t)prdt2base);
 }
-
-// void stopDMAPrim() {
-//     uint8_t cmd = inb(IDE_COMMAND_PRIMARY);
-//     cmd &= 0xFE;
-//     outb(IDE_COMMAND_PRIMARY, cmd);
-// }
-
-// void startDMAPrim() {
-//     uint8_t cmd = inb(IDE_COMMAND_PRIMARY);
-//     cmd |= 1;
-//     outb(IDE_COMMAND_PRIMARY, cmd);
-// }
 
 bool initIDE() {
     kdebug("Начата инициализация IDE-контроллера.\nОпределение ключа контроллера... ");

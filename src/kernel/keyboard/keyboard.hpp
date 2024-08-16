@@ -4,10 +4,11 @@
 //  - Надстройка к библиотеке PS/2 для клавиатуры.
 //
 
+#ifndef _KB_INCL
+#define _KB_INCL
+
 #include <stdint.h>
-#ifndef PS2_DATA
 #include "../io/ps2.hpp"
-#endif
 
 #define KB_BUF_BASE             0x9000
 #define KB_CMD_BUF_BASE         0x9008
@@ -77,3 +78,5 @@ bool sendKBCommand(uint8_t cmd, uint8_t arg);
 /// @param in Буфер вводимых данных
 /// @attention Для буфера всегда должно быть отделено как минимум 0x200 (512) байтов!
 void kread(uint8_t* in);
+
+#endif

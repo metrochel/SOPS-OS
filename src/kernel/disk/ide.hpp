@@ -5,6 +5,9 @@
 //  Работает с IDE-дисками. (Я уже даже не знаю, как тут шутить.)
 //
 
+#ifndef _IDE_INCL
+#define _IDE_INCL
+
 #define ATA_DATA_PRIMARY                    0x1F0
 #define ATA_ERROR_PRIMARY                   0x1F1
 #define ATA_FEATURES_PRIMARY                0x1F1
@@ -96,3 +99,5 @@ void cleanPRDT1();
 
 /// @brief Очищает таблицу PRD для 2 канала.
 void cleanPRDT2();
+
+#endif

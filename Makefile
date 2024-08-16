@@ -11,7 +11,7 @@ CROSSCOMPILER	=/usr/local/cross/bin/i686-elf-g++
 LINKERSCRIPT    =linker.ld
 
 #
-#	Полная сборка СОПС
+#	Полная сборка СОпС
 #
 all: $(BUILDDIR) $(DISKFILE) $(BINSDIR) $(BOOTBINS) $(KERNELBIN)
 	cat $(BOOTBINS) $(KERNELBIN) | mcat -i $(DISKFILE) -w
@@ -34,7 +34,7 @@ $(BINSDIR): $(BUILDDIR)
 $(OBJSDIR): $(BUILDDIR)
 	mkdir -p build/objs
 
-assemble_source = nasm -f bin $(1) -o $(patsubst src/boot/%.asm, build/bins/%.bin, $(1)) -w-zeroing
+assemble_source =nasm -f bin $(1) -o $(patsubst src/boot/%.asm, build/bins/%.bin, $(1)) -w-zeroing
 
 #
 #	Сборка исходных файлов загрузчика
