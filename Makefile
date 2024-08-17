@@ -7,7 +7,7 @@ OBJSDIR			=build/objs
 KERNELSRC   	=src/kernel/kernel.cpp $(wildcard src/kernel/*/*.cpp)
 KERNELOBJ       =$(foreach cpp, $(KERNELSRC), build/objs/$(patsubst %.cpp,%.o,$(notdir $(cpp))))
 KERNELBIN		=$(BINSDIR)/kernel.bin
-CROSSCOMPILER	=/usr/local/cross/bin/i686-elf-g++
+CROSSCOMPILER	=i686-elf-g++
 LINKERSCRIPT    =linker.ld
 
 #

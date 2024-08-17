@@ -146,8 +146,8 @@ int main() {
     kprint(out);
     kprint(".\n");
 
-    uint8_t *test = getACPIVarAddr("_SB_.PCI0.ISA_.COM1._HID");
-    kprint("\n%x\n", *(uint32_t*)test);
+    // uint8_t *test = getACPIVarAddr("_SB_.PCI0.ISA_.COM1._HID");
+    // kprint("\n%x\n", *(uint32_t*)test);
 
     while (true) {
         kprint("\n>");
