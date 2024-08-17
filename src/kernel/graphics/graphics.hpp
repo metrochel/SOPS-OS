@@ -80,7 +80,14 @@ uint32_t encodeRGB(float r, float g, float b);
 /// @brief Помещает по выбранному сдвигу пиксел выбранного цвета.
 /// @param offset Сдвиг по буферу
 /// @param col Цвет
-void putpixel(uint32_t offset, uint32_t col);
+inline void putpixel(uint32_t offset, uint32_t col) {
+    uint8_t *pixptr = frameBufferPtr + offset;
+    for (int i = 0; i < bpp/8; i++) {
+        *pixptr = (uint8_t)(col & 0xFF);
+        pixptr++;
+        col >>= 8;
+    }
+};
 
 /// @brief Помещает пиксел в видеопамять.
 /// @param x Абсцисса пиксела

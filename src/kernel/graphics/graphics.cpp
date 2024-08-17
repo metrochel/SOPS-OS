@@ -27,15 +27,6 @@ uint32_t encodeRGB(float r, float g, float b) {
     return encCol;
 }
 
-void putpixel(uint32_t offset, uint32_t col) {
-    uint8_t *pixptr = frameBufferPtr + offset;
-    for (int i = 0; i < bpp/8; i++) {
-        *pixptr = (uint8_t)(col & 0xFF);
-        pixptr++;
-        col >>= 8;
-    }
-}
-
 void putpixel(uint16_t x, uint16_t y, uint32_t col) {
     uint32_t offset = y * pitch + (x * (bpp/8));
     putpixel(offset, col);

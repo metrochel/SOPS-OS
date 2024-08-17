@@ -28,4 +28,29 @@ inline void swap(char* a, char* b) {
     *a = c;
 }
 
+/// @brief Устанавливает всю память на одно значение.
+/// @param ptr Указатель на обрабатываемый участок
+/// @param count Число изменяемых байтов
+/// @param val Новое значение
+inline void memset(uint8_t *ptr, uint32_t count, uint8_t val) {
+    for (uint32_t i = 0; i < count; i++) {
+        ptr[i] = val;
+    }
+}
+
+/// @brief Копирует N Б памяти с указателя A на указатель B.
+inline void memcpy(uint8_t* a, uint8_t* b, uint32_t n) {
+    for (uint32_t i = 0; i < n; i++) {
+        *b++ = *a++;
+    }
+}
+
+/// @brief Сравнивает N Б памяти на указателях A и B.
+inline bool memcmp(uint8_t *a, uint8_t* b, uint32_t n) {
+    for (uint32_t i = 0; i < n; i++) {
+        if (a[i] != b[i]) return false;
+    }
+    return true;
+}
+
 #endif

@@ -52,4 +52,9 @@ void parseTermList(uint8_t *aml, uint32_t len);
 /// @return Длина Package, Б
 uint32_t getPkgLength(uint8_t *pkg);
 
+/// @brief Извлекает адрес переменной ACPI.
+/// @param strPath Путь (NameSegы, разделённые '.')
+/// @return Указатель на переменную
+uint8_t* getACPIVarAddr(const char* strPath);
+
 #endif

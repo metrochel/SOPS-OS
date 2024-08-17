@@ -1,13 +1,7 @@
 #include "acpi.hpp"
-#ifndef COM_MAX_BAUD_RATE
 #include "../io/com.hpp"
-#endif
-#ifndef PAGING_BASE
 #include "../memmgr/paging.hpp"
-#endif
-#ifndef IO_SIG
 #include "../io/io.hpp"
-#endif
 #include "aml.hpp"
 
 uint32_t *globalLock = nullptr;

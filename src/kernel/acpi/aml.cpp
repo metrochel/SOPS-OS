@@ -1,12 +1,19 @@
 #include "aml.hpp"
-#ifndef COM_MAX_BAUD_RATE
 #include "../io/com.hpp"
-#endif
 #include "../memmgr/memmgr.hpp"
 #include "../util/util.hpp"
 
 const uint32_t parsingPathBase = 0x13000;
 AMLName *parsingPath = (AMLName*)parsingPathBase;
+
+const uint32_t acpiNamespaceBase = 0x13100;
+uint32_t *acpiNamespace = (uint32_t*)acpiNamespace;
+
+const uint32_t acpiDataBase = 0x14000;
+uint8_t* acpiData = (uint8_t*)acpiDataBase;
+
+const uint32_t acpiFuncsBase = 0x16000;
+uint8_t *acpiFuncs = (uint8_t*)acpiFuncsBase;
 
 inline uint32_t getParsingPathLen() {
     return ((uint32_t)parsingPath - parsingPathBase) / sizeof(AMLName);
@@ -99,7 +106,13 @@ uint32_t parseBuffer(uint8_t *aml) {
                     break;
                 }
             }
-            kdebug("\tНомер IRQ: %d.\n", irq);
+            kdebug("\tНомера IRQ: %d", irq);
+            for (uint16_t j = irq+1; j < 0x10; j++) {
+                if (irqField & (1 << j)) {
+                    kdebug(", %d", j);
+                }
+            }
+            kdebug("\n");
             if (elLen == 3) {
                 uint8_t irqFlags = aml[i];
                 i++;
@@ -236,16 +249,16 @@ uint32_t parseBuffer(uint8_t *aml) {
             kdebug("\tВозможность записи: ");
             kdebug(info ? "Да\n" : "Нет\n");
             i ++;
-            uint32_t minAddr = *(uint16_t*)(aml + i);
+            uint32_t minAddr = *(uint32_t*)(aml + i);
             i += 4;
             kdebug("\tМинимальный адрес: %x\n", minAddr);
-            uint32_t maxAddr = *(uint16_t*)(aml + i);
+            uint32_t maxAddr = *(uint32_t*)(aml + i);
             i += 4;
             kdebug("\tМаксимальный адрес: %x\n", maxAddr);
-            uint32_t align = *(uint16_t*)(aml + i);
+            uint32_t align = *(uint32_t*)(aml + i);
             i += 4;
             kdebug("\tРовнение: %d Б\n", align);
-            uint32_t range = *(uint16_t*)(aml + i);
+            uint32_t range = *(uint32_t*)(aml + i);
             i += 3;
             kdebug("\tДлина пространства: %d Б\n", range);
         } else if (isLarge && type == 0x06) {
@@ -254,10 +267,10 @@ uint32_t parseBuffer(uint8_t *aml) {
             kdebug("\tВозможность записи: ");
             kdebug(info ? "Да\n" : "Нет\n");
             i ++;
-            uint32_t baseAddr = *(uint16_t*)(aml + i);
+            uint32_t baseAddr = *(uint32_t*)(aml + i);
             i += 4;
             kdebug("\tОсновный адрес: %x\n", baseAddr);
-            uint32_t range = *(uint16_t*)(aml + i);
+            uint32_t range = *(uint32_t*)(aml + i);
             i += 3;
             kdebug("\tДлина пространства: %d Б\n", range);
         } else if (isLarge && type == 0x0A) {
@@ -283,7 +296,131 @@ uint32_t parseBuffer(uint8_t *aml) {
             i ++;
             kdebug("\tФлаги ресурса: %b\n", typeFlags);
             uint64_t granularity = *(uint64_t*)(aml + i);
-            kdebug("");
+            kdebug("\tГранулярность: %D Б\n", granularity);
+            i += 8;
+            uint64_t minAddr = *(uint64_t*)(aml + i);
+            kdebug("\tМинимальный адрес: %X\n", minAddr);
+            i += 8;
+            uint64_t maxAddr = *(uint64_t*)(aml + i);
+            kdebug("\tМаксимальный адрес: %X\n", maxAddr);
+            i += 8;
+            uint64_t traOffset = *(uint64_t*)(aml + i);
+            kdebug("\tСдвиг перевода: %X\n", traOffset);
+            i += 8;
+            uint64_t length = *(uint64_t*)(aml + i);
+            kdebug("\tДлина пространства: %D Б\n", length);
+            i += 7;
+            if (elLen > 43) {
+                i ++;
+                kdebug("\tИндекс источника: %d\n", aml[i]);
+                i ++;
+                kdebug("\tИсточник: \"");
+                for (uint8_t j = 0; j < elLen - 43; j ++) {
+                    if (aml[i] == 0) break;
+                    writeCom(aml[i], 1);
+                    i ++;
+                }
+                kdebug("\"\n");
+            }
+        } else if (isLarge && type == 0x07) {
+            kdebug("Тип элемента - DWordAddrSpace.\n");
+            uint8_t info = aml[i];
+            kdebug("\tТип ресурса: ");
+            switch (info) {
+                case 0: kdebug("ОЗУ\n"); break;
+                case 1: kdebug("IO\n"); break;
+                case 2: kdebug("Номер шины\n"); break;
+                default: kdebug("<ошибка>\n"); break;
+            }
+            i ++;
+            uint8_t genFlags = aml[i];
+            kdebug("\tТип расшифровки: ");
+            kdebug((genFlags & 2) ? "Вычитание\n" : "Сложение (?)\n");
+            kdebug("\tФиксирован верхний адрес: ");
+            kdebug((genFlags & 8) ? "Да\n" : "Нет\n");
+            kdebug("\tФиксирован нижний адрес: ");
+            kdebug((genFlags & 4) ? "Да\n" : "Нет\n");
+            i ++;
+            uint8_t typeFlags = aml[i];
+            i ++;
+            kdebug("\tФлаги ресурса: %b\n", typeFlags);
+            uint32_t granularity = *(uint32_t*)(aml + i);
+            kdebug("\tГранулярность: %d Б\n", granularity);
+            i += 4;
+            uint32_t minAddr = *(uint32_t*)(aml + i);
+            kdebug("\tМинимальный адрес: %x\n", minAddr);
+            i += 4;
+            uint32_t maxAddr = *(uint32_t*)(aml + i);
+            kdebug("\tМаксимальный адрес: %x\n", maxAddr);
+            i += 4;
+            uint32_t traOffset = *(uint32_t*)(aml + i);
+            kdebug("\tСдвиг перевода: %x\n", traOffset);
+            i += 4;
+            uint32_t length = *(uint32_t*)(aml + i);
+            kdebug("\tДлина пространства: %d Б\n", length);
+            i += 3;
+            if (elLen > 23) {
+                i ++;
+                kdebug("\tИндекс источника: %d\n", aml[i]);
+                i ++;
+                kdebug("\tИсточник: \"");
+                for (uint8_t j = 0; j < elLen - 23; j ++) {
+                    if (aml[i] == 0) break;
+                    writeCom(aml[i], 1);
+                    i ++;
+                }
+                kdebug("\"\n");
+            }
+        } else if (isLarge && type == 0x08) {
+            kdebug("Тип элемента - WordAddrSpace.\n");
+            uint8_t info = aml[i];
+            kdebug("\tТип ресурса: ");
+            switch (info) {
+                case 0: kdebug("ОЗУ\n"); break;
+                case 1: kdebug("IO\n"); break;
+                case 2: kdebug("Номер шины\n"); break;
+                default: kdebug("<ошибка>\n"); break;
+            }
+            i ++;
+            uint8_t genFlags = aml[i];
+            kdebug("\tТип расшифровки: ");
+            kdebug((genFlags & 2) ? "Вычитание\n" : "Сложение (?)\n");
+            kdebug("\tФиксирован верхний адрес: ");
+            kdebug((genFlags & 8) ? "Да\n" : "Нет\n");
+            kdebug("\tФиксирован нижний адрес: ");
+            kdebug((genFlags & 4) ? "Да\n" : "Нет\n");
+            i ++;
+            uint8_t typeFlags = aml[i];
+            i ++;
+            kdebug("\tФлаги ресурса: %b\n", typeFlags);
+            uint16_t granularity = *(uint16_t*)(aml + i);
+            kdebug("\tГранулярность: %d Б\n", granularity);
+            i += 2;
+            uint16_t minAddr = *(uint16_t*)(aml + i);
+            kdebug("\tМинимальный адрес: %x\n", minAddr);
+            i += 2;
+            uint16_t maxAddr = *(uint16_t*)(aml + i);
+            kdebug("\tМаксимальный адрес: %x\n", maxAddr);
+            i += 2;
+            uint16_t traOffset = *(uint16_t*)(aml + i);
+            kdebug("\tСдвиг перевода: %x\n", traOffset);
+            i += 2;
+            uint16_t length = *(uint16_t*)(aml + i);
+            kdebug("\tДлина пространства: %d Б\n", length);
+            i ++;
+            if (elLen > 13) {
+                i ++;
+                kdebug("\tИндекс источника: %d\n", aml[i]);
+                i ++;
+                kdebug("\tИсточник: \"");
+                for (uint8_t j = 0; j < elLen - 13; j ++) {
+                    if (aml[i] == 0) break;
+                    writeCom(aml[i], 1);
+                    i ++;
+                }
+                kdebug("\"\n");
+                i --;
+            }
         } else {
             i += elLen;
             if (isLarge)
@@ -390,13 +527,13 @@ void logEISAid(EISAId id) {
     }
 }
 
-void logParsingPath() {
-    if (getParsingPathLen() == 0) {
+void logPath(AMLName *path, uint8_t length) {
+    if (length == 0) {
         kdebug("<пусто>");
         return;
     }
-    for (uint8_t i = 0; i < getParsingPathLen(); i++) {
-        AMLName name = *(AMLName*)(parsingPathBase + i*4);
+    for (uint8_t i = 0; i < length; i++) {
+        AMLName name = *path++;
         if (name == 0) {
             kdebug("<нуль>.", name);
             continue;
@@ -409,6 +546,10 @@ void logParsingPath() {
     }
 }
 
+inline void logParsingPath() {
+    logPath((AMLName*)parsingPathBase, getParsingPathLen());
+}
+
 void clearParsingPath() {
     for (uint8_t i = 0; i < 0x10; i++)
         parsingPath[i] = 0;
@@ -416,7 +557,7 @@ void clearParsingPath() {
 }
 
 void parseTermList(uint8_t *aml, uint32_t len) {
-    for (uint32_t i = 0; i < len; i++) {
+    for (uint32_t i = 0; i < len; i ++) {
         if (aml[i] == 0x10) {
             kdebug("Найдено определение Scope.\n");
             i ++;
@@ -431,6 +572,11 @@ void parseTermList(uint8_t *aml, uint32_t len) {
             kdebug("\n");
             AMLName name = *(parsingPath - 1);
             i += nameLen >> 8;
+            uint8_t names = getParsingPathLen();
+            *acpiNamespace++ = names;
+            memcpy((uint8_t*)parsingPathBase, (uint8_t*)acpiNamespace, names * 4);
+            acpiNamespace += names;
+            uint32_t dataSize = 0;
             kdebug("Первый байт объекта: %x.\n", aml[i]);
             if (aml[i] == 0x0C) {
                 i ++;
@@ -442,19 +588,36 @@ void parseTermList(uint8_t *aml, uint32_t len) {
                     kdebug("\")");
                 }
                 kdebug(".\n");
+                *(uint32_t*)acpiData = *(uint32_t*)(aml + i);
+                dataSize = 4;
+                i += 3;
             } else if (aml[i] == 0x12) {
                 i ++;
                 kdebug("Вид объекта - Package.\n");
-                i += parsePackage(aml + i) - 1;
+                dataSize = parsePackage(aml + i);
+                memcpy((uint8_t*)(aml + i - 1), acpiData, dataSize);
+                i += dataSize - 1;
             } else if (aml[i] == 0) {
                 kdebug("Значение объекта - 0.\n");
+                dataSize = 1;
+                *acpiData = 0;
             } else if (aml[i] == 1) {
                 kdebug("Значение объекта - 1.\n");
+                dataSize = 1;
+                *acpiData = 1;
+            } else if (aml[i] == 0xFF) {
+                kdebug("Значение объекта - 255.\n");
+                dataSize = 1;
+                *acpiData = 0xFF;
             } else if (aml[i] == 0x11) {
                 i ++;
                 kdebug("Вид объекта - Buffer.\n");
-                i += parseBuffer(aml + i) - 1;
+                dataSize = parseBuffer(aml + i) + 1;
+                memcpy((uint8_t*)(aml + i - 1), acpiData, dataSize);
+                i += dataSize - 3;
             }
+            *acpiNamespace++ = (uint32_t)acpiData;
+            acpiData += dataSize;
             for (uint8_t i = 0; i < (nameLen & 0xFF); i++)
                 if (getParsingPathLen()) *(--parsingPath) = 0;
         }
@@ -467,7 +630,7 @@ void parseTermList(uint8_t *aml, uint32_t len) {
             } else if (aml[i] == 0x80) {
                 kdebug("Найдено определение OperationRegion.\n");
                 i ++;
-                i += parseOpRegion(aml + i);
+                i += parseOpRegion(aml + i) - 1;
             }
         }
     }
@@ -613,12 +776,80 @@ uint32_t parseScope(uint8_t *aml) {
     return scopeLen;
 }
 
+uint8_t strToPath(const char* str, AMLName* out) {
+    AMLName tmp = 0;
+    uint8_t shift = 0;
+    uint8_t length = 0;
+    while (*str != 0) {
+        if (*str == '.' || shift == 32) {
+            *out++ = tmp;
+            tmp = 0;
+            shift = 0;
+            length ++;
+            str ++;
+            continue;
+        }
+        tmp |= (*str) << shift;
+        shift += 8;
+        str ++;
+    }
+    if (tmp) {
+        *out++ = tmp;
+        length ++;
+    }
+    return length;
+}
+
+uint8_t* getACPIVarAddr(const char* strPath) {
+    AMLName path[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+    uint8_t length;
+    length = strToPath(strPath, path);
+    kdebug("Попытка найти адрес переменной ");
+    logPath(path, length);
+    kdebug("\nДлина пути: %d имён.\n", length);
+    uint32_t *names = (uint32_t*)acpiNamespaceBase;
+    for (uint32_t i = 0; i < 0x2000; i++) {
+        if (names[i] == 0) {
+            kdebug("ВНИМАНИЕ: Не удалось найти переменную.\nВозвращается nullptr.\n");
+            return nullptr;
+        }
+        if (names[i] != length) {
+            i += length + 1;
+            continue;
+        }
+        i ++;
+        if (!memcmp((uint8_t*)(names + i), (uint8_t*)path, length * 4)) {
+            i += length;
+            continue;
+        }
+        i += length;
+        kdebug("Найдена переменная в пространстве.\nАдрес = %x.\n", names[i]);
+        return (uint8_t*)names[i];
+    }
+    return nullptr;
+}
+
 void parseDefBlock(uint8_t *aml) {
     kdebug("Начата обработка блока AML по адресу %x.\n", (uint32_t)aml);
 
     parsingPath = (AMLName*)parsingPathBase;
     for (uint8_t i = 0; i < 0x10; i++) {
         parsingPath[i] = 0;
+    }
+
+    acpiNamespace = (uint32_t*)acpiNamespaceBase;
+    for (uint16_t i = 0; i < 0x3C0; i++) {
+        acpiNamespace[i] = 0;
+    }
+
+    acpiData = (uint8_t*)acpiDataBase;
+    for (uint16_t i = 0; i < 0x2000; i++) {
+        acpiData[i] = 0;
+    }
+
+    acpiFuncs = (uint8_t*)acpiFuncsBase;
+    for (uint16_t i = 0; i < 0x2000; i++) {
+        acpiFuncs[i] = 0;
     }
 
     kdebug("Заголовок таблицы:\n");

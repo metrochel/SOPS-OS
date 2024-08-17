@@ -9,6 +9,7 @@
 
 #include <stdint.h>
 #include "acpi/acpi.hpp"
+#include "acpi/aml.hpp"
 #include "graphics/graphics.hpp"
 #include "graphics/glyphs.hpp"
 #include "io/com.hpp"
@@ -89,7 +90,7 @@ int main() {
 
     if (initCom(1)) {
         kprint("COM1 успешно инициализирован!\n");
-        writeCom("=============== ОТЛАДЧИК СОПС ===============\nВерсия 1.0.0-АЛЬФА\n", 1);
+        writeCom("=============== ОТЛАДЧИК СОПС ===============\nВерсия 1.0.0-АЛЬФА\n\n", 1);
     }
     if (initCom(2))
         kprint("COM2 успешно инициализирован!\n");
@@ -144,6 +145,9 @@ int main() {
     out -= 6;
     kprint(out);
     kprint(".\n");
+
+    uint8_t *test = getACPIVarAddr("_SB_.PCI0.ISA_.COM1._HID");
+    kprint("\n%x\n", *(uint32_t*)test);
 
     while (true) {
         kprint("\n>");
