@@ -2,26 +2,26 @@
 #include "../io/com.hpp"
 #include "../memmgr/paging.hpp"
 #include "../io/io.hpp"
-#include "aml.hpp"
+#include "../graphics/glyphs.hpp"
 
-uint32_t *globalLock = nullptr;
-uint32_t *apics = (uint32_t*)0x13000;
+dword *globalLock = nullptr;
+dword *apics = (dword*)0x13000;
 
 FADT fadt;
 
 bool verifyRSDP(RSDP rsdp) {
-    uint8_t sum = 0;
-    uint8_t *ptr = (uint8_t*)&rsdp;
-    for (uint8_t i = 0; i < sizeof(RSDP); i++) {
+    byte sum = 0;
+    byte *ptr = (byte*)&rsdp;
+    for (byte i = 0; i < sizeof(RSDP); i++) {
         sum += *ptr++;
     }
     return sum == 0;
 }
 
 bool verifyHeader(ACPITableHeader *header) {
-    uint8_t sum = 0;
-    for (uint32_t i = 0; i < header->length; i++) {
-        sum += ((uint8_t*)header)[i];
+    byte sum = 0;
+    for (dword i = 0; i < header->length; i++) {
+        sum += ((byte*)header)[i];
     }
     return sum == 0;
 }
@@ -32,10 +32,10 @@ bool checkACPI() {
 
 RSDP findRSDP() {
     kdebug("Начат поиск RSDP.\n");
-    uint64_t *ptr = (uint64_t*)0xE0000;
-    while (ptr < (uint64_t*)0xFFFFF) {
+    qword *ptr = (qword*)0xE0000;
+    while (ptr < (qword*)0xFFFFF) {
         if (*ptr == 0x2052545020445352) {
-            kdebug("Найдена подпись RSDP по адресу %x.\n", (uint32_t)ptr);
+            kdebug("Найдена подпись RSDP по адресу %x.\n", (dword)ptr);
             RSDP rsdp = *(RSDP*)ptr;
             return rsdp;
         }
@@ -46,8 +46,8 @@ RSDP findRSDP() {
     return {{0,0,0,0,0,0,0,0},1,{0,0,0,0,0,0},0,0};
 }
 
-bool parseTable(uint32_t *table) {
-    kdebug("Адрес таблицы: %x.\n", (uint32_t)table);
+bool parseTable(dword *table) {
+    kdebug("Адрес таблицы: %x.\n", (dword)table);
     if (*table == 'PCAF') {
         kdebug("Тип таблицы - FADT.\n");
         FADT* _fadt = (FADT*)table;
@@ -71,10 +71,11 @@ bool parseTable(uint32_t *table) {
         kdebug("Прерывания SCI настроены на номер %d.\n", _fadt->sciInt);
         kdebug("Адрес FACS: %x.\n", _fadt->facsAddr);
         createPages(_fadt->facsAddr, _fadt->facsAddr, 4);
-        parseTable((uint32_t*)_fadt->facsAddr);
+        parseTable((dword*)_fadt->facsAddr);
         kdebug("Адрес DSDT: %x.\n", _fadt->dsdtAddr);
-        createPages(_fadt->dsdtAddr, _fadt->dsdtAddr, 4);
-        return parseTable((uint32_t*)_fadt->dsdtAddr);
+        dword dsdtLen = ((ACPITableHeader*)(_fadt->dsdtAddr))->length + ((_fadt->dsdtAddr) & 0xFFF);
+        createPages(_fadt->dsdtAddr, _fadt->dsdtAddr, ((dsdtLen + 1023) / 1024) + 1);
+        return parseTable((dword*)_fadt->dsdtAddr);
     }
     else if (*table == 'SCAF') {
         kdebug("Обработка FACS.\n");
@@ -82,22 +83,22 @@ bool parseTable(uint32_t *table) {
         facs->wakingVector = 0x12000;
         kdebug("Адрес вектора пробуждения установлен на %x.\n", facs->wakingVector);
         globalLock = &(facs->globalLock);
-        kdebug("Адрес глобального замка установлен на %x.\n", (uint32_t)globalLock);
+        kdebug("Адрес глобального замка установлен на %x.\n", (dword)globalLock);
         return true;
     }
     else if (*table == 'CIPA') {
         kdebug("Тип таблицы - MADT.\n");
         MADT* madt = (MADT*)table;
-        uint8_t *ctrl = (uint8_t*)table + 44;
-        while ((uint32_t)ctrl - (uint32_t)madt < madt->header.length) {
-            switch (uint32_t apicAddr; *ctrl) {
+        byte *ctrl = (byte*)table + 44;
+        while ((dword)ctrl - (dword)madt < madt->header.length) {
+            switch (dword apicAddr; *ctrl) {
                 case 0:
                     kdebug("Обнаружен локальный APIC ЦП.\n");
                     kdebug("\tИдентификатор процессора: %d.\n", *(ctrl + 2));
                     break;
                 case 1:
                     kdebug("Обнаружен I/O APIC.\n");
-                    apicAddr = *((uint32_t*)(ctrl + 4));
+                    apicAddr = *((dword*)(ctrl + 4));
                     kdebug("\tАдрес APICа: %x.\n", apicAddr);
                     *apics++ = apicAddr;
                     break;
@@ -120,7 +121,8 @@ bool parseTable(uint32_t *table) {
             return false;
         }
         kdebug("В таблице %d байтов AML по адресу %x.\n", dsdt->header.length, dsdt);
-        parseDefBlock((uint8_t*)dsdt);
+        kprint("%x %d\n", dsdt, dsdt->header.length);
+        parseDefBlock((byte*)dsdt);
         return true;
     }
     else if (*table == 'TDSS') {
@@ -159,8 +161,8 @@ bool parseTable(uint32_t *table) {
     }
     else {
         kdebug("Вид таблицы не определён.\nПодпись таблицы: ");
-        for (uint8_t i = 0; i < 4; i++) {
-            writeCom(((uint8_t*)table)[i], 1);
+        for (byte i = 0; i < 4; i++) {
+            writeCom(((byte*)table)[i], 1);
         }
         kdebug(".\n");
         return true;
@@ -177,31 +179,31 @@ bool initACPI() {
     }
     kdebug("Найден целый RSDP:\n");
     kdebug("\tПодпись: \"");
-    for (uint8_t i = 0; i < 8; i++)
+    for (byte i = 0; i < 8; i++)
         writeCom(rsdp.signature[i], 1);
     kdebug("\"\n");
     kdebug("\tКонтрольная сумма: %x\n", rsdp.checksum);
     kdebug("\tИдентификатор OEM: \"");
-    for (uint8_t i = 0; i < 6; i++)
+    for (byte i = 0; i < 6; i++)
         writeCom(rsdp.oemID[i], 1);
     kdebug("\"\n");
     kdebug("\tРевизия: %d\n", rsdp.revision);
     kdebug("\tАдрес RSDT: %x\n", rsdp.rsdtAddr);
 
     createPages(rsdp.rsdtAddr, rsdp.rsdtAddr, 4);
-    uint32_t *rsdt = (uint32_t*)rsdp.rsdtAddr;
+    dword *rsdt = (dword*)rsdp.rsdtAddr;
     if (!verifyHeader((ACPITableHeader*)rsdt)) {
         kdebug("ОШИБКА: RSDT повреждена.\n\n");
         return false;
     }
 
-    uint8_t tables = ((*(ACPITableHeader*)rsdt).length - sizeof(ACPITableHeader)) / 4;
+    byte tables = ((*(ACPITableHeader*)rsdt).length - sizeof(ACPITableHeader)) / 4;
     rsdt += sizeof(ACPITableHeader) / 4;
     kdebug("Найдено %d таблиц.\n", tables);
-    for (uint8_t i = 0; i < tables; i++) {
+    for (byte i = 0; i < tables; i++) {
         kdebug("Обработка таблицы %d...\n", i+1);
         createPages(rsdt[i], rsdt[i], 4);
-        if (!parseTable((uint32_t*)rsdt[i])) return false;
+        if (!parseTable((dword*)rsdt[i])) return false;
     }
 
     if (checkACPI()) {
@@ -218,4 +220,8 @@ bool initACPI() {
     }
     kdebug("Режим ACPI успешно активирован.\n\n");
     return true;
+}
+
+void enterSleepState(byte state) {
+    
 }

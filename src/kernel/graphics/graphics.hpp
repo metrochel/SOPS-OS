@@ -1,5 +1,3 @@
-#include <stdint.h>
-
 //
 //  Графическая библиотека для адаптера VGA
 //
@@ -10,80 +8,82 @@
 #ifndef _GRAPHICS_INCL
 #define _GRAPHICS_INCL
 
+#include "../util/nums.hpp"
+
 // ============================================== Основы ============================
 
 // Указатель на буфер кадра
-extern uint8_t* frameBufferPtr;
+extern byte* frameBufferPtr;
 // Длина строки в байтах
-extern uint16_t  pitch;
+extern word  pitch;
 // Число бит на пиксел
-extern uint8_t   bpp;
+extern byte   bpp;
 
-extern uint8_t redmask;
-extern uint8_t redshift;
-extern uint8_t greenmask;
-extern uint8_t greenshift;
-extern uint8_t bluemask;
-extern uint8_t blueshift;
-extern uint8_t reservedmask;
-extern uint8_t reservedshift;
+extern byte redmask;
+extern byte redshift;
+extern byte greenmask;
+extern byte greenshift;
+extern byte bluemask;
+extern byte blueshift;
+extern byte reservedmask;
+extern byte reservedshift;
 
-extern uint16_t screenWidth;
-extern uint16_t screenHeight;
+extern word screenWidth;
+extern word screenHeight;
 
 // Структура режима VBE
 struct VBEModeInfo {
     // Основной блок данных
-    uint16_t Attributes;         // Флаги режима
-    uint8_t  WindowA;            // (не используется)
-    uint8_t  WindowB;            // (не используется)
-    uint16_t Granularity;        // (не используется)
-    uint16_t WindowSize;         // (не используется)
-    uint16_t SegmentA;           // (не используется)
-    uint16_t SegmentB;           // (не используется)
-    uint32_t BankSwitchPtr;      // (не используется)
-    uint16_t Pitch;              // Количество байтов на строку
-    uint16_t Width;              // Ширина экрана в пикселах
-    uint16_t Height;             // Высота экрана в пикселах
-    uint8_t  WChar;              // (не используется)
-    uint8_t  YChar;              // (не используется)
-    uint8_t  Planes;             // (не используется)
-    uint8_t  BPP;                // Количество бит на пиксел
-    uint8_t  NumBanks;           // (не используется)
-    uint8_t  MemoryModel;        // (не используется)
-    uint8_t  BankSize;           // (не используется)
-    uint8_t  ImagePages;         // (не используется)
-    uint8_t  Reserved0;          // (резервировано)
+    word  Attributes;         // Флаги режима
+    byte  WindowA;            // (не используется)
+    byte  WindowB;            // (не используется)
+    word  Granularity;        // (не используется)
+    word  WindowSize;         // (не используется)
+    word  SegmentA;           // (не используется)
+    word  SegmentB;           // (не используется)
+    dword BankSwitchPtr;      // (не используется)
+    word  Pitch;              // Количество байтов на строку
+    word  Width;              // Ширина экрана в пикселах
+    word  Height;             // Высота экрана в пикселах
+    byte  WChar;              // (не используется)
+    byte  YChar;              // (не используется)
+    byte  Planes;             // (не используется)
+    byte  BPP;                // Количество бит на пиксел
+    byte  NumBanks;           // (не используется)
+    byte  MemoryModel;        // (не используется)
+    byte  BankSize;           // (не используется)
+    byte  ImagePages;         // (не используется)
+    byte  Reserved0;          // (резервировано)
     
     // Блок данных режима прямого цвета
-    uint8_t  RedMaskSize;        // Размер маски в коде пиксела, отвечающей за красный канал
-    uint8_t  RedPos;             // Сдвиг маски в коде пиксела, отвечающей за красный канал
-    uint8_t  GreenMaskSize;      // Размер маски в коде пиксела, отвечающей за зелёный канал
-    uint8_t  GreenPos;           // Сдвиг маски в коде пиксела, отвечающей за зелёный канал
-    uint8_t  BlueMaskSize;       // Размер маски в коде пиксела, отвечающей за синий канал
-    uint8_t  BluePos;            // Сдвиг маски в коде пиксела, отвечающей за синий канал
-    uint8_t  ReservedMask;       // Размер маски в коде пиксела, биты которой резервированы
-    uint8_t  ReservedPos;        // Сдвиг маски в коде пиксела, биты которой резервированы
-    uint8_t  DirectColorAttr;    // Свойства режима прямого цвета
+    byte  RedMaskSize;        // Размер маски в коде пиксела, отвечающей за красный канал
+    byte  RedPos;             // Сдвиг маски в коде пиксела, отвечающей за красный канал
+    byte  GreenMaskSize;      // Размер маски в коде пиксела, отвечающей за зелёный канал
+    byte  GreenPos;           // Сдвиг маски в коде пиксела, отвечающей за зелёный канал
+    byte  BlueMaskSize;       // Размер маски в коде пиксела, отвечающей за синий канал
+    byte  BluePos;            // Сдвиг маски в коде пиксела, отвечающей за синий канал
+    byte  ReservedMask;       // Размер маски в коде пиксела, биты которой резервированы
+    byte  ReservedPos;        // Сдвиг маски в коде пиксела, биты которой резервированы
+    byte  DirectColorAttr;    // Свойства режима прямого цвета
 
     // Блок данных о буфере кадра
-    uint32_t FrameBuffer;        // Буфер кадра (куда пикселы класть)
-    uint32_t OffScreenMemOffset; // Сдвиг в буфере кадров, память, начиная с которого, на экран не выводится
-    uint32_t OffScreenMemSize;   // Размер памяти в буфере кадров, которая не выводится на экран
-    uint8_t  Reserved1[206];     // (резервировано)
+    dword FrameBuffer;        // Буфер кадра (куда пикселы класть)
+    dword OffScreenMemOffset; // Сдвиг в буфере кадров, память, начиная с которого, на экран не выводится
+    dword OffScreenMemSize;   // Размер памяти в буфере кадров, которая не выводится на экран
+    byte  Reserved1[206];     // (резервировано)
 } __attribute__ ((packed));
 // Фууууух... Огромная куча полей была оставлена для обратной совместимости,
 // но сейчас они не используются.
 
-uint32_t encodeRGB(float r, float g, float b);
+dword encodeRGB(float r, float g, float b);
 
 /// @brief Помещает по выбранному сдвигу пиксел выбранного цвета.
 /// @param offset Сдвиг по буферу
 /// @param col Цвет
-inline void putpixel(uint32_t offset, uint32_t col) {
-    uint8_t *pixptr = frameBufferPtr + offset;
+inline void putpixel(dword offset, dword col) {
+    byte *pixptr = frameBufferPtr + offset;
     for (int i = 0; i < bpp/8; i++) {
-        *pixptr = (uint8_t)(col & 0xFF);
+        *pixptr = (byte)(col & 0xFF);
         pixptr++;
         col >>= 8;
     }
@@ -93,7 +93,7 @@ inline void putpixel(uint32_t offset, uint32_t col) {
 /// @param x Абсцисса пиксела
 /// @param y Ордината пиксела
 /// @param col Цвет пиксела
-void putpixel(uint16_t x, uint16_t y, uint32_t col);
+void putpixel(word x, word y, dword col);
 
 /// @brief Размещает на данных координатах прямоугольник.
 /// @param x1 Абсцисса первой вершины
@@ -101,6 +101,6 @@ void putpixel(uint16_t x, uint16_t y, uint32_t col);
 /// @param x2 Абсцисса второй вершины
 /// @param y2 Ордината второй вершины
 /// @param col Цвет прямоугольника
-void putrect(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint32_t col);
+void putrect(word x1, word y1, word x2, word y2, dword col);
 
 #endif

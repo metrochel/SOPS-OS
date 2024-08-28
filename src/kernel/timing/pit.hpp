@@ -6,7 +6,7 @@
 #ifndef _PIT_INCL
 #define _PIT_INCL
 
-#include <stdint.h>
+#include "../util/nums.hpp"
 #include "../io/io.hpp"
 
 #define PIT_CHANNEL_0_PORT  0x40
@@ -36,15 +36,15 @@
 
 /// @brief Устанавливает счётчик PITа.
 /// @param counter Значение счётчика
-void setPITCounter(uint16_t counter);
+void setPITCounter(word counter);
 
 /// @brief Вычисляет значение счётчика PITа для данного периода.
 /// @param mcs Период
 /// @return Искомое значение счётчика
-uint16_t computeCounter(uint32_t mcs);
+word computeCounter(dword mcs);
 
 /// @brief Задаёт PITу период.
 /// @param microseconds Период
-void setPITTimer(uint32_t microseconds);
+void setPITTimer(dword microseconds);
 
 #endif

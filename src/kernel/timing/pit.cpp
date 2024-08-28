@@ -1,13 +1,13 @@
 #include "pit.hpp"
 
-uint16_t computeCounter(uint32_t mcs) {
-    uint32_t count = 1193182 * (float)(mcs / 1000000);
+word computeCounter(dword mcs) {
+    dword count = 1193182 * (float)(mcs / 1000000);
     if (count >= 0x10000)
         return 0;
-    return (uint16_t)count;
+    return (word)count;
 }
 
-void setPITCounter(uint16_t count) {
+void setPITCounter(word count) {
     __asm__ ("cli");
     outb(PIT_MODE_CMD_PORT, PIT_CMD_CHAN0 | PIT_CMD_ACCESS_HILO | PIT_CMD_OPMODE_2);
 
@@ -16,7 +16,7 @@ void setPITCounter(uint16_t count) {
     __asm__ ("sti");
 }
 
-void setPITTimer(uint32_t microseconds) {
-    uint16_t counter = computeCounter(microseconds);
+void setPITTimer(dword microseconds) {
+    word counter = computeCounter(microseconds);
     setPITCounter(counter);
 }

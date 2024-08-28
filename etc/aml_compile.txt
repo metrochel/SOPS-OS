@@ -1,0 +1,1129 @@
+//
+//  Это мемориал тому коду, который я изначально писал для обработки функций AML.
+//  Дело в том, что я собирался написать компилятор функций AML в машинные коды,
+//  но мой опыт в этом деле даже не близок к тому уровню, с которым такое
+//  возможно. Я не удаляю этот код полностью, потому что желаю в будущем вернуться
+//  к этой идее. А ещё мне жалко его стирать. Можете пока полюбоваться этой работой
+//  (если найдёте, чем).
+//
+
+// А это кусок заголовка.
+// ================================= Блок функций ===================================
+
+// ### AMLFunc0
+// Указатель на функцию, принимающую 0 аргументов.
+typedef qword (*AMLFunc0)(void);
+
+/// @brief Компилирует Method в машинные коды.
+/// @param aml Указатель на AML-код
+/// @param length Длина AML-кода
+/// @return Адрес скомпилированной функции
+dword compileMethod(byte* aml, dword length);
+
+/// @brief Генерирует код чтения поля ACPI.
+/// @param code Адрес кода
+/// @param fieldName Имя поля
+/// @note Результат чтения будет размещён в EAX:EDX.
+void generateFieldReadCode(byte*& code, AMLName fieldName, bool eaxedx);
+
+/// @brief Генерирует код записи в поле ACPI.
+/// @param code Адрес кода
+/// @param fieldName Имя поля
+/// @note Считается, что новое значение лежит в EAX:EDX.
+void generateFieldWriteCode(byte*& code, AMLName fieldName);
+
+/// @brief Генерирует код, считывающий значение LocalN.
+/// @param code Указатель на код
+/// @param localNo Номер Local
+/// @note Значение считается в EAX:EDX.
+void generateLocalReadCode(byte*& code, byte localNo, bool eaxedx);
+
+/// @brief Генерирует код, записывающий значение в LocalN.
+/// @param code Указатель на код
+/// @param localNo Номер Local
+/// @note Считается, что новое значение находится в EAX:EDX.
+void generateLocalWriteCode(byte*& code, byte localNo);
+
+/// @brief Генерирует код, считывающий значение TermArg.
+/// @param code Указатель на код
+/// @param aml Указатель на AML
+/// @param localsUsed Переменная localsUsed из compileMethod
+/// @param eaxedx См. ниже
+/// @return Идентификатор типа TermArg
+/// @note Если флаг `eaxedx` установлен, то сгенерированный код поместит значение TermArg 
+/// в регистры EAX:EDX. Иначе код поместит низшие 32 бита числа в регистр ECX, а высшие - в стек.
+byte generateLoadTermArgCode(byte*& code, byte*& aml, byte& localsUsed, bool eaxedx);
+
+/// @brief Генерирует код, создающий взаимодействие двух аргументов.
+/// @param code Указатель на код
+/// @param aml Указатель на AML
+/// @param localsUsed Переменная localsUsed из compileMethod
+/// @param interactType Тип взаимодействия
+void generate2IntsCode(byte*& code, byte*& aml, byte& localsUsed, byte interactType);
+
+/// @brief Создаёт поле внутри буфера.
+/// @param buffer Указатель на буфер
+/// @param bitOffset Сдвиг по буферу в битах
+/// @param fieldSize Размер поля
+/// @note Если установлен верхний бит `fieldSize`, то размер следует считать в битах, иначе в байтах.
+void createBufferField(byte *buffer, byte bitOffset, byte fieldSize);
+
+// ==================================================================================
+
+
+void generateFieldReadCode(byte*& code, AMLName fieldName, bool eaxedx) {
+    kdebug("Имя поля: \"");
+    kdebug(fieldName);
+    kdebug("\".\n");
+    byte *fieldAddr = getACPIObjAddr(&fieldName, 1);
+    if (!fieldAddr)
+        return;
+    fieldAddr ++;
+    byte flags = *fieldAddr++;
+    byte space = *fieldAddr++;
+    byte access = flags & 0xF;
+    qword offset = getIntegerTerm(fieldAddr) / 8;
+    fieldAddr += getIntegerTermBytes(fieldAddr);
+    word size = getIntegerTerm(fieldAddr);
+    fieldAddr += getIntegerTermBytes(fieldAddr);
+    if (size & 0x80) {
+        kdebug("FIXME: Нет поддержки битовых полей\n");
+        return;
+    }
+    if (access == 0) {
+        switch (size) {
+            case 1: access = 1; break;
+            case 2: access = 2; break;
+            case 4: access = 3; break;
+            case 8: access = 4; break;
+        }
+    }
+    kdebug("Пространство поля - ");
+    if (space == 0) {
+        kdebug("ОЗУ.\n");
+        kdebug("Сдвиг = %x.\n", offset);
+        kdebug("Размер поля = %d Б.\n", size);
+        if (access == 1) {
+            *code++ = 0x0F;
+            *code++ = 0xB6;
+            if (eaxedx) {
+                *code++ = 0x05;
+                *(dword*)code = offset;
+                code += 4;
+                *code++ = 0x31;
+                *code++ = 0xD2;
+            } else {
+                *code++ = 0x0D;
+                *(dword*)code = offset;
+                code += 4;
+                *code++ = 0x6A;
+                *code++ = 0x00;
+            }
+        }
+        else if (access == 2) {
+            *code++ = 0x0F;
+            *code++ = 0xB7;
+            if (eaxedx) {
+                *code++ = 0x05;
+                *(dword*)code = offset;
+                code += 4;
+                *code++ = 0x31;
+                *code++ = 0xD2;
+            } else {
+                *code++ = 0x0D;
+                *(dword*)code = offset;
+                code += 4;
+                *code++ = 0x6A;
+                *code++ = 0x00;
+            }
+        }
+        else if (access == 3) {
+            if (eaxedx) {
+                *code++ = 0xA1;
+                *(dword*)code = offset;
+                code += 4;
+                *code++ = 0xF8;
+            } else {
+                *code++ = 0x8B;
+                *code++ = 0x0D;
+                *(dword*)code = offset;
+                code += 4;
+                *code++ = 0x6A;
+                *code++ = 0x00;
+            }
+        }
+        else if (access == 4) {
+            if (eaxedx) {
+                *code++ = 0xA1;
+                *(dword*)code = offset;
+                code += 4;
+                *code++ = 0x8B;
+                *code++ = 0x15;
+                *(dword*)code = offset + 4;
+                code += 4;
+                *code++ = 0xF9;
+            } else {
+                *code++ = 0x8B;
+                *code++ = 0x0D;
+                *(dword*)code = offset;
+                code += 4;
+                *code++ = 0xFF;
+                *code++ = 0x35;
+                *(dword*)code = offset + 4;
+            }
+        }
+    }
+    else if (space == 1) {
+        kdebug("I/O.\n");
+        offset &= 0xFFFF;
+        kdebug("Сдвиг = %x.\n", offset);
+        kdebug("Размер = %d Б.\n", size);
+        if (!eaxedx) {
+            *code++ = 0x50;
+            *code++ = 0x52;
+        }
+        *code++ = 0x66;
+        *code++ = 0xBA;
+        *(word*)code = offset;
+        code += 2;
+        if (access == 1) {
+            *code++ = 0xEC;
+        }
+        else if (access == 2) {
+            *code++ = 0x66;
+            *code++ = 0xED;
+        }
+        else if (access == 3) {
+            *code++ = 0xED;
+        }
+        if (!eaxedx) {
+            *code++ = 0x5A;
+            *code++ = 0x59;
+            *code++ = 0x91;
+            *code++ = 0x6A;
+            *code++ = 0x00;
+        }
+    }
+    else if (space == 2) {
+        kdebug("конфигурация PCI.\n");
+        kdebug("Сдвиг = %x.\n", offset);
+        kdebug("Размер = %d Б.\n", size);
+        if (!eaxedx) {
+            *code++ = 0x50;
+            *code++ = 0x52;
+        }
+        *code++ = 0x66;
+        *code++ = 0xBA;
+        *(word*)code = 0xCF8;
+        code += 2;
+        *code++ = 0xB8;
+        *(dword*)code = (1 << 31) | (offset & 0xFFFFFFFC);
+        code += 4;
+        *code++ = 0xEF;
+        *code++ = 0x66;
+        *code++ = 0xBA;
+        *(word*)code = 0xCFC;
+        code += 2;
+        *code++ = 0xED;
+        if (access > 0 && access < 3) {
+            if (offset & 3) {
+                *code++ = 0xC1;
+                *code++ = 0xE8;
+                *code++ = 8*(offset & 3);
+            }
+            if (access == 1) {
+                *code++ = 0x0F;
+                *code++ = 0xB6;
+                *code++ = 0xC0;
+            }
+            else if (access == 2) {
+                *code++ = 0x0F;
+                *code++ = 0xB7;
+                *code++ = 0xC0;
+            }
+        }
+        if (!eaxedx) {
+            *code++ = 0x5A;
+            *code++ = 0x59;
+            *code++ = 0x91;
+            *code++ = 0x6A;
+            *code++ = 0x00;
+        }
+    }
+}
+
+void generateFieldWriteCode(byte*& code, AMLName fieldName) {
+    kdebug("Имя поля: \"");
+    kdebug(fieldName);
+    kdebug("\".\n");
+    byte *fieldAddr = getACPIObjAddr(&fieldName, 1);
+    if (!fieldAddr)
+        return;
+    fieldAddr ++;
+    byte flags = *fieldAddr++;
+    byte space = *fieldAddr++;
+    byte access = flags & 0xF;
+    qword offset = getIntegerTerm(fieldAddr);
+    fieldAddr += getIntegerTermBytes(fieldAddr);
+    word size = getIntegerTerm(fieldAddr) / 8;
+    fieldAddr += getIntegerTermBytes(fieldAddr);
+    if (access == 0) {
+        switch (size) {
+            case 1: access = 1; break;
+            case 2: access = 2; break;
+            case 4: access = 3; break;
+            case 8: access = 4; break;
+        }
+    }
+    kdebug("Пространство поля - ");
+    if (space == 0) {
+        kdebug("ОЗУ.\n");
+        kdebug("Сдвиг = %x.\n", offset);
+        kdebug("Размер = %d Б.\n", size);
+        if (access == 1) {
+            *code++ = 0xA2;
+            *(dword*)code = offset;
+            code += 4;
+        }
+        else if (access == 2) {
+            *code++ = 0x66;
+            *code++ = 0xA3;
+            *(dword*)code = offset;
+            code += 4;
+        }
+        else if (access == 3) {
+            *code++ = 0xA3;
+            *(dword*)code = offset;
+            code += 4;
+        }
+        else if (access == 4) {
+            *code++ = 0xA3;
+            *(dword*)code = offset;
+            code += 4;
+            *code++ = 0x89;
+            *code++ = 0x15;
+            *(dword*)code = offset;
+            code += 4;
+        }
+    }
+    else if (space == 1) {
+        kdebug("I/O.\n");
+        offset &= 0xFFFF;
+        kdebug("Сдвиг = %x.\n", offset);
+        kdebug("Размер = %d Б.\n", size);
+        *code++ = 0x66;
+        *code++ = 0xBA;
+        *(word*)code = offset;
+        code += 2;
+        if (access == 1) {
+            *code++ = 0xEE;
+        }
+        else if (access == 2) {
+            *code++ = 0x66;
+            *code++ = 0xEF;
+        }
+        else if (access == 3) {
+            *code++ = 0xEF;
+        }
+    }
+    else if (space == 2) {
+        kdebug("конфигурация PCI.\n");
+        *code++ = 0x66;
+        *code++ = 0xBA;
+        *(word*)code = 0xCF8;
+        code += 2;
+        *code++ = 0x50;
+        *code++ = 0xB8;
+        *(dword*)code = (1 << 31) | (offset & 0xFFFFFFFC);
+        code += 4;
+        *code++ = 0xEF;
+        *code++ = 0x66;
+        *code++ = 0xBA;
+        *(word*)code = 0xCFC;
+        code += 2;
+        if (access == 3) {
+            *code++ = 0x58;
+            *code++ = 0xEF;
+        }
+        else {
+            *code++ = 0xED;
+            *code++ = 0x5A;
+            if (access == 2) {
+                if (offset & 2) {
+                    *code++ = 0xC1;
+                    *code++ = 0xE8;
+                    *code++ = 0x10;
+                }
+                else {
+                    *code++ = 0x0F;
+                    *code++ = 0xB7;
+                    *code++ = 0xC0;
+                }
+            }
+            else if (access == 1) {
+                if ((offset & 3) == 0) {
+                    *code++ = 0x88;
+                    *code++ = 0xD0;
+                }
+                else if ((offset & 3) == 1) {
+                    *code++ = 0x88;
+                    *code++ = 0xD4;
+                }
+                else {
+                    dword mask = ~(0xFF << 8*(offset & 3));
+                    *code++ = 0x25;
+                    *(dword*)code = mask;
+                    code += 4;
+                    mask = ~mask;
+                    if (offset & 3) {
+                        *code++ = 0xC1;
+                        *code++ = 0xE2;
+                        *code++ = 8*(offset & 3);
+                    }
+                    *code++ = 0x09;
+                    *code++ = 0xD0;
+                }
+            }
+            *code++ = 0x66;
+            *code++ = 0xBA;
+            *(word*)code = 0xCFC;
+            code += 2;
+        }
+        *code++ = 0xEF;
+    }
+}
+
+void generateLocalReadCode(byte*& code, byte localNo, bool eaxedx) {
+    byte ebpOffset = localNo * 8;
+    *code++ = 0x8B;
+    if (eaxedx)
+        *code++ = 0x45;
+    else
+        *code++ = 0x4D;
+    *code++ = ebpOffset;
+    if (eaxedx) {
+        *code++ = 0x8B;
+        *code++ = 0x55;
+    } else {
+        *code++ = 0xFF;
+        *code++ = 0x75;
+    }
+    *code++ = ebpOffset + 4;
+}
+
+void generateLocalWriteCode(byte*& code, byte localNo) {
+    byte ebpOffset = localNo * 8;
+    *code++ = 0x89;
+    *code++ = 0x45;
+    *code++ = ebpOffset;
+    *code++ = 0x89;
+    *code++ = 0x55;
+    *code++ = ebpOffset + 4;
+}
+
+void createBufferField(byte* buffer, byte bitOffset, byte fieldSize) {
+    AMLName name = *(parsingPath - 1);
+    *acpiNamespace++ = 1;
+    *acpiNamespace++ = name;
+    *acpiNamespace++ = (dword)acpiFields;
+    kdebug("Поле записывается в адрес %x.\n", acpiFields);
+    *acpiFields++ = 0xFD;
+    byte flags = 0;
+    switch (fieldSize) {
+        case 1: flags |= 1; break;
+        case 2: flags |= 2; break;
+        case 4: flags |= 3; break;
+        case 8: flags |= 4; break;
+    }
+    kdebug("Флаги поля: %x.\n", flags);
+    *acpiFields++ = flags;
+    *acpiFields++ = 0;
+    *acpiFields++ = 0x0C;
+    buffer++;
+    buffer += getPkgBytes(buffer);
+    buffer += getIntegerTermBytes(buffer);
+    buffer += bitOffset / 8;
+    kdebug("Сдвиг поля: %x.\n", buffer);
+    *(byte**)acpiFields = buffer;
+    acpiFields += 4;
+    acpiFields += encodeIntegerTerm(fieldSize, acpiFields);
+}
+
+inline bool isLocal(byte type) {
+    return type >= 0x60 && type <= 0x66;
+}
+
+inline bool isIntegerType(byte type) {
+    return type == 0x0A || type == 0x0B || type == 0x0C || type == 0x0D || isLocal(type) || type == 0x1D;
+}
+
+byte generateLoadTermArgCode(byte*& code, byte *&aml, byte& localsUsed, bool eaxedx) {
+    kdebug("Тип операнда - ");
+    if (isLeadNameChar(*aml)) {
+        kdebug("ссылка.\n");
+        word nameSegs = parseName(aml);
+        aml += nameSegs >> 8;
+        byte *termAddr = getACPIObjAddr((AMLName*)parsingPathBase, getParsingPathLen());
+        if (!termAddr) {
+            termAddr = getACPIObjAddr((AMLName*)(parsingPath - 1), 1);
+            if (!termAddr)
+                return 0;
+        }
+        if (*termAddr == 0x0A) {
+            termAddr ++;
+            *code++ = 0x0F;
+            *code++ = 0xB6;
+            if (eaxedx) {
+                *code++ = 0x05;
+                *(dword*)code = (dword)termAddr;
+                code += 4;
+                *code++ = 0x31;
+                *code++ = 0xD2;
+            } else {
+                *code++ = 0x0D;
+                *(dword*)code = (dword)termAddr;
+                code += 4;
+                *code++ = 0x6A;
+                *code++ = 0x00;
+            }
+            for (byte j = 0; j < (nameSegs & 0xFF); j++) {
+                *(--parsingPath) = 0;
+            }
+            return 0x0A;
+        }
+        if (*termAddr == 0x0B) {
+            termAddr ++;
+            *code++ = 0x0F;
+            *code++ = 0xB7;
+            if (eaxedx) {
+                *code++ = 0x05;
+                *(dword*)code = (dword)termAddr;
+                code += 4;
+                *code++ = 0x31;
+                *code++ = 0xD2;
+            } else {
+                *code++ = 0x0D;
+                *(dword*)code = (dword)termAddr;
+                code += 4;
+                *code++ = 0x6A;
+                *code++ = 0x00;
+            }
+            for (byte j = 0; j < (nameSegs & 0xFF); j++) {
+                *(--parsingPath) = 0;
+            }
+            return 0x0B;
+        }
+        if (*termAddr == 0x0C) {
+            termAddr ++;
+            if (eaxedx) {
+                *code++ = 0xA1;
+                *(dword*)code = (dword)termAddr;
+                code += 4;
+                *code++ = 0x31;
+                *code++ = 0xD2;
+            } else {
+                *code++ = 0x8B;
+                *code++ = 0x0D;
+                *(dword*)code = (dword)termAddr;
+                code += 4;
+                *code++ = 0x6A;
+                *code++ = 0x00;
+            }
+            for (byte j = 0; j < (nameSegs & 0xFF); j++) {
+                *(--parsingPath) = 0;
+            }
+            return 0x0C;
+        } else if (*termAddr == 0x0E) {
+            termAddr ++;
+            if (eaxedx) {
+                *code++ = 0xA1;
+                *(dword*)code = (dword)termAddr;
+                code += 4;
+                *code++ = 0x8B;
+                *code++ = 0x15;
+                *(dword*)code = (dword)(termAddr + 4);
+                code += 4;
+            } else {
+                *code++ = 0x8B;
+                *code++ = 0x0D;
+                *(dword*)code = (dword)termAddr;
+                code += 4;
+                *code++ = 0xFF;
+                *code++ = 0x35;
+            }
+            for (byte j = 0; j < (nameSegs & 0xFF); j++) {
+                *(--parsingPath) = 0;
+            }
+            return 0x0E;
+        } else if (*termAddr == 0xFD) {
+            generateFieldReadCode(code, *(parsingPath - 1), eaxedx);
+            for (byte j = 0; j < (nameSegs & 0xFF); j++) {
+                *(--parsingPath) = 0;
+            }
+            return 0x1D;
+        }
+    }
+    else if (*aml >= 0x60 && *aml <= 0x66) {
+        byte localNo = *aml & 7;
+        kdebug("Local%d.\n", localNo);
+        generateLocalReadCode(code, localNo, eaxedx);
+        if (localsUsed < localNo + 1)
+            localsUsed = localNo + 1;
+        return 0x60;
+    } else if (*aml >= 0x0A && *aml <= 0x0C || *aml == 0x0E) {
+        kdebug("IntegerTerm.\n");
+        aml++;
+        qword op = getIntegerTerm(aml);
+        kdebug("Значение = %D (%X).\n", op, op);
+        aml += getIntegerTermBytes(aml);
+        if (op <= 0xFF) {
+            if (eaxedx) {
+                *code++ = 0xB0;
+                *code++ = op & 0xFF;
+                *code++ = 0x0F;
+                *code++ = 0xB6;
+                *code++ = 0xC0;
+                *code++ = 0x31;
+                *code++ = 0xD2;
+            } else {
+                *code++ = 0x31;
+                *code++ = 0xC9;
+                *code++ = 0xB1;
+                *code++ = op & 0xFF;
+                *code++ = 0x6A;
+                *code++ = 0x00;
+            }
+            return 0x0A;
+        }
+        if (op <= 0xFFFF) {
+            if (eaxedx) {
+                *code++ = 0x66;
+                *code++ = 0xB8;
+                *(word*)code = op & 0xFFFF;
+                code += 2;
+                *code++ = 0x0F;
+                *code++ = 0xB7;
+                *code++ = 0xC0;
+                *code++ = 0x31;
+                *code++ = 0xD2;
+            } else {
+                *code++ = 0x31;
+                *code++ = 0xC9;
+                *code++ = 0x66;
+                *code++ = 0xB9;
+                *(word*)code = op & 0xFFFF;
+                code += 2;
+                *code++ = 0x6A;
+                *code++ = 0x00;
+            }
+            return 0x0B;
+        }
+        if (op <= 0xFFFFFFFF) {
+            if (eaxedx) {
+                *code++ = 0xB8;
+                *(dword*)code = op & 0xFFFFFFFF;
+                code += 4;
+                *code++ = 0x31;
+                *code++ = 0xD2;
+            } else {
+                *code++ = 0xB9;
+                *(dword*)code = op & 0xFFFFFFFF;
+                code += 4;
+                *code++ = 0x6A;
+                *code++ = 0x00;
+            }
+            return 0x0C;
+        }
+        if (eaxedx) {
+            *code++ = 0xB8;
+            *(dword*)code = op & 0xFFFFFFFF;
+            code += 4;
+            *code++ = 0xBA;
+            *(dword*)code = (op >> 32) & 0xFFFFFFFF;
+            code += 4;
+        } else {
+            *code++ = 0xB9;
+            *(dword*)code = op & 0xFFFFFFFF;
+            code += 4;
+            *code++ = 0x68;
+            *(dword*)code = (op >> 32) & 0xFFFFFFFF;
+            code += 4;
+        }
+        return 0x0E;
+    }
+    else if (*aml == 0x0D) {
+        kdebug("String.\n");
+        byte* startAml = aml;
+        kdebug("Значение: \"");
+        while (*aml != 0) {
+            kdebug(*aml);
+            aml ++;
+        }
+        kdebug("\".\n");
+        aml++;
+        memcpy((byte*)startAml, acpiData, (dword)aml - (dword)startAml);
+        acpiData += aml - startAml;
+        if (eaxedx) {
+            *code++ = 0xB8;
+            *(byte**)code = acpiData;
+            code += ptrsize;
+            *code++ = 0x31;
+            *code++ = 0xD2;
+        } else {
+            *code++ = 0xB9;
+            *(byte**)code = acpiData;
+            code += ptrsize;
+            *code++ = 0x6A;
+            *code++ = 0x00;
+        }
+        return 0x8D;
+    }
+    else if (*aml == 0x11 || *aml == 0x12) {
+        switch (*aml) {
+            case 0x11: kdebug("Buffer.\n"); break;
+            case 0x12: kdebug("Package.\n"); break;
+        }
+        dword len = getPkgLength(aml + 1) + 1;
+        memcpy(aml, acpiData, len);
+        if (eaxedx) {
+            *code++ = 0xB8;
+            *(byte**)code = acpiData;
+            code += ptrsize;
+            *code++ = 0x31;
+            *code++ = 0xD2;
+        } else {
+            *code++ = 0xB9;
+            *(byte**)code = acpiData;
+            code += ptrsize;
+            *code++ = 0x6A;
+            *code++ = 0x00;
+        }
+        acpiData += len;
+        return *aml | 0x80;
+    }
+}
+
+void generate2IntsCode(byte*& code, byte *&aml, byte& localsUsed, byte interactType) {
+    byte type1 = generateLoadTermArgCode(code, aml, localsUsed, true);
+    byte type2 = generateLoadTermArgCode(code, aml, localsUsed, false);
+
+    if (!isIntegerType(type1)) {
+        kdebug("ОШИБКА: Неверный тип операнда 1\n");
+        kdebug("\tОжидался IntegerTerm, получен %x\n", type1);
+        return;
+    }
+
+    if (!isIntegerType(type2)) {
+        kdebug("ОШИБКА: Неверный тип операнда 2\n");
+        kdebug("\tОжидался IntegerTerm, получен %x\n", type2);
+        return;
+    }
+
+    switch (interactType) {
+        case 0x72:
+            *code++ = 0x01; 
+            *code++ = 0xC8;
+            *code++ = 0x59;
+            *code++ = 0x83;
+            *code++ = 0xD2;
+            *code++ = 0x00;
+            break;
+        case 0x7B: 
+            *code++ = 0x21;
+            *code++ = 0xC8;
+            *code++ = 0x59;
+            *code++ = 0x21;
+            *code++ = 0xCA;
+            break;
+        case 0x7C: 
+            *code++ = 0x21;
+            *code++ = 0xC8;
+            *code++ = 0x59;
+            *code++ = 0x21;
+            *code++ = 0xCA;
+            *code++ = 0xF7;
+            *code++ = 0xD0;
+            *code++ = 0xF7;
+            *code++ = 0xD2;
+            break;
+        case 0x78:
+            *code++ = 0xF7;
+            *code++ = 0xF1;
+            *code++ = 0x59;
+            break;
+        case 0x85:
+            *code++ = 0xF7;
+            *code++ = 0xF1;
+            *code++ = 0x89;
+            *code++ = 0xD0;
+            *code++ = 0x59;
+            break;
+        case 0x7D: 
+            *code++ = 0x09;
+            *code++ = 0xC8;
+            *code++ = 0x59;
+            *code++ = 0x09;
+            *code++ = 0xCA;
+            break;
+        case 0x7E:
+            *code++ = 0x09;
+            *code++ = 0xC8;
+            *code++ = 0x59;
+            *code++ = 0x09;
+            *code++ = 0xC9;
+            *code++ = 0xF7;
+            *code++ = 0xD0;
+            *code++ = 0xF7;
+            *code++ = 0xD2;
+            break;
+        case 0x74:
+            *code++ = 0x29;
+            *code++ = 0xC8;
+            *code++ = 0x59;
+            *code++ = 0x19;
+            *code++ = 0xCA;
+            break;
+        case 0x77:
+            *code++ = 0xF7;
+            *code++ = 0xE1;
+            *code++ = 0x59;
+            break;
+        case 0x7F:
+            *code++ = 0x31;
+            *code++ = 0xC8;
+            *code++ = 0x59;
+            *code++ = 0x31;
+            *code++ = 0xCA;
+            break;
+        case 0x79:
+            *code++ = 0xD3;
+            *code++ = 0xE0;
+            *code++ = 0xD3;
+            *code++ = 0xE2;
+            *code++ = 0x59;
+            break;
+        case 0x7A:
+            *code++ = 0xD3;
+            *code++ = 0xE8;
+            *code++ = 0xD3;
+            *code++ = 0xEA;
+            *code++ = 0x59;
+            break;
+    }
+
+    if (isLeadNameChar(*aml)) {
+        kdebug("Цель - ссылка.\n");
+        word nameSegs = parseName(aml);
+        aml += nameSegs >> 8;
+        byte *addr = getACPIObjAddr((AMLName*)parsingPathBase, getParsingPathLen());
+        if (!addr)
+            addr = getACPIObjAddr((AMLName*)(parsingPath - 1), 1);
+        if (*addr == 0xFD) {
+            generateFieldWriteCode(code, *(parsingPath - 1));
+        }
+        else if (addr) {
+            *code++ = 0xA3;
+            *(byte**)code = addr;
+            code += ptrsize;
+        }
+        for (byte i = 0; i < (nameSegs & 0xFF); i++)
+            *(--parsingPath) = 0;
+    }
+    else if (*aml >= 0x60 && *aml <= 0x66) {
+        byte localNo = *aml & 7;
+        kdebug("Цель - Local%d.\n", localNo);
+        generateLocalWriteCode(code, localNo);
+    }
+}
+
+dword compileMethod(byte *aml, dword len) {
+    dword funcAddr = (dword)acpiFuncs;
+    byte *codePtr = (byte*)funcAddr;
+    byte localsUsed = 0;
+    dword *tmpPtr = (dword*)0x2000000;
+    *codePtr++ = 0x55;
+    *codePtr++ = 0x83;
+    *codePtr++ = 0xEC;
+    *tmpPtr++ = 'LOFF';
+    *tmpPtr++ = (dword)codePtr;
+    *codePtr++ = 0x00;
+    *codePtr++ = 0x89;
+    *codePtr++ = 0xE5;
+
+    for (dword i = 0; i < len; i++) {
+        if (aml[i] == 0x08) {
+            kdebug("Найдено определение Name.\n");
+            i ++;
+            word nameLen = parseName(aml + i);
+            kdebug("Абсолютный путь к объекту: ");
+            logParsingPath();
+            kdebug("\n");
+            AMLName name = *(parsingPath - 1);
+            i += nameLen >> 8;
+            byte names = getParsingPathLen();
+            *acpiNamespace++ = names;
+            memcpy((byte*)parsingPathBase, (byte*)acpiNamespace, names * 4);
+            acpiNamespace += names;
+            dword dataSize = 0;
+            kdebug("Первый байт объекта: %x.\n", aml[i]);
+            if (aml[i] == 0x0A) {
+                i ++;
+                kdebug("Вид объекта - ByteConst; данные = %x.\n", aml[i]);
+                *acpiData++ = 0x0A;
+                *acpiData-- = aml[i];
+                dataSize = 2;
+            }
+            else if (aml[i] == 0x0B) {
+                i ++;
+                word val = *(word*)(aml + i);
+                kdebug("Вид объекта - WordConst; данные = %x.\n", val);
+                *acpiData++ = 0x0B;
+                *(word*)acpiData = val;
+                acpiData--;
+                dataSize = 3;
+                i ++;
+            }
+            else if (aml[i] == 0x0C) {
+                i ++;
+                dword val = *(dword*)(aml + i);
+                kdebug("Вид объекта - DWordConst; данные = %x", val);
+                if (name == 'DIH_') {
+                    kdebug(" (\"");
+                    EISAId id = dwordToEISAId(val);
+                    logEISAid(id);
+                    kdebug("\")");
+                }
+                kdebug(".\n");
+                *acpiData++ = 0x0C;
+                *(dword*)acpiData = val;
+                acpiData --;
+                dataSize = 5;
+                i += 3;
+            } else if (aml[i] == 0x0E) {
+                i ++;
+                qword val = *(qword*)(aml + i);
+                kdebug("Вид объекта - QWordConst; данные = %X.\n", val);
+                *acpiData++ = 0x0E;
+                *(qword*)acpiData = val;
+                acpiData--;
+                i += 7;
+                dataSize = 9;
+            } else if (aml[i] == 0x12) {
+                i ++;
+                kdebug("Вид объекта - Package.\n");
+                dataSize = parsePackage(aml + i);
+                memcpy((byte*)(aml + i - 1), acpiData, dataSize);
+                i += dataSize - 1;
+            } else if (aml[i] == 0) {
+                kdebug("Значение объекта - 0.\n");
+                dataSize = 1;
+                *acpiData = 0;
+            } else if (aml[i] == 1) {
+                kdebug("Значение объекта - 1.\n");
+                dataSize = 1;
+                *acpiData = 1;
+            } else if (aml[i] == 0xFF) {
+                kdebug("Значение объекта - 255.\n");
+                dataSize = 1;
+                *acpiData = 0xFF;
+            } else if (aml[i] == 0x11) {
+                i ++;
+                kdebug("Вид объекта - Buffer.\n");
+                dataSize = parseBuffer(aml + i) + 1;
+                memcpy((byte*)(aml + i - 1), acpiData, dataSize);
+                i += dataSize - 3;
+            }
+            *acpiNamespace++ = (dword)acpiData;
+            acpiData += dataSize;
+            for (byte i = 0; i < (nameLen & 0xFF); i++)
+                if (getParsingPathLen()) *(--parsingPath) = 0;
+        } else if (aml[i] == 0xA4) {
+            kdebug("Найден оператор Return.\n");
+            qword retVal = 0;
+            bool useRetVal = false;
+            i ++;
+            if (aml[i] == 0x0A || aml[i] == 0x0B || aml[i] == 0x0C || aml[i] == 0x0E) {
+                kdebug("Тип возвращаемого значения - IntegerTerm.\n");
+                retVal = getIntegerTerm(aml + i);
+                kdebug("Значение = %x.\n", retVal);
+                useRetVal = true;
+            } else if (aml[i] == 0x0D) {
+                kdebug("Тип возвращаемого значения - String.\n");
+                i ++;
+                retVal = (dword)acpiData;
+                while (aml[i]) {
+                    *acpiData++ = aml[i++];
+                }
+                *acpiData++ = 0;
+                useRetVal = true;
+            } else if (aml[i] == 0x11) {
+                kdebug("Тип возвращаемого значения - Buffer.\n");
+                i ++;
+                dword bufLen = getPkgLength(aml + i) + 1;
+                i --;
+                retVal = (dword)bufLen;
+                memcpy(aml + i, acpiData, bufLen);
+                acpiData += bufLen;
+                useRetVal = true;
+            } else if (aml[i] == 0x12) {
+                kdebug("Тип возвращаемого значения - Package.\n");
+                i ++;
+                dword pkgLen = getPkgLength(aml + i) + 1;
+                i --;
+                retVal = (dword)pkgLen;
+                memcpy(aml + i, acpiData, pkgLen);
+                acpiData += pkgLen;
+                useRetVal = true;
+            } else if (aml[i] == 0 || aml[i] == 1 || aml[i] == 0xFF) {
+                kdebug("Тип возвращаемого значения - ConstObj.\nЗначение = %x.\n", aml[i]);
+                retVal = aml[i];
+                useRetVal = true;
+            } else if (isLeadNameChar(aml[i])) {
+                kdebug("Тип возвращаемого значения - ссылка.\n");
+                word nameSegs = parseName(aml + i);
+                kdebug("Абсолютный путь возвращаемой переменной: ");
+                logParsingPath();
+                kdebug("\n");
+                useRetVal = true;
+                byte *addr = getACPIObjAddr((AMLName*)parsingPathBase, getParsingPathLen());
+                if (!addr)
+                    addr = getACPIObjAddr((AMLName*)(parsingPath - 1), 1);
+                if (*addr == 0xFD) {
+                    generateFieldReadCode(codePtr, *(AMLName*)(parsingPath - 1), true);
+                    useRetVal = false;
+                } else
+                    retVal = (dword)addr;
+                for (byte i = 0; i < (nameSegs & 0xFF); i++)
+                    if (getParsingPathLen()) *(--parsingPath) = 0;
+            } else if (aml[i] >= 0x60 && aml[i] <= 0x66) {
+                byte localNo = aml[i] & 7;
+                kdebug("Возвращаемое значение в Local%d.\n", localNo);
+                if (localsUsed < localNo + 1)
+                    localsUsed = localNo + 1;
+                generateLocalReadCode(codePtr, localNo, true);
+                useRetVal = false;
+            }
+
+            if (useRetVal) {
+                if (retVal & 0xFFFFFFFF) {
+                    *codePtr++ = 0xB8;
+                    *(dword*)codePtr = retVal & 0xFFFFFFFF;
+                    codePtr += 4;
+                } else {
+                    *codePtr++ = 0x31;
+                    *codePtr++ = 0xC0;
+                }
+                if (retVal >> 32) {
+                    *codePtr++ = 0xBA;
+                    *(dword*)codePtr = retVal >> 32;
+                    codePtr += 4;
+                } else {
+                    *codePtr++ = 0x31;
+                    *codePtr++ = 0xD2;
+                }
+            }
+            *codePtr++ = 0x83;
+            *codePtr++ = 0xC4;
+            *tmpPtr++ = 'LOFF';
+            *tmpPtr++ = (dword)codePtr;
+            *codePtr++ = 0;
+            *codePtr++ = 0x5D;
+            *codePtr++ = 0xC3;
+
+        }
+        else if (aml[i] == 0x72 || aml[i] == 0x7B || aml[i] == 0x7C || aml[i] == 0x78 || aml[i] == 0x85 || aml[i] == 0x7D || aml[i] == 0x7E || aml[i] == 0x74 || aml[i] == 0x77 || aml[i] == 0x7F || aml[i] == 0x79 || aml[i] == 0x7A) {
+            kdebug("Найден оператор ");
+            switch (aml[i]) {
+                case 0x72: kdebug("Add.\n"); break;
+                case 0x7B: kdebug("And.\n"); break;
+                case 0x7C: kdebug("Nand.\n"); break;
+                case 0x78: kdebug("Divide.\n"); break;
+                case 0x85: kdebug("Mod.\n"); break;
+                case 0x7D: kdebug("Or.\n"); break;
+                case 0x7E: kdebug("Nor.\n"); break;
+                case 0x74: kdebug("Subtract.\n"); break;
+                case 0x77: kdebug("Multiply.\n"); break;
+                case 0x7F: kdebug("Xor.\n"); break;
+                case 0x79: kdebug("ShiftLeft.\n"); break;
+                case 0x7A: kdebug("ShiftRight.\n"); break;
+            }
+            dword curAml = (dword)aml;
+            byte interactType = aml[i];
+            i++;
+            aml += i;
+            generate2IntsCode(codePtr, aml, localsUsed, interactType);
+            aml -= i;
+            i += (dword)aml - curAml;
+        }
+        else if (aml[i] == 0x70) {
+            kdebug("Найден оператор Store.\n");
+        }
+        else if ((aml[i] <= 0x8D && aml[i] >= 0x8A) || aml[i] == 0x8F) {
+            kdebug("Найден оператор ");
+            byte fieldSize = 0;
+            switch (aml[i]) {
+                case 0x8A:
+                    kdebug("CreateDWordField.\n");
+                    fieldSize = 4;
+                    break;
+                case 0x8B:
+                    kdebug("CreateWordField.\n");
+                    fieldSize = 2;
+                    break;
+                case 0x8C:
+                    kdebug("CreateByteField.\n");
+                    fieldSize = 1;
+                    break;
+                case 0x8D:
+                    kdebug("CreateBitField.\n");
+                    fieldSize = 0x81;
+                    break;
+                case 0x8F:
+                    kdebug("CreateQWordField.\n");
+                    fieldSize = 8;
+                    break;
+            }
+            i ++;
+            word bufName = parseName(aml + i);
+            i += bufName >> 8;
+            byte *bufAddr = getACPIObjAddr((AMLName*)parsingPathBase, getParsingPathLen());
+            for (byte j = 0; j < (bufName & 0xFF); j++) {
+                *(--parsingPath) = 0;
+            }
+            dword bitIndex = getIntegerTerm(aml + i);
+            if ((~fieldSize) & 0x80)
+                bitIndex *= 8;
+            i += getIntegerTermBytes(aml + i);
+            if (fieldSize == 0) {
+                fieldSize = getIntegerTerm(aml + i) | 0x80;
+                i += getIntegerTermBytes(aml + i);
+            }
+            word nameSegs = parseName(aml + i);
+            createBufferField(bufAddr, bitIndex, fieldSize);
+            for (byte j = 0; j < (nameSegs & 0xFF); j++) {
+                *(--parsingPath) = 0;
+            }
+        }
+    }
+    kdebug("%d Local-ов было задействовано.\n", localsUsed);
+    byte argsOffset = localsUsed * 8 + 2;
+    if (*(codePtr-1) != 0xC3) {
+        *codePtr++ = 0x83;
+        *codePtr++ = 0xC4;
+        *codePtr++ = argsOffset - 2;
+        *codePtr++ = 0x5D;
+        *codePtr++ = 0xC3;
+    }
+    dword tmpLen = ((dword)tmpPtr - 0x2000000) / 4;
+    tmpPtr = (dword*)0x2000000;
+    for (dword i = 0; i < tmpLen; i++) {
+        if (tmpPtr[i] == 'LOFF') {
+            i++;
+            byte* offset = (byte*)tmpPtr[i];
+            *offset = argsOffset - 2;
+        }
+    }
+    kdebug("Сборка метода завершена.\n");
+    acpiFuncs = codePtr;
+    return funcAddr;
+}

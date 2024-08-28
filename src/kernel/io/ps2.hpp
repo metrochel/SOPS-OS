@@ -7,7 +7,7 @@
 #ifndef _PS2_INCL
 #define _PS2_INCL
 
-#include <stdint.h>
+#include "../util/nums.hpp"
 #include "../io/io.hpp"
 
 #define PS2_DATA                    0x60
@@ -63,12 +63,12 @@ bool initPS2();
 /// @brief Отправляет команду на PS/2-контроллер.
 /// @param cmd Команда
 /// @return Успешность операции
-bool sendPS2ConCommand(uint8_t cmd);
+bool sendPS2ConCommand(byte cmd);
 
 /// @brief Отправляет команду на PS/2-устройство.
 /// @param port Номер порта устройства
 /// @param cmd Команда
 /// @return Успешность операции
-bool sendPS2DevCommand(uint8_t port, uint8_t cmd);
+bool sendPS2DevCommand(byte port, byte cmd);
 
 #endif

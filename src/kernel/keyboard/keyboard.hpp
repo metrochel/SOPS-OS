@@ -7,7 +7,7 @@
 #ifndef _KB_INCL
 #define _KB_INCL
 
-#include <stdint.h>
+#include "../util/nums.hpp"
 #include "../io/ps2.hpp"
 
 #define KB_BUF_BASE             0x9000
@@ -47,11 +47,11 @@ extern bool cmdAwaitingResponse;
 extern bool releaseScancode;
 
 // Буфер сканкодов
-extern uint8_t *kbBufPtr;
+extern byte *kbBufPtr;
 // Буфер команд
-extern uint8_t *kbCmdBufPtr;
+extern byte *kbCmdBufPtr;
 // Статус клавиатуры
-extern uint8_t kbStatus;
+extern byte kbStatus;
 
 /// @brief Обновляет клавиатуру в случае нового сканкода.
 void updateKB();
@@ -66,17 +66,17 @@ void sendKBCmd();
 
 /// @brief Добавляет команду в очередь на отправку.
 /// @param cmd Команда
-bool sendKBCommand(uint8_t cmd);
+bool sendKBCommand(byte cmd);
 /// @brief Добавляет команду в очередь на отправку.
 /// @param cmd Команда
 /// @param arg Аргумент команды
-bool sendKBCommand(uint8_t cmd, uint8_t arg);
+bool sendKBCommand(byte cmd, byte arg);
 
 //==============================================
 
 /// @brief Считывает строку с клавиатуры.
 /// @param in Буфер вводимых данных
 /// @attention Для буфера всегда должно быть отделено как минимум 0x200 (512) байтов!
-void kread(uint8_t* in);
+void kread(byte* in);
 
 #endif

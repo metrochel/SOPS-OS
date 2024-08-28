@@ -3,92 +3,92 @@
 //
 //  - Структуры, удобно хранящие в себе таблицы ACPI.
 //
-#include <stdint.h>
+#include "../util/nums.hpp"
 
 // ### RSDP
 // Root System Description Pointer - штука, которая, по сути, откроет для нас ACPI.
 struct RSDP {
     char signature[8];  // Подпись - "RSD PTR "
-    uint8_t checksum;   // Контрольная сумма
+    byte checksum;   // Контрольная сумма
     char oemID[6];      // Идентификатор OEM
-    uint8_t revision;   // Ревизия ACPI
-    uint32_t rsdtAddr;  // Адрес таблицы RSDT
+    byte revision;   // Ревизия ACPI
+    dword rsdtAddr;  // Адрес таблицы RSDT
 } __attribute__((packed));
 
 // ### Заголовок таблицы ACPI
 // Эта структура всегда есть в начале любой таблицы ACPI.
 struct ACPITableHeader {
     char signature[4];          // Подпись таблицы
-    uint32_t length;            // Длина таблицы
-    uint8_t revision;           // Ревизия таблицы
-    uint8_t checksum;           // Контрольная сумма таблицы
+    dword length;            // Длина таблицы
+    byte revision;           // Ревизия таблицы
+    byte checksum;           // Контрольная сумма таблицы
     char oemID[6];              // Идентификатор OEM
     char oemTableID[8];         // Идентификатор таблицы OEM
-    uint32_t oemRevision;       // Ревизия OEM
-    uint32_t creatorID;         // Идентификатор создателя
-    uint32_t creatorRevision;   // Ревизия создателя
+    dword oemRevision;       // Ревизия OEM
+    dword creatorID;         // Идентификатор создателя
+    dword creatorRevision;   // Ревизия создателя
 } __attribute__((packed));
 
 // ### GAS
 // Generic Address Structure - эта структура описывает положение регистров ACPI.
 struct GAS {
-    uint8_t addrSpace;
-    uint8_t bitWidth;
-    uint8_t bitOffset;
-    uint8_t accessSize;
-    uint64_t addr;
+    byte addrSpace;
+    byte bitWidth;
+    byte bitOffset;
+    byte accessSize;
+    qword addr;
 };
 
 // ### FADT
 // Fixed ACPI Description Table - эта таблица описывает фиксированные параметры ACPI.
 struct FADT {
     ACPITableHeader header;         // Заголовок (подпись "FACP")
-    uint32_t facsAddr;              // Адрес FACS
-    uint32_t dsdtAddr;              // Адрес DSDT
-    uint8_t reserved;               // (резервировано)
-    uint8_t preferredPMP;           // Предпочитаемый режим питания
-    uint16_t sciInt;                // Номер прерывания SCI
-    uint32_t smiCmdPort;            // Порт команды SMI
-    uint8_t acpiEnable;             // Значение включения ACPI
-    uint8_t acpiDisable;            // Значение выключения ACPI
-    uint8_t s4bios_req;             
-    uint8_t pstateCtrl;
-    uint32_t pm1aEventBlock;
-    uint32_t pm1bEventBlock;
-    uint32_t pm1aCtrlBlock;
-    uint32_t pm1bCtrlBlock;
-    uint32_t pm2CtrlBlock;
-    uint32_t pmTimerBlock;
-    uint32_t gpe0block;
-    uint32_t gpe1block;
-    uint8_t pm1EventLength;
-    uint8_t pm1CtrlLength;
-    uint8_t pm2CtrlLength;
-    uint8_t pmTimerLength;
-    uint8_t gpe0length;
-    uint8_t gpe1length;
-    uint8_t gpe1base;
-    uint8_t cStateCtrl;
-    uint16_t worstC2Lat;
-    uint16_t worstC3Lat;
-    uint16_t flushSize;
-    uint16_t flushStride;
-    uint8_t dutyOffset;
-    uint8_t dutyWidth;
-    uint8_t dayAlarm;
-    uint8_t monthAlarm;
-    uint8_t century;
+    dword facsAddr;              // Адрес FACS
+    dword dsdtAddr;              // Адрес DSDT
+    byte reserved;               // (резервировано)
+    byte preferredPMP;           // Предпочитаемый режим питания
+    word sciInt;                // Номер прерывания SCI
+    dword smiCmdPort;            // Порт команды SMI
+    byte acpiEnable;             // Значение включения ACPI
+    byte acpiDisable;            // Значение выключения ACPI
+    byte s4bios_req;             
+    byte pstateCtrl;
+    dword pm1aEventBlock;
+    dword pm1bEventBlock;
+    dword pm1aCtrlBlock;
+    dword pm1bCtrlBlock;
+    dword pm2CtrlBlock;
+    dword pmTimerBlock;
+    dword gpe0block;
+    dword gpe1block;
+    byte pm1EventLength;
+    byte pm1CtrlLength;
+    byte pm2CtrlLength;
+    byte pmTimerLength;
+    byte gpe0length;
+    byte gpe1length;
+    byte gpe1base;
+    byte cStateCtrl;
+    word worstC2Lat;
+    word worstC3Lat;
+    word flushSize;
+    word flushStride;
+    byte dutyOffset;
+    byte dutyWidth;
+    byte dayAlarm;
+    byte monthAlarm;
+    byte century;
 
     // ACPI 2.0+
 
-    uint16_t bootArchFlags;
-    uint8_t reserved2;
-    uint32_t flags;
+    word bootArchFlags;
+    byte reserved2;
+    dword flags;
     GAS resetRegister;
-    uint8_t resetValue;
-    uint8_t reserved3[3];
-    uint64_t x_facsAddr;
-    uint64_t x_dsdt;
+    byte resetValue;
+    byte reserved3[3];
+    qword x_facsAddr;
+    qword x_dsdt;
     GAS x_pm1aEventBlock;
     GAS x_pm1bEventBlock;
     GAS x_pm1aCtrlBlock;
@@ -103,24 +103,24 @@ struct FADT {
 // Firmware ACPI Control Structure - эта структура резервирована прошивкой ПК для ACPI.
 struct FACS {
     char signature[4];          // Подпись ("FACS")
-    uint32_t length;            // Длина таблицы
-    uint32_t hardwareSig;       // Подпись железа
-    uint32_t wakingVector;      // Вектор пробуждения
-    uint32_t globalLock;        // Глобальный замок
-    uint32_t flags;             // Флаги
-    uint64_t xWakingVector;     // Расширенный вектор пробуждения
-    uint8_t version;            // Версия
-    uint8_t reserved[3];        // (резервировано)
-    uint32_t ospmFlags;         // Флаги OSPM
-    uint8_t reserved0[24];      // (резервировано)
+    dword length;            // Длина таблицы
+    dword hardwareSig;       // Подпись железа
+    dword wakingVector;      // Вектор пробуждения
+    dword globalLock;        // Глобальный замок
+    dword flags;             // Флаги
+    qword xWakingVector;     // Расширенный вектор пробуждения
+    byte version;            // Версия
+    byte reserved[3];        // (резервировано)
+    dword ospmFlags;         // Флаги OSPM
+    byte reserved0[24];      // (резервировано)
 } __attribute__((packed));
 
 // ### MADT
 // Multiple APIC Description Table - эта таблица описывает контроллеры прерываний, доступные ПК.
 struct MADT {
     ACPITableHeader header;     // Заголовок (подпись "APIC")
-    uint32_t licAddr;           // Адрес локального контроллера прерываний
-    uint8_t controllers[];      // Контроллеры прерываний
+    dword licAddr;           // Адрес локального контроллера прерываний
+    byte controllers[];      // Контроллеры прерываний
 } __attribute__((packed));
 
 // ### DSDT
@@ -141,16 +141,16 @@ struct SSDT {
 // High Precision Event Timer Table - эта таблица описывает HPET, установленный в системе.
 struct HPETT {
     ACPITableHeader header;         // Заголовок (подпись "HPET")
-    uint32_t eventTimerBlock;       // (TODO: уточнить)
+    dword eventTimerBlock;       // (TODO: уточнить)
     GAS baseAddr;                   // Основа адреса HPETа
-    uint8_t hpetNo;                 // Номер HPETа
-    uint16_t minTicksPeriodic;      // Минимальная тактовая частота, с которой периодический режим будет работать без перебоев
-    uint8_t pageProtAndOemAttr;     // Страничная защита и атрибуты OEM
+    byte hpetNo;                 // Номер HPETа
+    word minTicksPeriodic;      // Минимальная тактовая частота, с которой периодический режим будет работать без перебоев
+    byte pageProtAndOemAttr;     // Страничная защита и атрибуты OEM
 } __attribute__((packed));
 
 // ### WAET
 // Windows ACPI Emulated Devices Table - таблица, говорящая ОС Windows (и, получается, нам), что ОС является гостевой.
 struct WAET {
     ACPITableHeader header;         // Заголовок (подпись "WAET")
-    uint32_t emDevFlags;            // Флаги эмулируемых устройств
+    dword emDevFlags;            // Флаги эмулируемых устройств
 } __attribute__((packed));

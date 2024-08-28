@@ -81,7 +81,6 @@ diskreset:
 diskread:
 	pusha
 	mov ah, 0x02
-	mov dl, 0x80
 	int 13h
 	jnc .done
 	call diskreset

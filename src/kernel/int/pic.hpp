@@ -4,7 +4,7 @@
 
 #ifndef _PIC_INCL
 #define _PIC_INCL
-#include <stdint.h>
+#include "../util/nums.hpp"
 #include "../io/io.hpp"
 
 #define PIC1_CMD    0x20
@@ -15,23 +15,23 @@
 /// @brief Устанавливает сдвиги для прерываний.
 /// @param offset1 Сдвиг главного PICа
 /// @param offset2 Сдвиг побочного PICа
-void setPICOffsets(uint8_t offset1, uint8_t offset2);
+void setPICOffsets(byte offset1, byte offset2);
 
 /// @brief Запрещает данное IRQ.
 /// @param irq Номер IRQ
-void maskIRQ(uint8_t irq);
+void maskIRQ(byte irq);
 
 /// @brief Разрешает данное IRQ.
 /// @param irq Номер IRQ
-void unmaskIRQ(uint8_t irq);
+void unmaskIRQ(byte irq);
 
 /// @brief Достаёт регистр обрабатываемых прерываний.
-uint16_t getISR();
+word getISR();
 
 /// @brief Достаёт регистр прерываний, ожидающих обработки.
-uint16_t getIRR();
+word getIRR();
 
 /// @brief Достаёт "маску" IRQ. 
-uint16_t getIRQMask();
+word getIRQMask();
 
 #endif

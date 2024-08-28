@@ -1,5 +1,3 @@
-#include <stdint.h>
-
 //
 //  COM библиотека
 //
@@ -9,6 +7,8 @@
 
 #ifndef _COM_INCL
 #define _COM_INCL
+
+#include "../util/nums.hpp"
 
 // Максимальная скорость обмена данными
 #define COM_MAX_BAUD_RATE           115200
@@ -79,12 +79,12 @@ extern bool initPorts[4];
 /// @param portNum Номер порта
 /// @param baudRate Скорость
 /// @return Флаг успеха
-void setBaudRate(uint8_t portNum, uint32_t baudRate);
+void setBaudRate(byte portNum, dword baudRate);
 
 /// @brief Инициализирует выбранный COM-порт.
 /// @param port Номер порта
 /// @return Флаг успеха
-bool initCom(uint8_t port);
+bool initCom(byte port);
 
 /// @brief Определяет тип UART в компьютере.
 void identifyUART();
@@ -92,54 +92,50 @@ void identifyUART();
 /// @brief Записывает на данный COM-порт строку.
 /// @param str Строка
 /// @param port Номер порта
-void writeCom(const char str[], uint8_t port);
+void writeCom(const char str[], byte port);
 
 /// @brief Записывает на данный COM-порт байт.
 /// @param b Байт
 /// @param port Порт
-void writeCom(uint8_t b, uint8_t port);
+void writeCom(byte b, byte port);
 
 /// @brief Считывает данные COM.
 /// @param am Длина блока данных, Б
 /// @param dst Указатель, куда записать данные
-void readCom(uint16_t am, uint8_t* dst);
+void readCom(word am, byte* dst);
 
 /// @brief Записывает данные с порта в буфер.
 /// @param port Порт
-void comIn(uint8_t port);
+void comIn(byte port);
 
 /// @brief Получает IO-порт процессора для данного COM-порта.
 /// @param port Порт
 /// @return IO-порт процессора
-uint16_t getIOPort(uint8_t port);
-
-uint32_t comWriteBufferLength(uint8_t port);
-
-uint32_t comReadBufferLength(uint8_t port);
+word getIOPort(byte port);
 
 /// @brief Высылает на COM-порт один байт.
 /// @param port Порт
-void comSend(uint8_t port);
+void comSend(byte port);
 
 /// @brief Очищает COM-буферы порта.
 /// @param port Порт
-void cleanComBuffers(uint8_t port);
+void cleanComBuffers(byte port);
 
 /// @brief Очищает COM-буфер записи порта.
 /// @param port Порт
-void cleanComWBuffer(uint8_t port);
+void cleanComWBuffer(byte port);
 
 /// @brief Очищает COM-буфер чтения порта.
 /// @param port Порт
-void cleanComRBuffer(uint8_t port);
+void cleanComRBuffer(byte port);
 
 /// @brief Включает прерывание "Буфер передачи пуст" на порте.
 /// @param port Порт
-void enableTraInt(uint8_t port);
+void enableTraInt(byte port);
 
 /// @brief Отключает прерывание "Буфер передачи пуст" на порте.
 /// @param port Порт
-void disableTraInt(uint8_t port);
+void disableTraInt(byte port);
 
 //=========================
 
@@ -147,8 +143,13 @@ void disableTraInt(uint8_t port);
 /// @param text Текст
 void kdebug(const char* text, ...);
 
-uint32_t getComBaseR(uint8_t port);
+void kdebug(byte num);
+void kdebug(word num);
+void kdebug(dword num);
+void kdebug(qword num);
 
-uint32_t getComBaseW(uint8_t port);
+dword getComBaseR(byte port);
+
+dword getComBaseW(byte port);
 
 #endif

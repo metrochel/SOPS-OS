@@ -1,6 +1,6 @@
 #include "pic.hpp"
 
-void setPICOffsets(uint8_t offset1, uint8_t offset2) {
+void setPICOffsets(byte offset1, byte offset2) {
     outb(PIC1_CMD, 0x10 | 0x1);
     io_wait();
     outb(PIC2_CMD, 0x10 | 0x1);
@@ -25,32 +25,32 @@ void setPICOffsets(uint8_t offset1, uint8_t offset2) {
     outb(PIC2_DATA, 0xFF);
 }
 
-void maskIRQ(uint8_t irq) {
-    uint16_t ioPort = (irq < 8) ? PIC1_DATA : PIC2_DATA;
-    uint8_t mask = inb(ioPort);
+void maskIRQ(byte irq) {
+    word ioPort = (irq < 8) ? PIC1_DATA : PIC2_DATA;
+    byte mask = inb(ioPort);
     mask |= (1 << (irq % 8));
     outb(ioPort, mask);
 }
 
-void unmaskIRQ(uint8_t irq) {
-    uint16_t ioPort = (irq < 8) ? PIC1_DATA : PIC2_DATA;
-    uint8_t mask = inb(ioPort);
+void unmaskIRQ(byte irq) {
+    word ioPort = (irq < 8) ? PIC1_DATA : PIC2_DATA;
+    byte mask = inb(ioPort);
     mask &= ~(1 << (irq % 8));
     outb(ioPort, mask);
 }
 
-uint16_t getISR() {
+word getISR() {
     outb(PIC1_CMD, 0x0B);
     outb(PIC2_CMD, 0x0B);
     return (inb(PIC2_CMD) << 8) | inb(PIC1_CMD);
 }
 
-uint16_t getIRR() {
+word getIRR() {
     outb(PIC1_CMD, 0x0A);
     outb(PIC2_CMD, 0x0A);
     return (inb(PIC2_CMD) << 8) | inb(PIC1_CMD);
 }
 
-uint16_t getIRQMask() {
+word getIRQMask() {
     return (inb(PIC2_DATA) << 8) | inb(PIC1_DATA);
 }

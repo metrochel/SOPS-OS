@@ -1,4 +1,3 @@
-#include <stdint.h>
 //
 //  Коды клавиш
 //
@@ -7,6 +6,8 @@
 
 #ifndef _KCODE_INCL
 #define _KCODE_INCL
+
+#include "../util/nums.hpp"
 
 #define KEYCODE_SPACEBAR 0
 #define KEYCODE_A 1
@@ -97,6 +98,6 @@
 /// @brief Получает по данному сканкоду код клавиши.
 /// @param scancode Сканкод
 /// @return Код клавиши
-uint8_t getKeyCode(uint64_t scancode);
+byte getKeyCode(qword scancode);
 
 #endif

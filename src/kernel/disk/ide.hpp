@@ -1,4 +1,3 @@
-#include <stdint.h>
 //
 //  Драйвер IDE
 //
@@ -7,6 +6,8 @@
 
 #ifndef _IDE_INCL
 #define _IDE_INCL
+
+#include "../util/nums.hpp"
 
 #define ATA_DATA_PRIMARY                    0x1F0
 #define ATA_ERROR_PRIMARY                   0x1F1
@@ -55,10 +56,10 @@
 
 // Структура дескриптора физического адреса
 struct PRD {
-    uint32_t base;      // Физический адрес буфера данных
-    uint16_t count;     // Число байтов для считывания (0 = 64к)
-    uint8_t reserved;   // Резервирован
-    uint8_t msb;        // Старший байт; установлен, если этот PRD последний в таблице
+    dword base;      // Физический адрес буфера данных
+    word count;     // Число байтов для считывания (0 = 64к)
+    byte reserved;   // Резервирован
+    byte msb;        // Старший байт; установлен, если этот PRD последний в таблице
 } __attribute__ ((packed));
 
 // Таблица PRD для 1 канала
@@ -69,7 +70,7 @@ extern PRD* prdt2;
 extern PRD* prdt2base;
 
 /// @brief ШУФ-ключ контроллера IDE
-extern uint32_t ideCon;
+extern dword ideCon;
 
 // Флаг; если установлен, PRDT1 предназначена для чтения
 extern bool prdt1read;
@@ -85,14 +86,14 @@ bool initIDE();
 /// @param sectorsCount Число секторов
 /// @param driveNo Номер диска
 /// @param out Буфер приёма
-void readSectorsATA(uint32_t startLBA, uint8_t sectorsCount, uint8_t driveNo, uint8_t *out);
+void readSectorsATA(dword startLBA, byte sectorsCount, byte driveNo, byte *out);
 
 /// @brief Записывает секторы на ATA-диск.
 /// @param startLBA LBA начала
 /// @param sectorsCount Число секторов
 /// @param driveNo Номер диска
 /// @param out Буфер данных
-void writeSectorsATA(uint32_t startLBA, uint8_t sectorsCount, uint8_t driveNo, uint8_t *out);
+void writeSectorsATA(dword startLBA, byte sectorsCount, byte driveNo, byte *out);
 
 /// @brief Очищает таблицу PRD для 1 канала.
 void cleanPRDT1();

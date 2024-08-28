@@ -5,9 +5,9 @@
 //
 #ifndef _DISK_INCL
 #define _DISK_INCL
-#include <stdint.h>
 #include "ide.hpp"
 #include "../io/io.hpp"
+#include "../util/nums.hpp"
 
 #define DISK_TYPE_NONE   0
 #define DISK_TYPE_ATA    1
@@ -17,22 +17,22 @@
 
 /// @brief Данные о диске
 struct DiskData {
-    uint8_t DiskType;               // Тип диска
-    uint32_t TotalLBA28Sectors;     // Суммарное число секторов, доступных в режиме LBA28
+    byte DiskType;               // Тип диска
+    dword TotalLBA28Sectors;     // Суммарное число секторов, доступных в режиме LBA28
     bool LBA48Supported;            // Флаг доступности режима LBA48
-    uint64_t TotalLBA48Sectors;     // Суммарное число секторов, доступных в режиме LBA48
-    uint8_t MaxUDMAMode;            // Максимально доступный режим UDMA
-    uint8_t ActUDMAMode;            // Активный режим UDMA
+    qword TotalLBA48Sectors;     // Суммарное число секторов, доступных в режиме LBA48
+    byte MaxUDMAMode;            // Максимально доступный режим UDMA
+    byte ActUDMAMode;            // Активный режим UDMA
 };
 
 /// @brief Определяет вид диска.
 /// @return Соответствующий виду диска код
 DiskData identifyDisk();
 
-void readSector(uint8_t *buf, uint32_t lba);
-void readSectors(uint8_t *buf, uint32_t lba, uint32_t count);
+void readSector(byte *buf, dword lba);
+void readSectors(byte *buf, dword lba, dword count);
 
-void writeSector(uint8_t* buf, uint32_t lba);
-void writeSectors(uint8_t* buf, uint32_t lba, uint32_t count);
+void writeSector(byte* buf, dword lba);
+void writeSectors(byte* buf, dword lba, dword count);
 
 #endif

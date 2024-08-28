@@ -3,32 +3,33 @@
 #include "../str/str.hpp"
 #include <stdarg.h>
 
-uint8_t *comReadBuffers[]  = {nullptr, nullptr, nullptr, nullptr};
-uint8_t *comWriteBuffers[] = {nullptr, nullptr, nullptr, nullptr};
-uint8_t *comBasePtrs[] = {nullptr, nullptr, nullptr, nullptr};
+byte *comReadBuffers[]  = {nullptr, nullptr, nullptr, nullptr};
+byte *comWriteBuffers[] = {nullptr, nullptr, nullptr, nullptr};
+byte *comBasePtrs[] = {nullptr, nullptr, nullptr, nullptr};
 
 bool initPorts[] = {false,false,false,false};
-uint16_t uart;
+bool traIntActive[] = {false,false,false,false};
+word uart;
 
-void setBaudRate(uint8_t port, uint32_t baudRate) {
+void setBaudRate(byte port, dword baudRate) {
     if (baudRate >= COM_MAX_BAUD_RATE)
         baudRate = COM_MAX_BAUD_RATE;
 
-    uint16_t divisor = COM_MAX_BAUD_RATE / baudRate;
-    uint16_t ioPort = getIOPort(port);
+    word divisor = COM_MAX_BAUD_RATE / baudRate;
+    word ioPort = getIOPort(port);
 
-    uint8_t line_control_reg = inb(ioPort + 3);
+    byte line_control_reg = inb(ioPort + 3);
     line_control_reg |= 0x80;
     outb(ioPort + 3, line_control_reg);
 
-    outb(ioPort, (uint8_t)(divisor & 0xFF));
-    outb(ioPort + 1, (uint8_t)((divisor >> 8) & 0xFF));
+    outb(ioPort, (byte)(divisor & 0xFF));
+    outb(ioPort + 1, (byte)((divisor >> 8) & 0xFF));
 
     line_control_reg &= 0x7F;
     outb(ioPort + 3, line_control_reg);
 }
 
-uint16_t getIOPort(uint8_t portNum) {
+word getIOPort(byte portNum) {
     switch (portNum) {
         case 1:  return 0x3F8;
         case 2:  return 0x2F8;
@@ -38,8 +39,8 @@ uint16_t getIOPort(uint8_t portNum) {
     }
 }
 
-void cleanComBuffers(uint8_t port) {
-    uint8_t* comBase = (uint8_t*)getComBaseR(port);
+void cleanComBuffers(byte port) {
+    byte* comBase = (byte*)getComBaseR(port);
     for (int i = 0; i < 0x5000; i++) {
         *(comBase + i) = 0;
         *(comBase + i + 0x5000) = 0;
@@ -49,16 +50,16 @@ void cleanComBuffers(uint8_t port) {
     comBasePtrs[port-1] = comBase + 0x5000;
 }
 
-void cleanComRBuffer(uint8_t port) {
-    uint8_t *comBase = (uint8_t*)getComBaseR(port);
+void cleanComRBuffer(byte port) {
+    byte *comBase = (byte*)getComBaseR(port);
     for (int i = 0; i < 0x5000; i++) {
         *(comBase+i) = 0;
     }
     comReadBuffers[port-1] = comBase;
 }
 
-void cleanComWBuffer(uint8_t port) {
-    uint8_t *comBase = (uint8_t*)getComBaseW(port);
+void cleanComWBuffer(byte port) {
+    byte *comBase = (byte*)getComBaseW(port);
     for (int i = 0; i < 0x5000; i++) {
         *(comBase+i) = 0;
     }
@@ -66,20 +67,20 @@ void cleanComWBuffer(uint8_t port) {
     comBasePtrs[port-1] = comBase;
 }
 
-inline uint32_t getComBaseR(uint8_t port) {
+inline dword getComBaseR(byte port) {
     return 0x20000 + 0xA000 * (port-1);
 }
 
-inline uint32_t getComBaseW(uint8_t port) {
+inline dword getComBaseW(byte port) {
     return 0x25000 + 0xA000 * (port-1);
 }
 
-bool initCom(uint8_t port) {
-    uint16_t ioPort = getIOPort(port);
+bool initCom(byte port) {
+    word ioPort = getIOPort(port);
 
     outb(ioPort + 1, 0);
 
-    setBaudRate(port, 38400);
+    setBaudRate(port, 57600);
 
     outb(ioPort + 3, COM_8_DATA_BITS | COM_1_STOP_BIT | COM_PARITY_NONE);
 
@@ -93,7 +94,7 @@ bool initCom(uint8_t port) {
     if (inb(ioPort) != 0xAE)
         return false;
 
-    uint8_t* comBufBase = (uint8_t*)getComBaseR(port);
+    byte* comBufBase = (byte*)getComBaseR(port);
     comReadBuffers[port-1] = comBufBase;
     comBufBase += 0x5000;
     comWriteBuffers[port-1] = comBufBase;
@@ -107,10 +108,10 @@ bool initCom(uint8_t port) {
 }
 
 void identifyUART() {
-    uint16_t ioPort = getIOPort(1);
+    word ioPort = getIOPort(1);
     outb(ioPort + 1, 0);
     outb(ioPort + 2, 0xE7);
-    uint8_t iir = inb(ioPort + 2);
+    byte iir = inb(ioPort + 2);
     
     if (iir & (1 << 7)) {
         if (iir & (1 << 6)) {
@@ -130,15 +131,15 @@ void identifyUART() {
         uart = 8250;
 }
 
-uint32_t comReadBufferLength(uint8_t port) {
-    return (uint32_t)comReadBuffers[port-1]  - getComBaseR(port);
+dword comReadBufferLength(byte port) {
+    return (dword)comReadBuffers[port-1]  - getComBaseR(port);
 }
 
-uint32_t comWriteBufferLength(uint8_t port) {
-    return (uint32_t)comWriteBuffers[port-1] - (uint32_t)comBasePtrs[port-1];
+dword comWriteBufferLength(byte port) {
+    return (dword)comWriteBuffers[port-1] - (dword)comBasePtrs[port-1];
 }
 
-void writeCom(const char str[], uint8_t port) {
+void writeCom(const char str[], byte port) {
     if (!initPorts[port-1])
         return;
     while (*str != 0) {
@@ -153,7 +154,7 @@ void writeCom(const char str[], uint8_t port) {
     enableTraInt(port);
 }
 
-void writeCom(uint8_t b, uint8_t port) {
+void writeCom(byte b, byte port) {
     if (!initPorts[port-1])
         return;
     while (comWriteBufferLength(port) >= 0x9FFF) {__asm__ ("nop");} 
@@ -162,7 +163,7 @@ void writeCom(uint8_t b, uint8_t port) {
     enableTraInt(port);
 }
 
-void readCom(uint8_t port, uint16_t am, uint8_t* dst) {
+void readCom(byte port, word am, byte* dst) {
     if (am > comReadBufferLength(port))
         return;
     dst += am;
@@ -173,20 +174,20 @@ void readCom(uint8_t port, uint16_t am, uint8_t* dst) {
     }
 }
 
-void comIn(uint8_t port) {
-    uint16_t ioPort = getIOPort(port);
+void comIn(byte port) {
+    word ioPort = getIOPort(port);
     for (int i = 0; i < 8; i++) {
         *comReadBuffers[port-1] = inb(ioPort);
         comReadBuffers[port-1] ++;
     }
 }
 
-void comSend(uint8_t port) {
-    uint16_t ioPort = getIOPort(port);
+void comSend(byte port) {
+    word ioPort = getIOPort(port);
     outb(ioPort, *comBasePtrs[port-1]);
     comBasePtrs[port-1] ++;
     if (uart >= 16551) {
-        for (uint8_t i = 0; i < 7 && comWriteBufferLength(port) > 0; i++) {
+        for (byte i = 0; i < 7 && comWriteBufferLength(port) > 0; i++) {
             outb(ioPort, *comBasePtrs[port-1]);
             comBasePtrs[port-1] ++;
         }
@@ -197,27 +198,32 @@ void comSend(uint8_t port) {
     }
 }
 
-inline void disableTraInt(uint8_t port) {
-    uint16_t ioPort = getIOPort(port);
+inline void disableTraInt(byte port) {
+    if (!traIntActive[port-1]) return;
+    word ioPort = getIOPort(port);
     outb(ioPort + 1, inb(ioPort+1) & ~COM_INT_TRA_EMPTY);
+    traIntActive[port-1] = false;
 }
 
-inline void enableTraInt(uint8_t port) {
-    uint16_t ioPort = getIOPort(port);
-    if (comWriteBufferLength(port))
+inline void enableTraInt(byte port) {
+    if (traIntActive[port-1]) return;
+    word ioPort = getIOPort(port);
+    if (comWriteBufferLength(port)) {
         outb(ioPort + 1, inb(ioPort+1) | COM_INT_TRA_EMPTY);
+        traIntActive[port-1] = true;
+    }
 }
 
-void writeComBinUInt(uint64_t num, uint8_t port) {
+void writeComBinUInt(qword num, byte port) {
     if (num == 0) {
         *comWriteBuffers[port-1]++ = '0';
         *comWriteBuffers[port-1]++ = 'b';
         *comWriteBuffers[port-1]++ = '0';
         return;
     }
-    uint64_t mask = 1;
-    uint8_t digits = 0;
-    while (mask <= num && mask < (uint64_t)(0x8000000000000000)) {
+    qword mask = 1;
+    byte digits = 0;
+    while (mask <= num && mask < (qword)(0x8000000000000000)) {
         mask <<= 1;
         digits ++;
     }
@@ -234,16 +240,16 @@ void writeComBinUInt(uint64_t num, uint8_t port) {
     }
 }
 
-void writeComOctUInt(uint64_t num, uint8_t port) {
+void writeComOctUInt(qword num, byte port) {
     if (num == 0) {
         *comWriteBuffers[port-1]++ = '0';
         *comWriteBuffers[port-1]++ = 'o';
         *comWriteBuffers[port-1]++ = '0';
         return;
     }
-    uint64_t mask = 7;
-    uint8_t digits = 1;
-    while (mask < num && mask < (uint64_t)(0x8000000000000000)) {
+    qword mask = 7;
+    byte digits = 1;
+    while (mask < num && mask < (qword)(0x8000000000000000)) {
         mask <<= 3;
         digits ++;
     }
@@ -252,7 +258,7 @@ void writeComOctUInt(uint64_t num, uint8_t port) {
     *comWriteBuffers[port-1]++ = '0';
     *comWriteBuffers[port-1]++ = 'o';
     while (mask > 0) {
-        uint64_t digit = num & mask;
+        qword digit = num & mask;
         while (digit > 7)
             digit >>= 3;
         *comWriteBuffers[port-1]++ = digit + 0x30;
@@ -260,16 +266,16 @@ void writeComOctUInt(uint64_t num, uint8_t port) {
     }
 }
 
-void writeComHexUInt(uint64_t num, uint8_t port) {
+void writeComHexUInt(qword num, byte port) {
     if (num == 0) {
         *comWriteBuffers[port-1]++ = '0';
         *comWriteBuffers[port-1]++ = 'x';
         *comWriteBuffers[port-1]++ = '0';
         return;
     }
-    uint64_t mask = 0xF;
-    uint8_t digits = 1;
-    while (mask < num && mask < (uint64_t)(0x8000000000000000)) {
+    qword mask = 0xF;
+    byte digits = 1;
+    while (mask < num && mask < (qword)(0x8000000000000000)) {
         mask <<= 4;
         digits ++;
     }
@@ -277,8 +283,10 @@ void writeComHexUInt(uint64_t num, uint8_t port) {
         mask >>= 4;
     *comWriteBuffers[port-1]++ = '0';
     *comWriteBuffers[port-1]++ = 'x';
+    if (mask == 0xF)
+        *comWriteBuffers[port-1]++ = '0';
     while (mask > 0) {
-        uint64_t digit = num & mask;
+        qword digit = num & mask;
         while (digit > 0xF)
             digit >>= 4;
         if (digit < 10)
@@ -289,19 +297,19 @@ void writeComHexUInt(uint64_t num, uint8_t port) {
     }
 }
 
-void writeComDecUInt(uint64_t num, uint8_t port) {
+void writeComDecUInt(qword num, byte port) {
     if (num == 0) {
         *comWriteBuffers[port-1]++ = '0';
         return;
     }
-    uint8_t digits = 0;
-    uint64_t numclone = num;
+    byte digits = 0;
+    qword numclone = num;
     while (numclone > 0) {
         digits ++;
         numclone /= 10;
     }
     comWriteBuffers[port-1] += digits - 1;
-    for (uint8_t i = 0; i < digits; i++) {
+    for (byte i = 0; i < digits; i++) {
         *comWriteBuffers[port-1]-- = num % 10 + 0x30;
         num /= 10;
     }
@@ -311,7 +319,7 @@ void writeComDecUInt(uint64_t num, uint8_t port) {
 void kdebug(const char* text, ...) {
     if (!initPorts[0])
         return;
-    uint64_t len = strlen((char*)text);
+    qword len = strlen((char*)text);
     if (comWriteBufferLength(1) + len > 0xA000) {
         enableTraInt(1);
         while(comWriteBufferLength(1) + len > 0xA000) {io_wait();}
@@ -319,7 +327,7 @@ void kdebug(const char* text, ...) {
     }
     va_list l;
     va_start(l, text);
-    uint8_t state;
+    byte state;
     while (*text != 0) {
         char c = *text;
         if (c == '%') {
@@ -345,7 +353,7 @@ void kdebug(const char* text, ...) {
         }
         else
             state = 0;
-        uint64_t arg;
+        qword arg;
         switch (state) {
             case 0:
                 if (c == 0x0A)
@@ -353,43 +361,102 @@ void kdebug(const char* text, ...) {
                 *comWriteBuffers[0]++ = c;
                 break;
             case 2:
-                arg = va_arg(l, uint32_t);
+                arg = va_arg(l, dword);
                 arg &= 0xFFFFFFFF;
                 writeComBinUInt(arg, 1);
                 break;
             case 22:
-                arg = va_arg(l, uint64_t);
+                arg = va_arg(l, qword);
                 writeComBinUInt(arg, 1);
                 break;
             case 8:
-                arg = va_arg(l, uint32_t);
+                arg = va_arg(l, dword);
                 arg &= 0xFFFFFFFF;
                 writeComOctUInt(arg, 1);
                 break;
             case 88:
-                arg = va_arg(l, uint64_t);
+                arg = va_arg(l, qword);
                 writeComOctUInt(arg, 1);
                 break;
             case 10:
-                arg = va_arg(l, uint32_t);
+                arg = va_arg(l, dword);
                 arg &= 0xFFFFFFFF;
                 writeComDecUInt(arg, 1);
                 break;
             case 100:
-                arg = va_arg(l, uint64_t);
+                arg = va_arg(l, qword);
                 writeComDecUInt(arg, 1);
                 break;
             case 16:
-                arg = va_arg(l, uint32_t);
+                arg = va_arg(l, dword);
                 arg &= 0xFFFFFFFF;
                 writeComHexUInt(arg, 1);
                 break;
             case 64:
-                arg = va_arg(l, uint64_t);
+                arg = va_arg(l, qword);
                 writeComHexUInt(arg, 1);
                 break;
         }
         text ++;
     }
+    enableTraInt(1);
+}
+
+void kdebug(byte num) {
+    if (!initPorts[0])
+        return;
+    if (comWriteBufferLength(1) + 1 > 0xA000) {
+        enableTraInt(1);
+        while(comWriteBufferLength(1) + 1 > 0xA000) {io_wait();}
+        disableTraInt(1);
+    }
+    *comWriteBuffers[0]++ = num;
+    enableTraInt(1);
+}
+
+void kdebug(word num) {
+    if (!initPorts[0])
+        return;
+    if (comWriteBufferLength(1) + 1 > 0xA000) {
+        enableTraInt(1);
+        while(comWriteBufferLength(1) + 1 > 0xA000) {io_wait();}
+        disableTraInt(1);
+    }
+    *comWriteBuffers[0]++ = num & 0xFF;
+    *comWriteBuffers[0]++ = (num >> 8) & 0xFF;
+    enableTraInt(1);
+}
+
+void kdebug(dword num) {
+    if (!initPorts[0])
+        return;
+    if (comWriteBufferLength(1) + 1 > 0xA000) {
+        enableTraInt(1);
+        while(comWriteBufferLength(1) + 1 > 0xA000) {io_wait();}
+        disableTraInt(1);
+    }
+    *comWriteBuffers[0]++ = num & 0xFF;
+    *comWriteBuffers[0]++ = (num >> 8) & 0xFF;
+    *comWriteBuffers[0]++ = (num >> 16) & 0xFF;
+    *comWriteBuffers[0]++ = (num >> 24) & 0xFF;
+    enableTraInt(1);
+}
+
+void kdebug(qword num) {
+    if (!initPorts[0])
+        return;
+    if (comWriteBufferLength(1) + 1 > 0xA000) {
+        enableTraInt(1);
+        while(comWriteBufferLength(1) + 1 > 0xA000) {io_wait();}
+        disableTraInt(1);
+    }
+    *comWriteBuffers[0]++ = num & 0xFF;
+    *comWriteBuffers[0]++ = (num >> 8) & 0xFF;
+    *comWriteBuffers[0]++ = (num >> 16) & 0xFF;
+    *comWriteBuffers[0]++ = (num >> 24) & 0xFF;
+    *comWriteBuffers[0]++ = (num >> 32) & 0xFF;
+    *comWriteBuffers[0]++ = (num >> 40) & 0xFF;
+    *comWriteBuffers[0]++ = (num >> 48) & 0xFF;
+    *comWriteBuffers[0]++ = (num >> 56) & 0xFF;
     enableTraInt(1);
 }

@@ -3,7 +3,7 @@
 
 Time systime = {0,0,0,0,0,0,0};
 
-uint8_t Time::asString(char* out) {
+byte Time::asString(char* out) {
     *out++ = (this->hours / 10) + 0x30;
     *out++ = (this->hours % 10) + 0x30;
     *out++ = ':';
@@ -15,7 +15,7 @@ uint8_t Time::asString(char* out) {
     return 8;
 }
 
-uint8_t Time::asStringFull(char* out) {
+byte Time::asStringFull(char* out) {
     char *initOut = out;
     out += numasstr(this->day, out);
     *out++ = ' ';
@@ -28,7 +28,7 @@ uint8_t Time::asStringFull(char* out) {
     return out - initOut;
 }
 
-uint8_t Time::asStringWeekday(char* out) {
+byte Time::asStringWeekday(char* out) {
     switch (this->weekday) {
         case 1: return strcpy((char*)"Вс", out); break;
         case 2: return strcpy((char*)"Пн", out); break;
@@ -40,7 +40,7 @@ uint8_t Time::asStringWeekday(char* out) {
     }
 }
 
-uint8_t Time::asStringMonth(char* out) {
+byte Time::asStringMonth(char* out) {
     switch (this->month) {
         case 1: return strcpy((char*)"января", out);
         case 2: return strcpy((char*)"февраля", out);

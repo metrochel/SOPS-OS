@@ -1,15 +1,26 @@
 #include "str.hpp"
+#include "../io/com.hpp"
 
-bool strcmp(char* str1, char* str2) {
-    if (*str1 != *str2)
-        return false;
+byte strcmp(char* str1, char* str2) {
+    byte s1 = *str1;
+    byte s2 = *str2;
+    if (s1 > s2)
+        return 0xFF;
+    if (s1 < s2)
+        return 0x00;
     while (*str1 != 0 && *str2 != 0) {
-        if (*str1 != *str2)
-            return false;
-        str1 ++;
-        str2 ++;
+        s1 = *str1++;
+        s2 = *str2++;
+        if (s1 > s2)
+            return 0xFF;
+        if (s1 < s2)
+            return 0x00;
     }
-    return *str1 == *str2;
+    if (s1 > s2)
+        return 0xFF;
+    if (s1 < s2)
+        return 0x00;
+    return 0x80;
 }
 
 bool strstartswith(char* str, char* substr) {
@@ -22,8 +33,8 @@ bool strstartswith(char* str, char* substr) {
     return *substr == *str;
 }
 
-uint8_t strcpy(char* str1, char* str2) {
-    uint8_t len = 0;
+byte strcpy(char* str1, char* str2) {
+    byte len = 0;
     while (*str1 != 0) {
         *str2 = *str1;
         str1 ++;
@@ -34,8 +45,8 @@ uint8_t strcpy(char* str1, char* str2) {
     return len;
 }
 
-uint32_t strlen(char* str) {
-    uint32_t len = 0;
+dword strlen(char* str) {
+    dword len = 0;
     while (*str != 0) {
         len ++;
         str ++;
@@ -43,19 +54,19 @@ uint32_t strlen(char* str) {
     return len;
 }
 
-uint8_t numasstr(uint32_t num, char* out) {
+byte numasstr(dword num, char* out) {
     if (num == 0) {
         *out++ = '0';
         return 1;
     }
-    uint8_t digits = 0;
-    uint32_t numclone = num;
+    byte digits = 0;
+    dword numclone = num;
     while (numclone > 0) {
         digits ++;
         numclone /= 10;
     }
     out += digits - 1;
-    for (uint8_t i = 0; i < digits; i++) {
+    for (byte i = 0; i < digits; i++) {
         *out-- = num % 10 + 0x30;
         num /= 10;
     }

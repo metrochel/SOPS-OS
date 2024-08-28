@@ -1,46 +1,45 @@
-#include <stdint.h>
-
 #ifndef _GLYPHS_INCL
 #define _GLYPHS_INCL
 
 #include "graphics.hpp"
+#include "../util/nums.hpp"
 // ======================================== Работа с текстом ============================================
 
 #define LF 0x0A
 #define CR 0x0D
 
 // Абсцисса курсора текста
-extern uint16_t textCurX;
+extern word textCurX;
 // Ордината курсора текста
-extern uint16_t textCurY;
+extern word textCurY;
 // Стандартный цвет текста
-extern uint32_t defaultTextCol;
+extern dword defaultTextCol;
 // Стандартный цвет заднего фона текста
-extern uint32_t defaultBGCol;
+extern dword defaultBGCol;
 // Цвет текста предупреждения
-extern uint32_t warnTextCol;
+extern dword warnTextCol;
 // Цвет заднего фона предупреждения
-extern uint32_t warnBGCol;
+extern dword warnBGCol;
 // Цвет текста ошибки
-extern uint32_t errorTextCol;
+extern dword errorTextCol;
 // Цвет заднего фона ошибки
-extern uint32_t errorBGCol;
+extern dword errorBGCol;
 
 // Символ
 struct Glyph {
-    uint16_t lines[24];      // Бит-поля, отмечающие пикселы символа
+    word lines[24];      // Бит-поля, отмечающие пикселы символа
 } __attribute__((packed));
 
 /// @brief Выдаёт разметку символа, воспринимаемую системой.
 /// @param code Код символа в Юникоде
 /// @param unicode Флаг Юникода
 /// @return Разметка
-Glyph getglyph(uint16_t code);
+Glyph getglyph(word code);
 
 /// @brief Выдаёт разметку символа, воспринимаемую системой.
 /// @param code Код символа в ASCII
 /// @return Разметка
-Glyph getglyph(uint8_t code);
+Glyph getglyph(byte code);
 
 /// @brief Размещает символ на координатах.
 /// @param glyph Символ
@@ -48,37 +47,37 @@ Glyph getglyph(uint8_t code);
 /// @param y Ордината символа (отн. левого верхнего угла)
 /// @param letter_col Цвет самого символа
 /// @param back_col Цвет заднего фона символа
-void putglyph(Glyph glyph, uint16_t x, uint16_t y, uint32_t letter_col, uint32_t back_col);
+void putglyph(Glyph glyph, word x, word y, dword letter_col, dword back_col);
 
 /// @brief Выводит на экран число в двоичном представлении.
 /// @param num Число
 /// @param charCol Цвет числа
 /// @param bgCol Цвет заднего фона
-void printBinUInt(uint64_t num, uint32_t charCol, uint32_t bgCol);
+void printBinUInt(qword num, dword charCol, dword bgCol);
 
 /// @brief Выводит на экран число в восьмеричном представлении.
 /// @param num Число
 /// @param charCol Цвет числа
 /// @param bgCol Цвет заднего фона
-void printOctUInt(uint64_t num, uint32_t charCol, uint32_t bgCol);
+void printOctUInt(qword num, dword charCol, dword bgCol);
 
 /// @brief Выводит на экран число.
 /// @param num Число
 /// @param charCol Цвет числа
 /// @param bgCol Цвет заднего фона
-void printDecUInt(uint64_t num, uint32_t charCol, uint32_t bgCol);
+void printDecUInt(qword num, dword charCol, dword bgCol);
 
 /// @brief Выводит на экран число в шестнадцатеричном представлении.
 /// @param num Число
 /// @param charCol Цвет числа
 /// @param bgCol Цвет заднего фона
-void printHexUInt(uint64_t num, uint32_t charCol, uint32_t bgCol);
+void printHexUInt(qword num, dword charCol, dword bgCol);
 
 /// @brief Выводит на экран дробное число.
 /// @param num Число
 /// @param charCol Цвет числа
 /// @param bgCol Цвет заднего фона
-void printFloat(double num, uint32_t charCol, uint32_t bgCol);
+void printFloat(double num, dword charCol, dword bgCol);
 
 /// @brief Стирает один символ
 void eraseChar();

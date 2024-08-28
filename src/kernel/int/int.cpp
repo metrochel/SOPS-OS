@@ -7,7 +7,7 @@
 #include "../pci/pci.hpp"
 #include "../timing/cmos.hpp"
 
-IDT_Register idtr{ 50*8-1, (uint8_t*)0x10000  };
+IDT_Register idtr{ 50*8-1, (byte*)0x10000  };
 
 void initInts() {
     for (int i = 0; i < idtr.size; i++)
@@ -40,15 +40,15 @@ void initInts() {
     enableInts();
 }
 
-void encode_idt_entry(void (*handlePtr)(IntFrame*), uint8_t intNum) {
-    uint16_t *entryPtr = (uint16_t*)idtr.base + 4 * intNum;
-    uint16_t offset1 = (uint32_t)handlePtr & 0xFFFF;
+void encode_idt_entry(void (*handlePtr)(IntFrame*), byte intNum) {
+    word *entryPtr = (word*)idtr.base + 4 * intNum;
+    word offset1 = (dword)handlePtr & 0xFFFF;
     *entryPtr++ = offset1;
-    uint16_t selector = 0x8;
+    word selector = 0x8;
     *entryPtr++ = selector;
-    uint16_t flags = 0x8E00;
+    word flags = 0x8E00;
     *entryPtr++ = flags;
-    uint16_t offset2 = (uint32_t)handlePtr >> 16;
+    word offset2 = (dword)handlePtr >> 16;
     *entryPtr = offset2;
 }
 
@@ -91,7 +91,7 @@ __attribute__((interrupt)) void stack_seg_fault(IntFrame* frame) {
 }
 
 __attribute__((interrupt)) void general_prot_fault(IntFrame* frame) {
-    uint32_t errcode = (uint32_t)frame;
+    dword errcode = (dword)frame;
     kerror("\nОШИБКА: Общий сбой защиты\n");
     kerror("Код ошибки: %b\n", errcode);
     if (errcode & 1)
@@ -118,11 +118,11 @@ __attribute__((interrupt)) void general_prot_fault(IntFrame* frame) {
 }
 
 __attribute__((interrupt)) void page_fault(IntFrame* frame) {
-    uint32_t faultAddr;
+    dword faultAddr;
     __asm__ ("mov %%cr2, %%eax; mov %%eax, %d0" : "=m"(faultAddr) : );
     kerror("ОШИБКА: Страничный сбой\n");
     kerror("Адрес сбоя: %x\n", faultAddr);
-    kerror("Код ошибки: %b\n", (uint32_t)frame);
+    kerror("Код ошибки: %b\n", (dword)frame);
 }
 
 __attribute__((interrupt)) void float_exception(IntFrame* frame) {
@@ -141,10 +141,10 @@ __attribute__((interrupt)) void irq0(IntFrame* frame) {
 __attribute__((interrupt)) void irq1(IntFrame* frame) {
     disableInts();
     while (!(inb(0x64) & 1)) {io_wait();}
-    uint8_t scancode = inb(0x60);
+    byte scancode = inb(0x60);
     io_wait();
     if (scancode == KB_ACK) {
-        uint8_t ackdCmd = *(uint8_t*)KB_CMD_BUF_BASE;
+        byte ackdCmd = *(byte*)KB_CMD_BUF_BASE;
         shiftKBCmdQueue();
         cmdAwaitingResponse = ackdCmd == KB_CMD_RESEND_LAST || ackdCmd == KB_CMD_RESET;
         if (!cmdAwaitingResponse)
@@ -202,8 +202,8 @@ __attribute__((interrupt)) void irq12(IntFrame* frame) {
 
 __attribute__((interrupt)) void irq14(IntFrame* frame) {
     kdebug("\nВызвано IRQ 14.\nПрерывание вызвал ");
-    uint8_t ideStatus = inb(IDE_STATUS_PRIMARY);
-    uint8_t ataStatus = inb(ATA_STATUS_PRIMARY);
+    byte ideStatus = inb(IDE_STATUS_PRIMARY);
+    byte ataStatus = inb(ATA_STATUS_PRIMARY);
     if (!(ideStatus & 4)) {
         kdebug("не диск.\nВНИМАНИЕ: Прерывание вызвано не диском, обработка прервана\n\n");
         int_exit_slave();
@@ -216,10 +216,10 @@ __attribute__((interrupt)) void irq14(IntFrame* frame) {
     if ((ideStatus & 2) || (ataStatus & ATA_STATUS_ERROR)) {
         kdebug("ВНИМАНИЕ: Была зафиксирована ошибка\n");
         kdebug("Статус диска: %b\n", inb(ATA_ERROR_PRIMARY));
-        uint32_t errSector = (inb(ATA_LBA_HIGH_PRIMARY) << 16) | (inb(ATA_LBA_MID_PRIMARY) << 8) | inb(ATA_LBA_LOW_PRIMARY);
+        dword errSector = (inb(ATA_LBA_HIGH_PRIMARY) << 16) | (inb(ATA_LBA_MID_PRIMARY) << 8) | inb(ATA_LBA_LOW_PRIMARY);
         kdebug("Проблемный сектор: %d\n", errSector);
     }
-    uint8_t cmd = inb(IDE_COMMAND_PRIMARY);
+    byte cmd = inb(IDE_COMMAND_PRIMARY);
     kdebug("Команда 1 канала: %b\n", cmd);
     kdebug("Команда была на ");
     bool read = cmd & 8;
@@ -244,7 +244,7 @@ __attribute__((interrupt)) void irq14(IntFrame* frame) {
 
 __attribute__((interrupt)) void irq15(IntFrame* frame) {
     kdebug("\nВызвано IRQ 15.\nПрерывание вызвал ");
-    uint8_t ideStatus = inb(IDE_STATUS_SECONDARY);
+    byte ideStatus = inb(IDE_STATUS_SECONDARY);
     if (!(ideStatus & 4)) {
         kdebug("не диск.\nВНИМАНИЕ: Прерывание вызвано не диском, обработка прервана\n\n");
         int_exit_slave();
@@ -252,7 +252,7 @@ __attribute__((interrupt)) void irq15(IntFrame* frame) {
     }
     kdebug("диск.\n");
     kdebug("Статус IDE-контроллера: %b\n", ideStatus);
-    uint8_t cmd = inb(IDE_COMMAND_SECONDARY);
+    byte cmd = inb(IDE_COMMAND_SECONDARY);
     kdebug("Команда была на ");
     bool read = cmd & 8;
     kdebug(read ? "чтение.\n" : "запись.");
@@ -274,12 +274,12 @@ __attribute__((interrupt)) void irq15(IntFrame* frame) {
 
 __attribute__((interrupt)) void irq3(IntFrame* frame) {
     disableInts();
-    uint16_t ioPort = getIOPort(2);
-    uint8_t iir = inb(ioPort + 2);
-    uint8_t intState = iir & 6;
+    word ioPort = getIOPort(2);
+    byte iir = inb(ioPort + 2);
+    byte intState = iir & 6;
 
     if (intState == COM_IIR_RECEIVE_LINE_STATUS) {
-        uint8_t lsr = inb(ioPort + 5);
+        byte lsr = inb(ioPort + 5);
         if (lsr & COM_LSR_OVERRUN_ERR)
             kerror("ОШИБКА: COM2: утрачены данные\n");
         if (lsr & COM_LSR_PARITY_ERR)
@@ -298,7 +298,7 @@ __attribute__((interrupt)) void irq3(IntFrame* frame) {
         comSend(2);
     }
     else if (intState == COM_IIR_MODEM_STATUS) {
-        uint8_t msr = inb(ioPort + 6);
+        byte msr = inb(ioPort + 6);
         if (msr & COM_MSR_DATA_SET_READY)
             kwarn("ВНИМАНИЕ: COM2: модем не готов к работе\n");
         if (msr & COM_MSR_RING_INDICATOR)
@@ -316,12 +316,12 @@ __attribute__((interrupt)) void irq3(IntFrame* frame) {
 
 __attribute__((interrupt)) void irq4(IntFrame* frame) {
     disableInts();
-    uint16_t ioPort = getIOPort(1);
-    uint8_t iir = inb(ioPort + 2);
-    uint8_t intState = iir & 6;
+    word ioPort = getIOPort(1);
+    byte iir = inb(ioPort + 2);
+    byte intState = iir & 6;
 
     if (intState == COM_IIR_RECEIVE_LINE_STATUS) {
-        uint8_t lsr = inb(ioPort + 5);
+        byte lsr = inb(ioPort + 5);
         if (lsr & COM_LSR_OVERRUN_ERR)
             kerror("ОШИБКА: COM1: утрачены данные\n");
         if (lsr & COM_LSR_PARITY_ERR)
@@ -347,14 +347,14 @@ __attribute__((interrupt)) void irq4(IntFrame* frame) {
 }
 
 __attribute__ ((interrupt)) void irq8(IntFrame* frame) {
-    uint8_t cmosStatusB = readCMOSReg(0x0B);
+    byte cmosStatusB = readCMOSReg(0x0B);
     cmosStatusB |= 16;
     writeCMOSReg(0x0B, cmosStatusB);
 
     Time newtime;
     newtime.seconds = readCMOSReg(0);
     newtime.minutes = readCMOSReg(2);
-    uint8_t hours = readCMOSReg(4);
+    byte hours = readCMOSReg(4);
     if (hours & 0x80)
         hours = ((hours & 0x7F) + 12) % 24;
     newtime.hours = hours;
@@ -369,8 +369,8 @@ __attribute__ ((interrupt)) void irq8(IntFrame* frame) {
         newtime.hours = ((newtime.hours & 0xF0) >> 1) + ((newtime.hours & 0xF0) >> 3) + (newtime.hours & 0xf);
         newtime.day = ((newtime.day & 0xF0) >> 1) + ((newtime.day & 0xF0) >> 3) + (newtime.day & 0xf);
         newtime.month = ((newtime.month & 0xF0) >> 1) + ((newtime.month & 0xF0) >> 3) + (newtime.month & 0xf);
-        uint8_t year = ((readCMOSReg(9) & 0xF0) >> 1) + ((readCMOSReg(9) & 0xF0) >> 3) + (readCMOSReg(9) & 0xf);
-        uint8_t century = ((readCMOSReg(50) & 0xF0) >> 1) + ((readCMOSReg(50) & 0xF0) >> 3) + (readCMOSReg(50) & 0xf);
+        byte year = ((readCMOSReg(9) & 0xF0) >> 1) + ((readCMOSReg(9) & 0xF0) >> 3) + (readCMOSReg(9) & 0xf);
+        byte century = ((readCMOSReg(50) & 0xF0) >> 1) + ((readCMOSReg(50) & 0xF0) >> 3) + (readCMOSReg(50) & 0xf);
         newtime.year = century * 100 + year;
     }
     ksettime(newtime);

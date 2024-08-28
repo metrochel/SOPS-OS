@@ -1,20 +1,19 @@
-#include <stdint.h>
-
 #ifndef _INT_INCL
 #define _INT_INCL
 #include "../io/io.hpp"
+#include "../util/nums.hpp"
 
 struct IDT_Register {
-    uint16_t size;
-    uint8_t* base;
+    word size;
+    byte* base;
 } __attribute__((packed));
 
 struct IntFrame {
-    uint16_t IP;
-    uint16_t CS;
-    uint16_t Flags;
-    uint16_t SP;
-    uint16_t SS;
+    word IP;
+    word CS;
+    word Flags;
+    word SP;
+    word SS;
 };
 
 extern IDT_Register idtr;
@@ -137,6 +136,6 @@ inline void int_exit_slave() {
     outb(0x20, 0x20);
 }
 
-void encode_idt_entry(void (*handlePtr)(IntFrame*), uint8_t intNum);
+void encode_idt_entry(void (*handlePtr)(IntFrame*), byte intNum);
 
 #endif

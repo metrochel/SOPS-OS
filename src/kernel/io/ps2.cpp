@@ -13,7 +13,7 @@ bool initPS2() {
 
     sendPS2ConCommand(PS2_CMD_READFROMRAM);
     while (!(inb(PS2_STATUS) & 1));
-    uint8_t ccb = inb(PS2_DATA);
+    byte ccb = inb(PS2_DATA);
     ccb &= ~(PS2_CCB_FIRSTPORT_INT | PS2_CCB_SECONDPORT_INT | PS2_CCB_FIRSTPORT_TRANSLATE);
     sendPS2ConCommand(PS2_CMD_WRITETORAM);
     while (inb(PS2_STATUS) & 2);
@@ -86,17 +86,17 @@ bool initPS2() {
     return firstPortAvailable | secondPortAvailable;
 }
 
-bool sendPS2ConCommand(uint8_t cmd) {
+bool sendPS2ConCommand(byte cmd) {
     while (inb(PS2_STATUS) & 2) {io_wait();}
     outb(PS2_COMMAND, cmd);
     io_wait();
     return true;
 }
 
-bool sendPS2DevCommand(uint8_t port, uint8_t cmd) {
+bool sendPS2DevCommand(byte port, byte cmd) {
     if (port == 2)
         sendPS2ConCommand(PS2_CMD_WRITETOSECPORTIN);
-    for (uint8_t timeout = 0; timeout < 0xFF; timeout ++) {
+    for (byte timeout = 0; timeout < 0xFF; timeout ++) {
         if (!(inb(PS2_STATUS) & 1))
             break;
         if (timeout == 0xFE)

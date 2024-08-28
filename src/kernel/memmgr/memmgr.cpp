@@ -15,8 +15,9 @@ void initMemMgr() {
     // TODO
 }
 
-void* kmalloc(uint32_t amount) {
+void* kmalloc(dword amount) {
     // TODO
+    return nullptr;
 }
 
 void kfree(void* ptr) {

@@ -6,25 +6,25 @@
 #ifndef _TIME_INCL
 #define _TIME_INCL
 
-#include <stdint.h>
+#include "../util/nums.hpp"
 
 // ### Время
 // Класс, содержащий в себе описание о неком моменте времени.
 class Time {
 
 public:
-    uint16_t year;      // Год
-    uint8_t month;      // Месяц
-    uint8_t day;        // День
-    uint8_t hours;      // Часы
-    uint8_t minutes;    // Минуты
-    uint8_t seconds;    // Секунды
-    uint8_t weekday;    // День недели
+    word year;      // Год
+    byte month;      // Месяц
+    byte day;        // День
+    byte hours;      // Часы
+    byte minutes;    // Минуты
+    byte seconds;    // Секунды
+    byte weekday;    // День недели
 
-    uint8_t asString(char* out);
-    uint8_t asStringFull(char* out);
-    uint8_t asStringWeekday(char* out);
-    uint8_t asStringMonth(char* out);
+    byte asString(char* out);
+    byte asStringFull(char* out);
+    byte asStringWeekday(char* out);
+    byte asStringMonth(char* out);
 
     bool operator==(Time t);
 };

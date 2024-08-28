@@ -1,22 +1,14 @@
 #include "ide.hpp"
-#ifndef PCI_CONFIG_ADDRESS
 #include "../pci/pci.hpp"
-#endif
-#ifndef GRAPHICS_SIG
 #include "../graphics/glyphs.hpp"
-#endif
-#ifndef PAGING_BASE
 #include "../memmgr/paging.hpp"
-#endif
-#ifndef COM_MAX_BAUD_RATE
 #include "../io/com.hpp"
-#endif
 
 bool pciMode1 = false;
 bool pciMode2 = false;
 bool dma = false;
 
-uint32_t ideCon = 0;
+dword ideCon = 0;
 
 PRD* prdt1 = nullptr;
 PRD* prdt2 = nullptr;
@@ -28,21 +20,21 @@ bool prdt2read = false;
 bool transferring = false;
 
 void cleanPRDT1() {
-    while ((uint32_t)prdt1 > 0x9500) {
+    while ((dword)prdt1 > 0x9500) {
         *prdt1-- = {0,0,0,0};
     }
     *prdt1 = {0,0,0,0};
     prdt1base = prdt1;
-    outl(IDE_PRDT_ADDR_PRIMARY, (uint32_t)prdt1base);
+    outl(IDE_PRDT_ADDR_PRIMARY, (dword)prdt1base);
 }
 
 void cleanPRDT2() {
-    while ((uint32_t)prdt2 > 0x9700) {
+    while ((dword)prdt2 > 0x9700) {
         *prdt2-- = {0,0,0,0};
     }
     *prdt2 = {0,0,0,0};
     prdt2base = prdt2;
-    outl(IDE_PRDT_ADDR_SECONDARY, (uint32_t)prdt2base);
+    outl(IDE_PRDT_ADDR_SECONDARY, (dword)prdt2base);
 }
 
 bool initIDE() {
@@ -53,7 +45,7 @@ bool initIDE() {
         return false;
     }
     kdebug("Ш%dУ%dФ%d\n", ideCon >> 16, (ideCon >> 8) & 0xFF, ideCon & 0xFF);
-    uint8_t progIF = pciIdentifyFunc(ideCon) & 0xFF;
+    byte progIF = pciIdentifyFunc(ideCon) & 0xFF;
     kdebug("Интерфейс программирования контроллера: %x (%b)\n", progIF, progIF);
     if (progIF & 0x02)
         progIF |= 0x01;
@@ -82,23 +74,23 @@ bool initIDE() {
         prdt1base = prdt1;
         prdt2 = (PRD*)0x9700;
         prdt2base = prdt2;
-        for (uint16_t i = 0; i < 0x100; i++) {
-            *(uint32_t*)(0x9500 + i * 4) = 0;
+        for (word i = 0; i < 0x100; i++) {
+            *(dword*)(0x9500 + i * 4) = 0;
         }
-        if (*(uint64_t*)prdt1 || *(uint64_t*)prdt2)
+        if (*(qword*)prdt1 || *(qword*)prdt2)
             kdebug("ВНИМАНИЕ: Зона для PRDT не была очищена\n");
         else 
-            kdebug("Успешно созданы зоны для PRDT по адресам\n\tдля 1 канала - %x;\n\tдля 2 канала - %x.\n", (uint32_t)prdt1, (uint32_t)prdt2);
+            kdebug("Успешно созданы зоны для PRDT по адресам\n\tдля 1 канала - %x;\n\tдля 2 канала - %x.\n", (dword)prdt1, (dword)prdt2);
         outb(IDE_COMMAND_PRIMARY, 1);
         outb(IDE_STATUS_PRIMARY, 2);
         outb(IDE_STATUS_PRIMARY, 4);
-        outl(IDE_PRDT_ADDR_PRIMARY, (uint32_t)prdt1);
+        outl(IDE_PRDT_ADDR_PRIMARY, (dword)prdt1);
         kdebug("Установлен адрес PRDT1 на %x.\nСтатус 1 канала - \t%b\nКоманда 1 каналу - \t%b\n", inl(IDE_PRDT_ADDR_PRIMARY), inb(IDE_STATUS_PRIMARY), inb(IDE_COMMAND_PRIMARY));
 
         outb(IDE_COMMAND_SECONDARY, 1);
         outb(IDE_STATUS_SECONDARY, 2);
         outb(IDE_STATUS_SECONDARY, 4);
-        outl(IDE_PRDT_ADDR_SECONDARY, (uint32_t)prdt2);
+        outl(IDE_PRDT_ADDR_SECONDARY, (dword)prdt2);
         kdebug("Установлен адрес PRDT2 на %x.\nСтатус 2 канала - \t%b\nКоманда 2 каналу - \t%b\n", inl(IDE_PRDT_ADDR_SECONDARY), inb(IDE_STATUS_SECONDARY), inb(IDE_COMMAND_SECONDARY));
 
         dma = true;
@@ -117,7 +109,7 @@ bool initIDE() {
     return true;
 }
 
-void readSectorsATA(uint32_t startLBA, uint8_t sectorsCount, uint8_t driveNo, uint8_t *out) {
+void readSectorsATA(dword startLBA, byte sectorsCount, byte driveNo, byte *out) {
     transferring = true;
     kdebug("Получена команда на считывание %d секторов с LBA %d с диска %d.\n", sectorsCount, startLBA, driveNo);
     kdebug("Начата подготовка к исполнению команды.\n");
@@ -126,7 +118,7 @@ void readSectorsATA(uint32_t startLBA, uint8_t sectorsCount, uint8_t driveNo, ui
     if (!secondary && dma) {
         while (!prdt1read && prdt1 > (PRD*)0x9500) {if (prdt1read) break;}
         prdt1read = true;
-        PRD prd = {getPhysAddr((uint32_t)out), (uint16_t)(sectorsCount * 512), 0, 0x80};
+        PRD prd = {getPhysAddr((dword)out), (word)(sectorsCount * 512), 0, 0x80};
         kdebug("Собрана структура PRD:\n\tФиз. адрес передачи - %x\n\tЧисло байтов для передачи - %d\n\tВерхний байт - %x\n", prd.base, prd.count, prd.msb);
         if (prdt1 == (PRD*)0x9500) {
             *prdt1 = prd;
@@ -137,7 +129,7 @@ void readSectorsATA(uint32_t startLBA, uint8_t sectorsCount, uint8_t driveNo, ui
             prdt1++;
         }
         kdebug("Теперь PRDT1 выглядит так:\n");
-        uint8_t i = 0;
+        byte i = 0;
         PRD* dbgPtr = (PRD*)0x9500;
         do {
             kdebug("Вхождение %d:\n", i+1);
@@ -161,7 +153,7 @@ void readSectorsATA(uint32_t startLBA, uint8_t sectorsCount, uint8_t driveNo, ui
         kdebug("LBA средний: %x\n", inb(ATA_LBA_MID_PRIMARY));
         outb(ATA_LBA_HIGH_PRIMARY, (startLBA >> 16) & 0xFF);
         kdebug("LBA высший: %x\n", inb(ATA_LBA_HIGH_PRIMARY));
-        kdebug("%x\n", (uint32_t)prdt1);
+        kdebug("%x\n", (dword)prdt1);
         if (prdt1 == (PRD*)0x9508) {
             kdebug("PRDT1 пуста. Контроллер переводится в режим чтения.\n");
             outb(IDE_COMMAND_PRIMARY, 0);
@@ -181,7 +173,7 @@ void readSectorsATA(uint32_t startLBA, uint8_t sectorsCount, uint8_t driveNo, ui
     else if (secondary && dma) {
         while (!prdt2read && prdt2 > (PRD*)0x9700) {if (prdt2read) break;}
         prdt2read = true;
-        PRD prd = {getPhysAddr((uint32_t)out), (uint16_t)(sectorsCount * 512), 0, 0x80};
+        PRD prd = {getPhysAddr((dword)out), (word)(sectorsCount * 512), 0, 0x80};
         kdebug("Собрана структура PRD:\n\tФиз. адрес передачи - %x\n\tЧисло байтов для передачи - %d\n\tВерхний байт - %x\n", prd.base, prd.count, prd.msb);
         if (prdt2 == (PRD*)0x9700) {
             *prdt2 = prd;
@@ -192,7 +184,7 @@ void readSectorsATA(uint32_t startLBA, uint8_t sectorsCount, uint8_t driveNo, ui
             prdt2++;
         }
         kdebug("Теперь PRDT2 выглядит так:\n");
-        uint8_t i = 0;
+        byte i = 0;
         PRD* dbgPtr = (PRD*)0x9700;
         do {
             kdebug("Вхождение %d:\n", i+1);
@@ -236,7 +228,7 @@ void readSectorsATA(uint32_t startLBA, uint8_t sectorsCount, uint8_t driveNo, ui
     kdebug("Чтение с диска успешно завершено.\n\n");
 }
 
-void writeSectorsATA(uint32_t startLBA, uint8_t sectorsCount, uint8_t driveNo, uint8_t *out) {
+void writeSectorsATA(dword startLBA, byte sectorsCount, byte driveNo, byte *out) {
     transferring = true;
     kdebug("Получена команда на запись %d секторов с LBA %d на диск %d.\n", sectorsCount, startLBA, driveNo);
     kdebug("Начинается подготовка к записи на диск.\n");
@@ -245,7 +237,7 @@ void writeSectorsATA(uint32_t startLBA, uint8_t sectorsCount, uint8_t driveNo, u
     if (!secondary && dma) {
         while (prdt1read && prdt1 > (PRD*)0x9500) {if (!prdt1read) break;}
         prdt1read = false;
-        PRD prd = {getPhysAddr((uint32_t)out), (uint16_t)(sectorsCount * 512), 0, 0x80};
+        PRD prd = {getPhysAddr((dword)out), (word)(sectorsCount * 512), 0, 0x80};
         kdebug("Собрана структура PRD:\n\tФиз. адрес передачи: %x\n\tЧисло байтов для передачи: %d\n\tВерхний байт: %x\n", prd.base, prd.count, prd.msb);
         if (prdt1 == (PRD*)0x9500) {
             *prdt1 = prd;
@@ -256,7 +248,7 @@ void writeSectorsATA(uint32_t startLBA, uint8_t sectorsCount, uint8_t driveNo, u
             prdt1++;
         }
         kdebug("Теперь PRDT1 выглядит так:\n");
-        uint8_t i = 0;
+        byte i = 0;
         PRD* dbgPRDPtr = (PRD*)0x9500;
         while (true) {
             kdebug("Вхождение %d:\n", i+1);
@@ -299,7 +291,7 @@ void writeSectorsATA(uint32_t startLBA, uint8_t sectorsCount, uint8_t driveNo, u
     } else if (dma && secondary) {
         while (prdt2read && prdt2 > (PRD*)0x9500) {if (!prdt2read) break;}
         prdt2read = false;
-        PRD prd = {getPhysAddr((uint32_t)out), (uint16_t)(sectorsCount * 512), 0, 0x80};
+        PRD prd = {getPhysAddr((dword)out), (word)(sectorsCount * 512), 0, 0x80};
         kdebug("Собрана структура PRD:\n\tФиз. адрес передачи: %x\n\tЧисло байтов для передачи: %d\n\tВерхний байт: %x\n", prd.base, prd.count, prd.msb);
         if (prdt2 == (PRD*)0x9700) {
             *prdt2 = prd;
@@ -310,7 +302,7 @@ void writeSectorsATA(uint32_t startLBA, uint8_t sectorsCount, uint8_t driveNo, u
             prdt2++;
         }
         kdebug("Теперь PRDT2 выглядит так:\n");
-        uint8_t i = 0;
+        byte i = 0;
         PRD* dbgPRDPtr = (PRD*)0x9700;
         while (true) {
             kdebug("Вхождение %d:\n", i+1);

@@ -3,10 +3,10 @@
 //
 //  - Управляет использованием ОЗУ.
 //
-#include <stdint.h>
 #ifndef _MEMMGR_INCL
 #define _MEMMGR_INCL
 
+#include "../util/nums.hpp"
 #include "paging.hpp"
 
 #define HEAP_PHYSADDR 0x1000000
@@ -15,7 +15,7 @@
 /// @brief Блок в памяти
 struct MemBlock {
     MemBlock *prevAddr;     // Адрес предыдущего блока
-    uint32_t length;        // Длина блока в байтах
+    dword length;        // Длина блока в байтах
     void     *memPtr;       // Указатель на блок в памяти
     MemBlock *nextAddr;     // Адрес следующего блока
 } __attribute__((packed));
@@ -26,16 +26,16 @@ void initMemMgr();
 /// @brief Выделяет несколько байт из кучи.
 /// @param amount Длина блока, Б
 /// @return Указатель на выделенное место
-void* kmalloc(uint32_t amount);
+void* kmalloc(dword amount);
 
 /// @brief Освобождает место в куче.
 /// @param var Адрес удаляемой переменной
 void kfree(void* var);
 
 
-void memset(uint8_t *ptr, uint32_t count, uint8_t val);
+void memset(byte *ptr, dword count, byte val);
 
 
-void memcpy(uint8_t *a, uint8_t *b, uint32_t n);
+void memcpy(byte *a, byte *b, dword n);
 
 #endif

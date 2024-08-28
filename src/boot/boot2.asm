@@ -297,7 +297,7 @@ getvideomodes:
     jne .video_fail
 
     ; Настраиваемся на обработку режимов
-    mov si, 0x6014 + 14
+    mov si, 0x6015 + 14
     lodsw
     push ax
     lodsw
@@ -641,6 +641,10 @@ main:
 
     ; Настройка BP на 1 КиБ резервированной памяти
     mov bp, 0x6000
+    
+    ; Запись номера диска в резервированную память
+    mov byte [ds:bp], dl
+    inc bp
 
     ; Активация адресной линии А20
     call enable_a20
@@ -791,12 +795,27 @@ tinydiskdriver:
     stc
     ret
 .init:
+    ; Проверка диска на существование
+    mov dx, 0x1F7
+    in  al, dx
+    cmp al, 0xFF
+    je  .disk_doesnt_exist
+
     ; Команда IDENTIFY
     pusha
     xor eax, eax
-    mov al, 0xA0
     mov dx, 0x1F6
+    in  al, dx
+    or  al, 0x40
     out dx, al
+    test al, 0x10
+    jz  ._init2
+    cmp byte [0x100000], 0x81
+    jne ._init1
+    inc byte [0x100000]
+._init1:
+    inc byte [0x100000]
+._init2:
     mov al, 0x00
     mov dx, 0x1F2
     out dx, al
@@ -885,11 +904,6 @@ tinydiskdriver:
     push ebx
     push cx
 
-    ; Выбор главного диска и верхние 4 бита LBA-координаты
-    mov dx, 0x1F6
-    mov al, 0xE0
-    out dx, al
-
     ; Количество секторов
     mov dx, 0x1F2
     mov al, 1
@@ -950,10 +964,9 @@ tinydiskdriver:
 .read_error:
     popa
     stc                 ; CF = 1
-    mov dx, 0x1F6       ; В AL байт ошибки
+    mov dx, 0x1F1       ; В AL байт ошибки
     in  al, dx          
     ret
-
 
 ;==========================================================
 ;
@@ -986,11 +999,10 @@ paging_time:
     cmp ecx, 0x400000 * 8
     jne .identity_paging
 
-
     ; Помещаем видеопамять на таблицы с
     ; виртуальным адресом на конце памяти
     mov edi, PAGING_BASE + 0x3F0000
-    mov esi, 0x10003C
+    mov esi, 0x10003D
     lodsd
     mov ecx, 0
 .map_vram:
@@ -1004,7 +1016,7 @@ paging_time:
 
     ; Помещаем ядро на странички с
     ; виртуальным адресом 0x1000000
-    mov edi, PAGING_BASE + ((KERNEL_VIRTADDR & 0xFFC00000) >> 22) * 0x1000 * 4
+    mov edi, PAGING_BASE + 0x1000 + ((KERNEL_VIRTADDR & 0xFFC00000) >> 12) * 4
     mov ebx, KERNEL_PHYSADDR
     mov ecx, 0
 .map_kernel:
@@ -1044,10 +1056,12 @@ paging_time:
     mov eax, PAGING_BASE + 0x8000
     or  eax, 3
     stosd
+    
     mov edi, PAGING_BASE + ((KERNEL_VIRTADDR & 0xFFC00000) >> 22) * 4
     mov eax, PAGING_BASE + ((KERNEL_VIRTADDR & 0xFFC00000) >> 12) * 4 + 0x1000
     or  eax, 3
     stosd
+
     mov edi, PAGING_BASE + (0x3F0 * 4)
     mov eax, PAGING_BASE + 0x3F0000
 .put_vram:
@@ -1065,6 +1079,7 @@ paging_time:
     mov eax, cr0
     or  eax, 0x80000001
     mov cr0, eax
+
     popa
     ret
 ;====================================
@@ -1225,7 +1240,8 @@ prot_mode_entry_point:
     mov es, ax
     mov fs, ax
     mov gs, ax
-    mov esp, 0x9000
+
+    mov esp, 0x800000
 
     ; Копирование 4 КиБ памяти в новое место для памяти
     call copyres

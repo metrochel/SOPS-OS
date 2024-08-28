@@ -7,7 +7,7 @@
 #ifndef _PCI_INCL
 #define _PCI_INCL
 
-#include <stdint.h>
+#include "../util/nums.hpp"
 #include "../io/io.hpp"
 #include "../graphics/glyphs.hpp"
 
@@ -34,7 +34,7 @@
 /// @param function Номер функции
 /// @param offset Сдвиг по конфигурации
 /// @return Считанное двойное слово
-uint32_t pciConfigReadDW(uint8_t bus, uint8_t device, uint8_t function, uint8_t offset);
+dword pciConfigReadDW(byte bus, byte device, byte function, byte offset);
 
 /// @brief Считывает слово из конфигурации PCI для данной функции.
 /// @param bus Номер шины
@@ -42,7 +42,7 @@ uint32_t pciConfigReadDW(uint8_t bus, uint8_t device, uint8_t function, uint8_t 
 /// @param function Номер функции
 /// @param offset Сдвиг по конфигурации
 /// @return Считанное двойное слово
-uint16_t pciConfigReadW(uint8_t bus, uint8_t device, uint8_t function, uint8_t offset);
+word pciConfigReadW(byte bus, byte device, byte function, byte offset);
 
 /// @brief Считывает байт из конфигурации PCI для данной функции.
 /// @param bus Номер шины
@@ -50,7 +50,7 @@ uint16_t pciConfigReadW(uint8_t bus, uint8_t device, uint8_t function, uint8_t o
 /// @param function Номер функции
 /// @param offset Сдвиг по конфигурации
 /// @return Считанный байт
-uint8_t  pciConfigReadB(uint8_t bus, uint8_t device, uint8_t function, uint8_t offset);
+byte pciConfigReadB(byte bus, byte device, byte function, byte offset);
 
 /// @brief Записывает двойное слово в конфигурацию PCI для данной функции.
 /// @param bus Номер шины
@@ -58,13 +58,13 @@ uint8_t  pciConfigReadB(uint8_t bus, uint8_t device, uint8_t function, uint8_t o
 /// @param function Номер функции
 /// @param offset Сдвиг по конфигурации
 /// @param value Новое значение
-void pciConfigWriteDW(uint8_t bus, uint8_t device, uint8_t function, uint8_t offset, uint32_t value);
+void pciConfigWriteDW(byte bus, byte device, byte function, byte offset, dword value);
 
 /// @brief Записывает двойное слово в конфигурацию PCI для данной функции.
 /// @param shuf ШУФ-ключ функции
 /// @param offset Сдвиг по конфигурации
 /// @param value Новое значение
-void pciConfigWriteDW(uint32_t shuf, uint8_t offset, uint32_t value);
+void pciConfigWriteDW(dword shuf, byte offset, dword value);
 
 /// @brief Записывает слово в конфигурацию PCI для данной функции.
 /// @param bus Номер шины
@@ -72,13 +72,13 @@ void pciConfigWriteDW(uint32_t shuf, uint8_t offset, uint32_t value);
 /// @param function Номер функции
 /// @param offset Сдвиг по конфигурации
 /// @param value Новое значение
-void pciConfigWriteW(uint8_t bus, uint8_t device, uint8_t function, uint8_t offset, uint16_t value);
+void pciConfigWriteW(byte bus, byte device, byte function, byte offset, word value);
 
 /// @brief Записывает двойное слово в конфигурацию PCI для данной функции.
 /// @param shuf ШУФ-ключ функции
 /// @param offset Сдвиг по конфигурации
 /// @param value Новое значение
-void pciConfigWriteW(uint32_t shuf, uint8_t offset, uint16_t value);
+void pciConfigWriteW(dword shuf, byte offset, word value);
 
 /// @brief Записывает байт в конфигурацию PCI для данной функции.
 /// @param bus Номер шины
@@ -86,17 +86,17 @@ void pciConfigWriteW(uint32_t shuf, uint8_t offset, uint16_t value);
 /// @param function Номер функции
 /// @param offset Сдвиг по конфигурации
 /// @param value Новое значение
-void pciConfigWriteB(uint8_t bus, uint8_t device, uint8_t function, uint8_t offset, uint8_t value);
+void pciConfigWriteB(byte bus, byte device, byte function, byte offset, byte value);
 
 /// @brief Записывает двойное слово в конфигурацию PCI для данной функции.
 /// @param shuf ШУФ-ключ функции
 /// @param offset Сдвиг по конфигурации
 /// @param value Новое значение
-void pciConfigWriteB(uint32_t shuf, uint8_t offset, uint8_t value);
+void pciConfigWriteB(dword shuf, byte offset, byte value);
 
-uint32_t pciConfigReadBAR(uint8_t bus, uint8_t device, uint8_t function, uint8_t bar);
+dword pciConfigReadBAR(byte bus, byte device, byte function, byte bar);
 
-uint32_t pciConfigReadBAR(uint32_t shuf, uint8_t bar);
+dword pciConfigReadBAR(dword shuf, byte bar);
 
 /// @brief Записывает BAR для данной функции.
 /// @param bus Номер шины
@@ -104,49 +104,49 @@ uint32_t pciConfigReadBAR(uint32_t shuf, uint8_t bar);
 /// @param function Номер функции
 /// @param bar Номер BARа
 /// @param value Новое значение
-void pciConfigWriteBAR(uint8_t bus, uint8_t device, uint8_t function, uint8_t bar, uint32_t value);
+void pciConfigWriteBAR(byte bus, byte device, byte function, byte bar, dword value);
 
 /// @brief Записывает BAR для данной функции.
 /// @param shuf ШУФ-ключ функции
 /// @param bar Номер BARа
 /// @param value Новое значение
-void pciConfigWriteBAR(uint32_t shuf, uint8_t bar, uint32_t value);
+void pciConfigWriteBAR(dword shuf, byte bar, dword value);
 
 /// @brief Определяет назначение данной функции PCI-устройства.
 /// @param bus Номер шины
 /// @param device Номер устройства (слота)
 /// @param function Номер функции
 /// @return 1 байт - класс устройства, 2 байт - подкласс устройства, 3 байт - интерфейс программирования (если есть)
-uint32_t pciIdentifyFunc(uint8_t bus, uint8_t device, uint8_t function);
+dword pciIdentifyFunc(byte bus, byte device, byte function);
 
 /// @brief Определяет назначение данной функции PCI-устройства.
 /// @param shuf ШУФ-ключ функции
 /// @return 1 байт - класс устройства, 2 байт - подкласс устройства, 3 байт - интерфейс программирования (если есть)
-uint32_t pciIdentifyFunc(uint32_t shuf);
+dword pciIdentifyFunc(dword shuf);
 
 /// @brief Проверяет, существует ли данная функция устройства PCI.
 /// @param bus Номер шины
 /// @param device Номер устройства (слота)
 /// @param function Номер функции
-bool pciFuncExists(uint8_t bus, uint8_t device, uint8_t function);
+bool pciFuncExists(byte bus, byte device, byte function);
 
 /// @brief Проверяет, существует ли данная функция устройства PCI.
 /// @param shuf ШУФ-ключ функции
-bool pciFuncExists(uint32_t shuf);
+bool pciFuncExists(dword shuf);
 
-uint32_t checkPCIBus(uint8_t bus, uint32_t neededID);
+dword checkPCIBus(byte bus, dword neededID);
 
 /// @brief Ищет PCI-устройство среди существующих с определённым функционалом.
 /// @param devclass Класс устройства
 /// @param devsubclass Подкласс устройства
 /// @param progIF Интерфейс программирования устройства
 /// @return ШУФ-ключ искомого устройства
-uint32_t pciFindDevice(uint8_t devclass, uint8_t devsubclass, uint8_t progIF);
+dword pciFindDevice(byte devclass, byte devsubclass, byte progIF);
 
 /// @brief Ищет PCI-устройство среди существующих с определённым функционалом.
 /// @param devclass Класс устройства
 /// @param devsubclass Подкласс устройства
 /// @return ШУФ-ключ искомого устройства
-uint32_t pciFindDevice(uint8_t devclass, uint8_t devsubclass);
+dword pciFindDevice(byte devclass, byte devsubclass);
 
 #endif

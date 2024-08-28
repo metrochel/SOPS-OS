@@ -8,20 +8,20 @@ bool releaseScancode = false;
 bool inputFinished = false;
 bool inputAllowed = false;
 
-uint8_t *kbBufPtr = (uint8_t*)KB_BUF_BASE;
-uint8_t *kbCmdBufPtr = (uint8_t*)KB_CMD_BUF_BASE;
-uint8_t *stdinPtr = (uint8_t*)0x9100;
-uint32_t stdinBase = 0x9100;
+byte *kbBufPtr = (byte*)KB_BUF_BASE;
+byte *kbCmdBufPtr = (byte*)KB_CMD_BUF_BASE;
+byte *stdinPtr = (byte*)0x9100;
+dword stdinBase = 0x9100;
 
-uint8_t kbStatus = 0;
+byte kbStatus = 0;
 
 void cleanKBBuf() {
-    while ((uint32_t)kbBufPtr > KB_BUF_BASE) {
+    while ((dword)kbBufPtr > KB_BUF_BASE) {
         *kbBufPtr-- = 0;
     }
 }
 
-uint8_t getSymbol(uint8_t keycode) {
+byte getSymbol(byte keycode) {
     if (kbStatus & (KB_STATUS_CTRL | KB_STATUS_ALT))
         return 0;
     bool shift = ((kbStatus & KB_STATUS_SHIFT) && !(kbStatus & KB_STATUS_CAPSLOCK)) || (!(kbStatus & KB_STATUS_SHIFT) && kbStatus & KB_STATUS_CAPSLOCK);
@@ -267,29 +267,29 @@ uint8_t getSymbol(uint8_t keycode) {
 }
 
 void shiftKBCmdQueue() {
-    uint8_t cmd = *(uint8_t*)KB_CMD_BUF_BASE;
-    uint8_t bufLen = (uint32_t)kbCmdBufPtr - KB_CMD_BUF_BASE;
-    for (uint8_t i = 0; i < bufLen; i++) {
-        *(uint16_t*)(KB_CMD_BUF_BASE + i) >>= 8;
+    byte cmd = *(byte*)KB_CMD_BUF_BASE;
+    byte bufLen = (dword)kbCmdBufPtr - KB_CMD_BUF_BASE;
+    for (byte i = 0; i < bufLen; i++) {
+        *(word*)(KB_CMD_BUF_BASE + i) >>= 8;
     }
     bufLen --;
     kbCmdBufPtr --;
     if (cmd == KB_CMD_KEYSET || cmd == KB_CMD_SET_LEDS || cmd == KB_CMD_SET_TYPEMATIC) {
-        for (uint8_t i = 0; i < bufLen; i++) {
-            *(uint16_t*)(KB_CMD_BUF_BASE + i) >>= 8;
+        for (byte i = 0; i < bufLen; i++) {
+            *(word*)(KB_CMD_BUF_BASE + i) >>= 8;
         }
         kbCmdBufPtr --;
     }
 }
 
 void sendKBCmd() {
-    uint8_t nextCmd = *(uint8_t*)KB_CMD_BUF_BASE;
+    byte nextCmd = *(byte*)KB_CMD_BUF_BASE;
     if (nextCmd == 0) {
         return;
     }
     sendPS2DevCommand(1, nextCmd);
     if (nextCmd == KB_CMD_KEYSET || nextCmd == KB_CMD_SET_LEDS || nextCmd == KB_CMD_SET_TYPEMATIC) {
-        uint8_t arg = *(uint8_t*)(KB_CMD_BUF_BASE + 1);
+        byte arg = *(byte*)(KB_CMD_BUF_BASE + 1);
         sendPS2DevCommand(1, arg);
     }
 }
@@ -300,19 +300,19 @@ void updateKB() {
         cleanKBBuf();
         return;
     }
-    uint8_t kbBufLen = (uint32_t)kbBufPtr - KB_BUF_BASE;
-    uint8_t xchgBuf;
-    kbBufPtr = (uint8_t*)KB_BUF_BASE;
-    for (uint8_t i = 0; i < kbBufLen / 2; i++) {
+    byte kbBufLen = (dword)kbBufPtr - KB_BUF_BASE;
+    byte xchgBuf;
+    kbBufPtr = (byte*)KB_BUF_BASE;
+    for (byte i = 0; i < kbBufLen / 2; i++) {
         xchgBuf = *(kbBufPtr + i);
         *(kbBufPtr + i) = *(kbBufPtr + kbBufLen - i - 1);
         *(kbBufPtr + kbBufLen - i - 1) = xchgBuf;
     }
-    uint64_t scancode = *(uint64_t*)kbBufPtr;
-    for (uint8_t i = 0; i < 8; i++) {
+    qword scancode = *(qword*)kbBufPtr;
+    for (byte i = 0; i < 8; i++) {
         *(kbBufPtr + i) = 0;
     }
-    uint8_t keycode = getKeyCode(scancode);
+    byte keycode = getKeyCode(scancode);
 
     if (keycode == KEYCODE_LEFT_SHIFT || keycode == KEYCODE_RIGHT_SHIFT) {
         if (releaseScancode)
@@ -338,7 +338,7 @@ void updateKB() {
         else
             kbStatus |= KB_STATUS_CAPSLOCK;
     }
-    if (keycode == KEYCODE_BACKSPACE && !releaseScancode && ((uint32_t)stdinPtr - stdinBase > 0)) {
+    if (keycode == KEYCODE_BACKSPACE && !releaseScancode && ((dword)stdinPtr - stdinBase > 0)) {
         stdinPtr --;
         *stdinPtr = 0;
         eraseChar();
@@ -352,13 +352,13 @@ void updateKB() {
         cleanKBBuf();
         return;
     }
-    uint32_t stdinLen = (uint32_t)stdinPtr - stdinBase;
+    dword stdinLen = (dword)stdinPtr - stdinBase;
     if (stdinLen + 1 > 0x200) {
         releaseScancode = false;
         cleanKBBuf();
         return;
     }
-    uint8_t symbol = getSymbol(keycode);
+    byte symbol = getSymbol(keycode);
     if (!releaseScancode && symbol != 0) {
         *stdinPtr = symbol;
         if (symbol == '%')
@@ -372,12 +372,12 @@ void updateKB() {
 }
 
 bool initKB() {
-    kbBufPtr = (uint8_t*)KB_BUF_BASE;
-    for (uint8_t i = 0; i < 8; i++) {
+    kbBufPtr = (byte*)KB_BUF_BASE;
+    for (byte i = 0; i < 8; i++) {
         *(kbBufPtr + i) = 0;
     }
-    kbCmdBufPtr = (uint8_t*)KB_CMD_BUF_BASE;
-    for (uint16_t i = 0; i < 0x100; i ++) {
+    kbCmdBufPtr = (byte*)KB_CMD_BUF_BASE;
+    for (word i = 0; i < 0x100; i ++) {
         *(kbCmdBufPtr + i) = 0;
     }
     if (!sendKBCommand(KB_CMD_RESET))
@@ -390,41 +390,41 @@ bool initKB() {
         return false;
     if (!sendKBCommand(KB_CMD_ENABLE_SCANNING))
         return false;
-    while (*(uint8_t*)KB_BUF_BASE == 0) {io_wait();}
-    if (*(uint8_t*)KB_BUF_BASE != 0xAA)
+    while (*(byte*)KB_BUF_BASE == 0) {io_wait();}
+    if (*(byte*)KB_BUF_BASE != 0xAA)
         return false;
-    *(uint8_t*)KB_BUF_BASE = 0;
+    *(byte*)KB_BUF_BASE = 0;
     return true;
 }
 
-bool sendKBCommand(uint8_t cmd) {
-    if ((uint32_t)kbCmdBufPtr - KB_CMD_BUF_BASE + 1 > 128)
+bool sendKBCommand(byte cmd) {
+    if ((dword)kbCmdBufPtr - KB_CMD_BUF_BASE + 1 > 128)
         return false;
     *kbCmdBufPtr = cmd;
     kbCmdBufPtr ++;
-    if ((uint32_t)kbCmdBufPtr == KB_CMD_BUF_BASE + 1) {
+    if ((dword)kbCmdBufPtr == KB_CMD_BUF_BASE + 1) {
         sendKBCmd();
     }
     return true;
 }
 
-bool sendKBCommand(uint8_t cmd, uint8_t arg) {
-    if ((uint32_t)kbCmdBufPtr - KB_CMD_BUF_BASE + 2 > 128)
+bool sendKBCommand(byte cmd, byte arg) {
+    if ((dword)kbCmdBufPtr - KB_CMD_BUF_BASE + 2 > 128)
         return false;
     *kbCmdBufPtr = cmd;
     kbCmdBufPtr ++;
     *kbCmdBufPtr = arg;
     kbCmdBufPtr ++;
-    if ((uint32_t)kbCmdBufPtr == KB_CMD_BUF_BASE + 2) {
+    if ((dword)kbCmdBufPtr == KB_CMD_BUF_BASE + 2) {
         sendKBCmd();
     }
     return true;
 }
 
-void kread(uint8_t *in) {
-    stdinBase = (uint32_t)in;
+void kread(byte *in) {
+    stdinBase = (dword)in;
     stdinPtr = in;
-    for (uint16_t i = 0; i < 0x200; i++) {
+    for (word i = 0; i < 0x200; i++) {
         *(stdinPtr + i) = 0;
     }
     inputAllowed = true;

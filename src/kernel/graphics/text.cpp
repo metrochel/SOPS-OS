@@ -1,28 +1,26 @@
 #include <stdarg.h>
 #include "glyphs.hpp"
 
-uint16_t textCurX = 1;
-uint16_t textCurY = 1;
+word textCurX = 1;
+word textCurY = 1;
 bool textCurOnScreen = false;
 bool textCurAllowed = false;
 
-uint32_t defaultTextCol;
-uint32_t defaultBGCol;
+dword defaultTextCol;
+dword defaultBGCol;
 
-uint32_t warnTextCol;
-uint32_t warnBGCol;
+dword warnTextCol;
+dword warnBGCol;
 
-uint32_t errorTextCol;
-uint32_t errorBGCol;
+dword errorTextCol;
+dword errorBGCol;
 
-uint16_t screenWidth;
-uint16_t screenHeight;
+word screenWidth;
+word screenHeight;
 
-uint8_t ticks = 0;
+byte ticks = 0;
 
-uint64_t *dbgPtr = (uint64_t*)0x100300;
-
-Glyph getglyph(uint8_t code) {
+Glyph getglyph(byte code) {
     switch (code)
     {
     case 'A':
@@ -219,12 +217,12 @@ Glyph getglyph(uint8_t code) {
 }
 
 Glyph getglyph(char c) {
-    return getglyph((uint8_t)c);
+    return getglyph((byte)c);
 }
 
-Glyph getglyph(uint16_t unicode) {
+Glyph getglyph(word unicode) {
     if (unicode < 0x80)
-        return getglyph((uint8_t)(unicode & 0x7F));
+        return getglyph((byte)(unicode & 0x7F));
     switch (unicode) {
         case 'А':
             return CYRILLIC_UPPERCASE_A;
@@ -363,7 +361,7 @@ Glyph getglyph(uint16_t unicode) {
     }
 }
 
-Glyph getOctDigit(uint64_t dig) {
+Glyph getOctDigit(qword dig) {
     while (dig >= 8) {
         dig >>= 3;
     }
@@ -380,7 +378,7 @@ Glyph getOctDigit(uint64_t dig) {
     }
 }
 
-Glyph getHexDigit(uint64_t dig) {
+Glyph getHexDigit(qword dig) {
     while (dig >= 16) {
         dig >>= 4;
     }
@@ -406,20 +404,20 @@ Glyph getHexDigit(uint64_t dig) {
 }
 
 bool isnullglyph(Glyph g) {
-    for (uint8_t i = 0; i < 24; i++) {
+    for (byte i = 0; i < 24; i++) {
         if (g.lines[i] != 0)
             return false;
     }
     return true;
 }
 
-inline void putglyph(Glyph glyph, uint16_t x, uint16_t y, uint32_t letter_col, uint32_t back_col) {
-    uint32_t offset = y * pitch + x * (bpp/8);
-    for (uint8_t i = 0; i < 24; i++) {
-        uint32_t line = glyph.lines[i];
-        uint16_t mask = 1 << 15;
+inline void putglyph(Glyph glyph, word x, word y, dword letter_col, dword back_col) {
+    dword offset = y * pitch + x * (bpp/8);
+    for (byte i = 0; i < 24; i++) {
+        dword line = glyph.lines[i];
+        word mask = 1 << 15;
         for (int j = 0; j < 16; j++) {
-            uint32_t pixcol = (line & mask) ? letter_col : back_col;
+            dword pixcol = (line & mask) ? letter_col : back_col;
             putpixel(offset, pixcol);
             mask >>= 1;
             offset += bpp/8;
@@ -429,7 +427,7 @@ inline void putglyph(Glyph glyph, uint16_t x, uint16_t y, uint32_t letter_col, u
     }
 }
 
-inline void printchar(Glyph glyph, uint32_t charCol, uint32_t bgCol) {
+inline void printchar(Glyph glyph, dword charCol, dword bgCol) {
     putglyph(glyph, textCurX * 16, textCurY * 24, charCol, bgCol);
     textCurX++;
     if (textCurX >= (screenWidth / 16 - 1)) {
@@ -438,16 +436,16 @@ inline void printchar(Glyph glyph, uint32_t charCol, uint32_t bgCol) {
     }
 }
 
-inline void printchar(uint8_t c, uint32_t charCol, uint32_t bgCol) {
+inline void printchar(byte c, dword charCol, dword bgCol) {
     Glyph g = getglyph(c);
     printchar(g, charCol, bgCol);
 }
 
 void hideCursor() {
-    uint32_t offset = textCurY * 24 * pitch + textCurX * 16 * (bpp/8);
-    for (uint8_t i = 0; i < 24; i++) {
-        uint32_t line = CURSOR.lines[i];
-        uint16_t mask = 1 << 15;
+    dword offset = textCurY * 24 * pitch + textCurX * 16 * (bpp/8);
+    for (byte i = 0; i < 24; i++) {
+        dword line = CURSOR.lines[i];
+        word mask = 1 << 15;
         for (int j = 0; j < 16; j++) {
             if (line & mask)
                 putpixel(offset, defaultBGCol);
@@ -466,10 +464,10 @@ void disableCursor() {
 }
 
 void showCursor() {
-    uint32_t offset = textCurY * 24 * pitch + textCurX * 16 * (bpp/8);
-    for (uint8_t i = 0; i < 24; i++) {
-        uint32_t line = CURSOR.lines[i];
-        uint16_t mask = 1 << 15;
+    dword offset = textCurY * 24 * pitch + textCurX * 16 * (bpp/8);
+    for (byte i = 0; i < 24; i++) {
+        dword line = CURSOR.lines[i];
+        word mask = 1 << 15;
         for (int j = 0; j < 16; j++) {
             if (line & mask)
                 putpixel(offset, defaultTextCol);
@@ -501,16 +499,16 @@ void updateCursor() {
     }
 }
 
-void printBinUInt(uint64_t num, uint32_t charCol, uint32_t bgCol) {
+void printBinUInt(qword num, dword charCol, dword bgCol) {
     if (num == 0) {
         printchar('0', charCol, bgCol);
         printchar('b', charCol, bgCol);
         printchar('0', charCol, bgCol);
         return;
     }
-    uint64_t mask = 1;
-    uint8_t digits = 0;
-    while (mask <= num && mask < (uint64_t)(0x8000000000000000)) {
+    qword mask = 1;
+    byte digits = 0;
+    while (mask <= num && mask < (qword)(0x8000000000000000)) {
         mask <<= 1;
         digits ++;
     }
@@ -533,16 +531,16 @@ void printBinUInt(uint64_t num, uint32_t charCol, uint32_t bgCol) {
     }
 }
 
-void printOctUInt(uint64_t num, uint32_t charCol, uint32_t bgCol) {
+void printOctUInt(qword num, dword charCol, dword bgCol) {
     if (num == 0) {
         printchar('0', charCol, bgCol);
         printchar('o', charCol, bgCol);
         printchar('0', charCol, bgCol);
         return;
     }
-    uint64_t mask = 7;
-    uint8_t digits = 1;
-    while (mask < num && mask < (uint64_t)(0x8000000000000000)) {
+    qword mask = 7;
+    byte digits = 1;
+    while (mask < num && mask < (qword)(0x8000000000000000)) {
         mask <<= 3;
         digits ++;
     }
@@ -561,17 +559,17 @@ void printOctUInt(uint64_t num, uint32_t charCol, uint32_t bgCol) {
     }
 }
 
-void printHexUInt(uint64_t num, uint32_t charCol, uint32_t bgCol) {
+void printHexUInt(qword num, dword charCol, dword bgCol) {
     if (num == 0) {
         printchar('0', charCol, bgCol);
         printchar('x', charCol, bgCol);
         printchar('0', charCol, bgCol);
+        printchar('0', charCol, bgCol);
         return;
     }
-    *dbgPtr++ = num;
-    uint64_t mask = 0xF;
-    uint8_t digits = 1;
-    while (mask < num && mask < (uint64_t)(0xF000000000000000)) {
+    qword mask = 0xF;
+    byte digits = 1;
+    while (mask < num && mask < (qword)(0xF000000000000000)) {
         mask <<= 4;
         digits ++;
     }
@@ -583,6 +581,8 @@ void printHexUInt(uint64_t num, uint32_t charCol, uint32_t bgCol) {
         mask >>= 4;
     printchar('0', charCol, bgCol);
     printchar('x', charCol, bgCol);
+    if (mask == 0xF)
+        printchar('0', charCol, bgCol);
     while (mask > 0) {
         Glyph g = getHexDigit(num & mask);
         printchar(g, charCol, bgCol);
@@ -590,13 +590,13 @@ void printHexUInt(uint64_t num, uint32_t charCol, uint32_t bgCol) {
     }
 }
 
-void printDecUInt(uint64_t num, uint32_t charCol, uint32_t bgCol) {
+void printDecUInt(qword num, dword charCol, dword bgCol) {
     if (num == 0) {
         printchar('0', charCol, bgCol);
         return;
     }
-    uint64_t numclone = num;
-    uint8_t digits = 0;
+    qword numclone = num;
+    byte digits = 0;
     while (numclone > 0) {
         digits ++;
         numclone /= 10;
@@ -607,8 +607,8 @@ void printDecUInt(uint64_t num, uint32_t charCol, uint32_t bgCol) {
     }
     textCurX += digits - 1;
     while (num > 0) {
-        uint8_t digit = num % 10;
-        Glyph g = getglyph((uint8_t)(0x30 + digit));
+        byte digit = num % 10;
+        Glyph g = getglyph((byte)(0x30 + digit));
         printchar(g, charCol, bgCol);
         num /= 10;
         textCurX -= 2;
@@ -616,33 +616,33 @@ void printDecUInt(uint64_t num, uint32_t charCol, uint32_t bgCol) {
     textCurX += digits + 1;
 }
 
-void printFloat(double num, uint32_t charCol, uint32_t bgCol) {
+void printFloat(double num, dword charCol, dword bgCol) {
     if (num < 0) {
         printchar('-', charCol, bgCol);
         num = -num;
     }
-    uint32_t wholenum = (uint32_t)num;
+    dword wholenum = (dword)num;
     printDecUInt(wholenum, charCol, bgCol);
     if (wholenum == num)
         return;
     printchar(',', charCol, bgCol);
     num -= wholenum;
-    for (uint8_t i = 0; i < 3; i++) {
+    for (byte i = 0; i < 3; i++) {
         num *= 10;
-        uint8_t digit = (uint8_t)num;
+        byte digit = (byte)num;
         num -= digit;
-        Glyph g = getglyph((uint8_t)(0x30 + digit));
+        Glyph g = getglyph((byte)(0x30 + digit));
         printchar(g, charCol, bgCol);
         if (num == 0)
             break;
     }
     num *= 10;
-    uint8_t digit = (uint8_t)num;
+    byte digit = (byte)num;
     num -= digit;
     num *= 10;
-    if ((uint8_t)num >= 5 && digit < 9)
+    if ((byte)num >= 5 && digit < 9)
         digit ++;
-    Glyph g = getglyph((uint8_t)(0x30 + digit));
+    Glyph g = getglyph((byte)(0x30 + digit));
     printchar(g, charCol, bgCol);
 }
 
@@ -658,9 +658,9 @@ void eraseChar() {
     enableCursor();
 }
 
-void printStr(const char* text, va_list args, uint32_t charCol, uint32_t bgCol) {
+void printStr(const char* text, va_list args, dword charCol, dword bgCol) {
     disableCursor();
-    uint8_t state = 0;
+    byte state = 0;
     unsigned char symb = *text;
     while (*text != 0) {
         if (symb >= 0x80)
@@ -697,8 +697,8 @@ void printStr(const char* text, va_list args, uint32_t charCol, uint32_t bgCol) 
         }
         else
             state = 0;
-        uint16_t unicode = 0;
-        uint64_t arg;
+        word unicode = 0;
+        qword arg;
         double flarg;
         switch (Glyph g; state) {
             case 0:
@@ -724,12 +724,12 @@ void printStr(const char* text, va_list args, uint32_t charCol, uint32_t bgCol) 
                 printchar(NULLGLYPH, charCol, bgCol);  
                 break;
             case 22:
-                arg = va_arg(args, uint32_t);
+                arg = va_arg(args, dword);
                 arg &= 0xFFFFFFFF;
                 printBinUInt(arg, charCol, bgCol);
                 break;
             case 222:
-                arg = va_arg(args, uint64_t);
+                arg = va_arg(args, qword);
                 printBinUInt(arg, charCol, bgCol);
                 break;
             case 6:
@@ -737,30 +737,30 @@ void printStr(const char* text, va_list args, uint32_t charCol, uint32_t bgCol) 
                 printFloat(flarg, charCol, bgCol);
                 break;
             case 8:
-                arg = va_arg(args, uint32_t);
+                arg = va_arg(args, dword);
                 arg &= 0xFFFFFFFF;
                 printOctUInt(arg, charCol, bgCol);
                 break;
             case 88:
-                arg = va_arg(args, uint64_t);
+                arg = va_arg(args, qword);
                 printOctUInt(arg, charCol, bgCol);
                 break;
             case 10:
-                arg = va_arg(args, uint32_t);
+                arg = va_arg(args, dword);
                 arg &= 0xFFFFFFFF;
                 printDecUInt(arg, charCol, bgCol);
                 break;
             case 100:
-                arg = va_arg(args, uint64_t);
+                arg = va_arg(args, qword);
                 printDecUInt(arg, charCol, bgCol);
                 break;
             case 16:
-                arg = va_arg(args, uint32_t);
+                arg = va_arg(args, dword);
                 arg &= 0xFFFFFFFF;
                 printHexUInt(arg, charCol, bgCol);
                 break;
             case 64:
-                arg = va_arg(args, uint64_t);
+                arg = va_arg(args, qword);
                 printHexUInt(arg, charCol, bgCol);
                 break;
         }

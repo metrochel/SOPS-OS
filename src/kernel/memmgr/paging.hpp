@@ -1,4 +1,3 @@
-#include <stdint.h>
 //
 //  Менеджер страниц
 //
@@ -8,25 +7,27 @@
 #ifndef _PAGING_INCL
 #define _PAGING_INCL
 
+#include "../util/nums.hpp"
+
 #define PAGING_BASE 0x101000
 
 /// @brief Создаёт страницу по данному адресу.
 /// @param vaddr Виртуальный адрес страницы
 /// @param paddr Физический адрес блока в памяти
-void createPage(uint32_t vaddr, uint32_t paddr);
+void createPage(dword vaddr, dword paddr);
 
 /// @brief Создаёт несколько страниц по данному адресу
 /// @param vaddr Виртуальный адрес первой страницы
 /// @param paddr Физический адрес первого блока
 /// @param count Число страниц
-void createPages(uint32_t vaddr, uint32_t paddr, uint16_t count);
+void createPages(dword vaddr, dword paddr, word count);
 
 /// @brief Создаёт таблицу страниц по данному адресу.
 /// @param vaddr Виртуальный адрес
-void createPageTable(uint32_t vaddr);
+void createPageTable(dword vaddr);
 
 /// @brief Определяет физический адрес для данного виртуального адреса.
 /// @param vaddr Виртуальный адрес
-uint32_t getPhysAddr(uint32_t vaddr);
+dword getPhysAddr(dword vaddr);
 
 #endif

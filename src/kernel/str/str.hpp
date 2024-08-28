@@ -6,18 +6,18 @@
 #ifndef _STR_INCL
 #define _STR_INCL
 
-#include <stdint.h>
+#include "../util/nums.hpp"
 
-bool strcmp(char* str1, char* str2);
+byte strcmp(char* str1, char* str2);
 
 bool strstartswith(char* str, char* substr);
 
 bool strendswith(char* str, char* substr);
 
-uint8_t strcpy(char* str1, char* str2);
+byte strcpy(char* str1, char* str2);
 
-uint32_t strlen(char* str);
+dword strlen(char* str);
 
-uint8_t numasstr(uint32_t num, char* str);
+byte numasstr(dword num, char* str);
 
 #endif

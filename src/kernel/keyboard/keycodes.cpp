@@ -1,6 +1,6 @@
 #include "keycodes.hpp"
 
-uint8_t getKeyCode(uint64_t scancode) {
+byte getKeyCode(qword scancode) {
     switch (scancode) {
         case 0x01: return KEYCODE_F9;
         case 0x03: return KEYCODE_F5;

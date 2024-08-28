@@ -7,9 +7,7 @@
 *
 */
 
-#include <stdint.h>
 #include "acpi/acpi.hpp"
-#include "acpi/aml.hpp"
 #include "graphics/graphics.hpp"
 #include "graphics/glyphs.hpp"
 #include "io/com.hpp"
@@ -24,21 +22,24 @@
 #include "timing/cmos.hpp"
 #include "str/str.hpp"
 #include "util/util.hpp"
+#include "util/nums.hpp"
+#include "dbg/dbg.hpp"
 
 // Структура с данными из загрузчика
 struct BootLoaderData {
+    byte DiskNo;             // Номер диска, с которого загрузилась СОпС
     char CPUID_Vendor[12];      // Имя производителя процессора
-    uint32_t CPUID_Flags1;      // Флаги ЦП-1
-    uint32_t CPUID_Flags2;      // Флаги ЦП-2
+    dword CPUID_Flags1;      // Флаги ЦП-1
+    dword CPUID_Flags2;      // Флаги ЦП-2
     VBEModeInfo VBEInfo;        // Информация о графическом режиме
-    uint32_t MaxAddr1;
-    uint32_t MaxAddr2;
+    dword MaxAddr1;
+    dword MaxAddr2;
 } __attribute__((packed));
 
 // Указатель на данные загрузчика
 BootLoaderData* bld;
 
-uint8_t *stdin = (uint8_t*)0x9300;
+byte *stdin = (byte*)0x9300;
 
 /// @brief Инициализирует данные, добытые в загрузчике.
 void initBLD() {
@@ -48,7 +49,7 @@ void initBLD() {
 /// @brief Инициализирует графический драйвер.
 void initGraphics() {
     pitch = bld->VBEInfo.Pitch;
-    frameBufferPtr = (uint8_t*)(0xFC000000 + (bld->VBEInfo.FrameBuffer & 0xFFF));
+    frameBufferPtr = (byte*)(0xFC000000 + (bld->VBEInfo.FrameBuffer & 0xFFF));
     bpp = bld->VBEInfo.BPP;
     redmask = bld->VBEInfo.RedMaskSize;
     redshift = bld->VBEInfo.RedPos;
@@ -67,11 +68,20 @@ void initGraphics() {
     errorBGCol = encodeRGB(0.5,0,0);
 }
 
+/// @brief Создаёт немного временного пространства.
+void initTempSpace() {
+    createPages(0x2000000, 0x5000000, 8);
+    dword *tmpPtr = (dword*)0x2000000;
+    for (dword i = 0; i < 8*1024/4; i++) {
+        tmpPtr[i] = 0;
+    }
+}
 
 /// @brief Точка входа в ядро.
 int main() {
     disableInts();
     initBLD();
+    initTempSpace();
     initGraphics();
     setPICOffsets(0x20, 0x28);
     initInts();
@@ -83,7 +93,7 @@ int main() {
 
     kprint("Добро пожаловать в СОПС вер. 1.0.0-АЛЬФА!\n\n");
 
-    uint8_t cmosStatusB = readCMOSReg(0x0B);
+    byte cmosStatusB = readCMOSReg(0x0B);
     cmosStatusB |= 16;
     writeCMOSReg(0x0B, cmosStatusB);
     unmaskIRQ(8);
@@ -146,15 +156,31 @@ int main() {
     kprint(out);
     kprint(".\n");
 
-    // uint8_t *test = getACPIVarAddr("_SB_.PCI0.ISA_.COM1._HID");
-    // kprint("\n%x\n", *(uint32_t*)test);
+    kprint("\nПогрузите таблицу на адрес 0x2100000\n");
+    createPage(0x2100000, 0x2100000);
+    magicBreakpoint();
+    byte *ptr = (byte*)0x2100000;
+    if (!(*ptr))
+        kwarn("ВНИМАНИЕ: Таблица не была погружена\n");
+    else {
+        parseDefBlock(ptr);
+        qword val = callMethod("_SB.PCI0.TEST");
+        kprint("%X\n", val);
+        if (val == maxqword)
+            kerror("Ошибка\n");
+        else if (val)
+            kprint("Да\n");
+        else
+            kprint("Нет\n");
+        //kprint((const char*)val);
+    }
 
     while (true) {
         kprint("\n>");
         kread(stdin);
         kprint("\n");
-        stdin = (uint8_t*)0x9300;
-        if (strcmp((char*)stdin, (char*)"iddisk")) {
+        stdin = (byte*)0x9300;
+        if (strcmp((char*)stdin, (char*)"iddisk") == 0x80) {
             DiskData d = identifyDisk();
             switch (d.DiskType) {
                 case DISK_TYPE_NONE:
@@ -182,7 +208,7 @@ int main() {
             kprint("\nНа диске А доступно\n    %d секторов в режиме LBA28;\n    %d секторов в режиме LBA48", d.TotalLBA28Sectors, d.TotalLBA48Sectors);
             kprint("\nМаксимальный режим UDMA - %d, активен %d", d.MaxUDMAMode, d.ActUDMAMode);
         }
-        else if (strcmp((char*)stdin, (char*)"time")) {
+        else if (strcmp((char*)stdin, (char*)"time") == 0x80) {
             kprint("Сейчас ");
             Time time = kgettime();
             out = (char*)0x11000;
