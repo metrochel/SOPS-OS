@@ -1,5 +1,8 @@
 #include "time.hpp"
 #include "../str/str.hpp"
+#include "../io/io.hpp"
+#include "../io/com.hpp"
+#include "../dbg/dbg.hpp"
 
 Time systime = {0,0,0,0,0,0,0};
 
@@ -59,4 +62,14 @@ byte Time::asStringMonth(char* out) {
 
 bool Time::operator==(Time t) {
     return t.seconds == this->seconds && t.minutes == this->minutes && t.hours == this->hours && t.day == this->day && t.month == this->month && t.year == this->year && t.weekday == this->weekday;
+}
+
+void sleepM(dword ms) {
+    sleepU(ms * 1000);
+}
+
+void sleepU(dword us) {
+    qword ticks = ((qword)(us*1000) + 29) / 30;
+    for (qword i = 0; i < ticks; i++)
+        io_wait();
 }

@@ -6,9 +6,21 @@
 #ifndef _DBG_INCL
 #define _DBG_INCL
 
-/// @brief Создаёт точку останова для Bochsа.
+#include "../util/nums.hpp"
+
+// ### StackFrame
+// Структура для трассировки стека.
+struct StackFrame {
+    StackFrame *ebp;
+    dword eip;
+} __attribute__((packed));
+
+/// @brief Создаёт точку останова для Bochs-а.
 inline void magicBreakpoint() {
     __asm__ ("xchgw %bx, %bx");
 }
+
+/// @brief Пробегает по стеку вызовов.
+void traceStack();
 
 #endif

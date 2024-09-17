@@ -13,6 +13,9 @@
 #include "../util/util.hpp"
 #include "../util/nums.hpp"
 
+#define ones defBlockRevision > 1 ? maxqword : maxdword
+#define recret recDepth--; return
+
 typedef unsigned int AMLName;
 
 // ### EISA ID
@@ -33,8 +36,8 @@ struct TermArg {
 extern const dword parsingPathBase;
 extern AMLName* parsingPath;
 
-extern const dword scopePathBase;
-extern AMLName* scopePath;
+extern const dword varPathBase;
+extern AMLName* varPath;
 
 extern const dword bufferedPathBase;
 extern AMLName* bufferedPath;
@@ -63,10 +66,21 @@ inline byte getBufferedPathLen() {
     return ((dword)bufferedPath - bufferedPathBase) / sizeof(AMLName);
 }
 
+inline byte getVarPathLen() {
+    return ((dword)varPath - varPathBase) / sizeof(AMLName);
+}
+
 inline void clearParsingPath() {
     parsingPath = (AMLName*)parsingPathBase;
     for (byte i = 0; i < 0x10; i++) {
         parsingPath[i] = 0;
+    }
+}
+
+inline void clearVarPath() {
+    varPath = (AMLName*)varPathBase;
+    for (byte i = 0; i < 0x10; i++) {
+        varPath[i] = 0;
     }
 }
 
@@ -88,21 +102,15 @@ inline void logParsingPath() {
     logPath((AMLName*)parsingPathBase, getParsingPathLen());
 }
 
-inline void storeParsingPath() {
-    for (byte i = 0; i < getParsingPathLen(); i++) {
-        *bufferedPath++ = *(AMLName*)(parsingPathBase + i * 4);
-    }
-    parsingPath = (AMLName*)parsingPathBase;
+inline void logVarPath() {
+    logPath((AMLName*)varPathBase, getVarPathLen());
 }
 
-inline void restoreParsingPath() {
-    byte len = getBufferedPathLen();
-    bufferedPath = (AMLName*)bufferedPathBase;
-    parsingPath = (AMLName*)parsingPathBase;
-    for (byte i = 0; i < len; i++) {
-        *parsingPath++ = bufferedPath[i];
-    }
-}
+byte strToPath(const char* str, AMLName* out);
+
+void storeParsingPath();
+
+void restoreParsingPath();
 
 qword getIntegerTerm(byte *aml);
 byte getIntegerTermBytes(byte *aml);
@@ -111,6 +119,16 @@ byte getIntegerTermBytes(qword value);
 byte encodeIntegerTerm(qword num, byte *ptr);
 
 dword getPkgLength(byte *pkg);
+
+inline byte getPkgBytes(dword value) {
+    if (value < 64)
+        return 1;
+    if (value < 0x1000)
+        return 2;
+    if (value < 0x100000)
+        return 3;
+    return 4;
+}
 
 byte encodePkgLength(dword length, byte *out);
 
@@ -126,6 +144,11 @@ dword parseScope(byte *aml);
 /// @brief Обрабатывает Device.
 /// @param aml Указатель на AML-код
 /// @return Длина Device в байтах
+dword parseDevice(byte *aml);
+
+/// @brief Обрабатывает ThermalZone.
+/// @param aml Указатель на AML-код
+/// @return Длина ThermalZone в байтах
 dword parseDevice(byte *aml);
 
 /// @brief Обрабатывает OperationRegion.
@@ -163,10 +186,14 @@ dword parsePackage(byte *aml);
 /// @return Длина VarPackage в байтах
 dword parseVarPackage(byte *aml);
 
+dword parseMutex(byte *aml);
+
 /// @brief Обрабатывает TermList.
 /// @param aml Указатель на AML-код
 /// @param len Длина TermList в байтах
 void parseTermList(byte *aml, dword len);
+
+word getName(byte *aml);
 
 dword nameACPIObj(byte* aml);
 
@@ -184,21 +211,52 @@ void remapACPIObj(const char* path, byte *newAddr);
 
 void remapACPIObj(AMLName *path, byte length, byte *newAddr);
 
+bool sameACPIDomain(dword ptr1, dword ptr2);
+
+// ### FuncFrame
+// Структура, описывающая данный вызов функции.
+struct FuncFrame {
+    TermArg locals[7];      // Локальные переменные (Local0 - Local6)
+    TermArg args[7];        // Аргументы функции (Arg0 - Arg6)
+    byte syncLevel;         // Уровень синхронизации функции
+    byte *addr;             // Адрес функции
+    byte *tmpSpace;         // Адрес временного пространства функции
+};
+
 /// @brief Вызывает метод, определённый в AML.
 /// @param path Путь к методу
-/// @param ... Параметры метода
+/// @param ... Аргументы метода
 /// @return Значение, возвращённое методом
 qword callMethod(const char* path, ...);
 
 /// @brief Исполняет метод.
 /// @param code Указатель на код
 /// @param length Длина кода в байтах
+/// @param syncLevel Уровень синхронизации
+/// @param argc Число аргументов
 /// @param args Аргументы метода
 /// @return Значение, возвращённое методом
-qword runMethod(byte *code, dword length, byte argc, va_list args);
+TermArg runMethod(byte *code, dword length, byte syncLevel, FuncFrame *frame);
 
-TermArg getTermArg(byte*& code, TermArg*& locals, TermArg*& args);
+/// @brief Извлекает значение TermArg по данному адресу.
+/// @param code Адрес извлечения
+/// @param frame Структура вызова функции
+/// @return Извлечённое значение
+/// @note Если извлечение будет провалено, тип возвращаемого значения будет установлен на `maxqword`.
+TermArg getTermArg(byte*& code, FuncFrame* frame);
 
-void setTermArg(byte*& code, TermArg*& locals, TermArg*& args, TermArg newVal);
+/// @brief Устанавливает значение TermArg по данному адресу на другое.
+/// @param code Адрес значения
+/// @param frame Структура вызова функции
+/// @param newVal Новое значение
+void setTermArg(byte*& code, FuncFrame* frame, TermArg newVal);
+
+void createBufferField(byte *buf, dword offset, dword size, byte *&dest);
+
+dword upgradeBuffer(byte *buf, byte *&out, FuncFrame *frame);
+
+dword upgradePackage(byte *pkg, byte *&out, FuncFrame *frame);
+
+void processEvent(byte eventNo);
 
 #endif

@@ -13,7 +13,7 @@
 class Time {
 
 public:
-    word year;      // Год
+    word year;       // Год
     byte month;      // Месяц
     byte day;        // День
     byte hours;      // Часы
@@ -46,5 +46,11 @@ inline Time kgettime() {
 inline void ksettime(Time newtime) {
     systime = newtime;
 }
+
+/// @brief Ждёт `ms` миллисекунд.
+void sleepM(dword ms);
+
+/// @brief Ждёт `us` микросекунд.
+void sleepU(dword us);
 
 #endif

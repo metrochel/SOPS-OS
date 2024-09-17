@@ -1,7 +1,7 @@
 ENTRY(main)
 
 SECTIONS {
-	. = 0x1000000;
+	. = 0xC0000000;
 
 	.symtab : ALIGN(4096) {
 		*(.symtab)

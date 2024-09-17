@@ -683,9 +683,9 @@ main:
 ; LBA-адрес ядра
 %define KERNEL_POS      9
 ; Физический адрес, на который следует загрузить ядро в память
-%define KERNEL_PHYSADDR 0xA000000
+%define KERNEL_PHYSADDR 0x2000000
 ; Виртуальный адрес, на котором будет находиться ядро
-%define KERNEL_VIRTADDR 0x1000000
+%define KERNEL_VIRTADDR 0xC0000000
 ; Длина ядра в секторах диска
 %define KERNEL_LEN      512
 ; ELF-подпись файла
@@ -884,7 +884,7 @@ tinydiskdriver:
     ; Настраиваем параметры, которые не будут меняться
     mov cx,  KERNEL_LEN     ; Число секторов
     mov ebx, KERNEL_POS     ; LBA-адрес ядра
-    mov edi, 0x7C000        ; Адрес, на который совать файл ядра
+    mov edi, 0x900000       ; Адрес, на который совать файл ядра
 
 ; Чтение
 .sector_loop:
@@ -1086,7 +1086,7 @@ paging_time:
 ;
 ;   Размещение ELF-ядра в памяти
 ;
-;   - Помещает все секции ядра (файл по адресу 0x7C000)
+;   - Помещает все секции ядра (файл по адресу 0x900000)
 ;     в физическую память.
 ;
 ENTRYPOINT  dd 0
@@ -1112,7 +1112,7 @@ put_elf:
     pusha
 
     ; Проверяем подпись файла
-    mov esi, 0x7C000
+    mov esi, 0x900000
     lodsd
     cmp eax, ELF_SIGNATURE
     mov ebx, 1
@@ -1120,7 +1120,7 @@ put_elf:
 
     ; Достаём пару штук из заголовка
 .parse_elf_header:
-    mov esi, 0x7C018
+    mov esi, 0x900018
     lodsd
     mov dword [ENTRYPOINT],  eax
     lodsd
@@ -1137,7 +1137,7 @@ put_elf:
 
     ; Обрабатываем заголовок программы
 .parse_prog_hdr:
-    mov esi, 0x7C000
+    mov esi, 0x900000
     add esi, dword [PHT_OFFSET]
     lodsd
     mov ebx, 2
@@ -1155,19 +1155,19 @@ put_elf:
     ; Мы достали сведения о коде! Кладём его куда надо
 .put_text:
     mov esi, dword [TEXT_OFFSET]
-    add esi, 0x7C000
+    add esi, 0x900000
     mov edi, edx
     rep movsb
 
     ; Обрабатываем таблицу секций
-    mov cx,  word  [SH_AMOUNT]
     mov esi, dword [SHT_OFFSET]
-    add esi, 0x7C000
-    add si,  word  [SH_SIZE]    ; Первые 3 заголовка мы уже скопировали,
-                                ; так что лишний раз можно не копировать
-    adc si,  word  [SH_SIZE]
-    adc si,  word  [SH_SIZE]
-    adc esi, 0
+    add esi, 0x900000
+    movzx ecx, word [SH_SIZE]
+    add esi,  ecx       ; Первые 3 заголовка мы уже скопировали,
+                        ; так что лишний раз можно не копировать
+    add esi, ecx
+    add esi, ecx
+    mov cx,  word  [SH_AMOUNT]
     sub cx,  3
 .parse_section_table:
     ; Загружаем заголовок в буфер
@@ -1200,7 +1200,7 @@ put_elf:
     push ecx
     push esi
     mov esi, dword [SEC_HEAD_BUF.SH_OFF]
-    add esi, 0x7C000
+    add esi, 0x900000
     mov edi, dword [SEC_HEAD_BUF.SH_ADDR]
     mov ecx, dword [SEC_HEAD_BUF.SH_SIZE]
     rep movsb
@@ -1263,6 +1263,8 @@ prot_mode_entry_point:
     jc boot_error
 
     ; Переход на ядро
+    ; EBP сбрасывается для трассировки стека.
+    xor ebp, ebp
     ; Вместо JMP используется CALL, чтобы в случае возврата из ядра
     ; процессор не улетел Бог знает куда, а вернулся сюда
     ; и застыл.

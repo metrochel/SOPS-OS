@@ -148,6 +148,14 @@ void kdebug(word num);
 void kdebug(dword num);
 void kdebug(qword num);
 
+/// @brief Переносит отладчик на новую строку.
+inline void kdebugnewl() {
+    kdebug((word)0x0A0D);
+}
+
+void kdebugdisable();
+void kdebugenable();
+
 dword getComBaseR(byte port);
 
 dword getComBaseW(byte port);

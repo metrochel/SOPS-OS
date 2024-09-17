@@ -1,5 +1,6 @@
 #include <stdarg.h>
 #include "glyphs.hpp"
+#include "../io/com.hpp"
 
 word textCurX = 1;
 word textCurY = 1;
@@ -18,7 +19,7 @@ dword errorBGCol;
 word screenWidth;
 word screenHeight;
 
-byte ticks = 0;
+dword ticks = 0;
 
 Glyph getglyph(byte code) {
     switch (code)

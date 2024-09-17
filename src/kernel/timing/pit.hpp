@@ -1,7 +1,7 @@
 //
 //  Библиотека для тайминга
 //
-//  - Управляет временем. Ну, почти.
+//  - Контроллирует работу PITа.
 //
 #ifndef _PIT_INCL
 #define _PIT_INCL
@@ -32,7 +32,7 @@
 #define PIT_CMD_OPMODE_5    0b1010
 
 #define PIT_CMD_BCD         1
-#define PIT_CMD_NO_BCD      0
+#define PIT_CMD_BIN      0
 
 /// @brief Устанавливает счётчик PITа.
 /// @param counter Значение счётчика

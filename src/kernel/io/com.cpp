@@ -1,6 +1,8 @@
 #include "com.hpp"
 #include "io.hpp"
+#include "../graphics/glyphs.hpp"
 #include "../str/str.hpp"
+#include "../util/util.hpp"
 #include <stdarg.h>
 
 byte *comReadBuffers[]  = {nullptr, nullptr, nullptr, nullptr};
@@ -10,6 +12,7 @@ byte *comBasePtrs[] = {nullptr, nullptr, nullptr, nullptr};
 bool initPorts[] = {false,false,false,false};
 bool traIntActive[] = {false,false,false,false};
 word uart;
+bool debugActive = false;
 
 void setBaudRate(byte port, dword baudRate) {
     if (baudRate >= COM_MAX_BAUD_RATE)
@@ -91,19 +94,25 @@ bool initCom(byte port) {
         outb(ioPort + 2, COM_FIFO_ENABLE | COM_FIFO_CLEAR_REC | COM_FIFO_CLEAR_TRA | COM_FIFO_INT_TRIG1);
 
     outb(ioPort, 0xAE);
-    if (inb(ioPort) != 0xAE)
+    for (byte i = 0; i < 0x10; i++)
+        io_wait();
+    if (inb(ioPort) != 0xAE) {
         return false;
+    }
 
     byte* comBufBase = (byte*)getComBaseR(port);
     comReadBuffers[port-1] = comBufBase;
     comBufBase += 0x5000;
     comWriteBuffers[port-1] = comBufBase;
+    comBasePtrs[port-1] = comBufBase;
     cleanComBuffers(port);
     initPorts[port-1] = true;
     outb(ioPort + 4, COM_MCR_DATATERMRDY | COM_MCR_REQTOSEND | COM_MCR_OUT2);
     outb(ioPort + 1, COM_INT_REC_DATA_RDY | COM_INT_REC_LINE | COM_INT_MODEM_STATUS);
     if (uart >= 16550)
         outb(ioPort + 2, COM_FIFO_ENABLE | COM_FIFO_INT_TRIG8);
+    if (port == 1)
+        debugActive = true;
     return true;
 }
 
@@ -190,6 +199,8 @@ void comSend(byte port) {
         for (byte i = 0; i < 7 && comWriteBufferLength(port) > 0; i++) {
             outb(ioPort, *comBasePtrs[port-1]);
             comBasePtrs[port-1] ++;
+            if (!comWriteBufferLength(port))
+                break;
         }
     }
     if (!comWriteBufferLength(port)) {
@@ -200,18 +211,22 @@ void comSend(byte port) {
 
 inline void disableTraInt(byte port) {
     if (!traIntActive[port-1]) return;
+    disableInts();
     word ioPort = getIOPort(port);
-    outb(ioPort + 1, inb(ioPort+1) & ~COM_INT_TRA_EMPTY);
+    outb(ioPort + 1, 0b1101);
     traIntActive[port-1] = false;
+    enableInts();
 }
 
 inline void enableTraInt(byte port) {
     if (traIntActive[port-1]) return;
+    disableInts();
     word ioPort = getIOPort(port);
     if (comWriteBufferLength(port)) {
-        outb(ioPort + 1, inb(ioPort+1) | COM_INT_TRA_EMPTY);
+        outb(ioPort + 1, 0b1111);
         traIntActive[port-1] = true;
     }
+    enableInts();
 }
 
 void writeComBinUInt(qword num, byte port) {
@@ -271,6 +286,7 @@ void writeComHexUInt(qword num, byte port) {
         *comWriteBuffers[port-1]++ = '0';
         *comWriteBuffers[port-1]++ = 'x';
         *comWriteBuffers[port-1]++ = '0';
+        *comWriteBuffers[port-1]++ = '0';
         return;
     }
     qword mask = 0xF;
@@ -317,7 +333,7 @@ void writeComDecUInt(qword num, byte port) {
 }
 
 void kdebug(const char* text, ...) {
-    if (!initPorts[0])
+    if (!initPorts[0] || !debugActive)
         return;
     qword len = strlen((char*)text);
     if (comWriteBufferLength(1) + len > 0xA000) {
@@ -328,10 +344,11 @@ void kdebug(const char* text, ...) {
     va_list l;
     va_start(l, text);
     byte state;
-    while (*text != 0) {
-        char c = *text;
+    byte *msg = (byte*)text;
+    while (*msg != 0) {
+        byte c = *msg;
         if (c == '%') {
-            c = *(++text);
+            c = *(++msg);
             if (c == 'd')
                 state = 10;
             else if (c == 'D')
@@ -397,13 +414,13 @@ void kdebug(const char* text, ...) {
                 writeComHexUInt(arg, 1);
                 break;
         }
-        text ++;
+        msg ++;
     }
     enableTraInt(1);
 }
 
 void kdebug(byte num) {
-    if (!initPorts[0])
+    if (!initPorts[0] || !debugActive)
         return;
     if (comWriteBufferLength(1) + 1 > 0xA000) {
         enableTraInt(1);
@@ -415,7 +432,7 @@ void kdebug(byte num) {
 }
 
 void kdebug(word num) {
-    if (!initPorts[0])
+    if (!initPorts[0] || !debugActive)
         return;
     if (comWriteBufferLength(1) + 1 > 0xA000) {
         enableTraInt(1);
@@ -428,7 +445,7 @@ void kdebug(word num) {
 }
 
 void kdebug(dword num) {
-    if (!initPorts[0])
+    if (!initPorts[0] || !debugActive)
         return;
     if (comWriteBufferLength(1) + 1 > 0xA000) {
         enableTraInt(1);
@@ -443,7 +460,7 @@ void kdebug(dword num) {
 }
 
 void kdebug(qword num) {
-    if (!initPorts[0])
+    if (!initPorts[0] || !debugActive)
         return;
     if (comWriteBufferLength(1) + 1 > 0xA000) {
         enableTraInt(1);
@@ -459,4 +476,13 @@ void kdebug(qword num) {
     *comWriteBuffers[0]++ = (num >> 48) & 0xFF;
     *comWriteBuffers[0]++ = (num >> 56) & 0xFF;
     enableTraInt(1);
+}
+
+void kdebugdisable() {
+    debugActive = false;
+}
+
+void kdebugenable() {
+    if (initPorts[0])
+        debugActive = true;
 }

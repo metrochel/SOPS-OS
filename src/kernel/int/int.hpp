@@ -27,16 +27,6 @@ inline void lidt(IDT_Register r) {
     __asm__ ("lidt %0" : : "m"(r));
 }
 
-/// @brief Включает прерывания.
-inline void enableInts() {
-    __asm__ ("sti");
-}
-
-/// @brief Выключает прерывания.
-inline void disableInts() {
-    __asm__ ("cli");
-}
-
 /// @brief Обработчик ошибки деления на 0 (прерывание 0x00)
 void zero_divide_err(IntFrame* frame);
 

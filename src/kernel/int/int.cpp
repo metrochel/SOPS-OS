@@ -1,4 +1,5 @@
 #include "int.hpp"
+#include "pic.hpp"
 #include "../graphics/glyphs.hpp"
 #include "../io/com.hpp"
 #include "../memmgr/paging.hpp"
@@ -6,6 +7,9 @@
 #include "../disk/ide.hpp"
 #include "../pci/pci.hpp"
 #include "../timing/cmos.hpp"
+#include "../timing/time.hpp"
+#include "../dbg/dbg.hpp"
+#include "../util/util.hpp"
 
 IDT_Register idtr{ 50*8-1, (byte*)0x10000  };
 
@@ -32,6 +36,7 @@ void initInts() {
     encode_idt_entry(irq2,  0x22);
     encode_idt_entry(irq3,  0x23);
     encode_idt_entry(irq4,  0x24);
+    encode_idt_entry(irq7,  0x27);
     encode_idt_entry(irq8,  0x28);
     encode_idt_entry(irq14, 0x2E);
     encode_idt_entry(irq15, 0x2F);
@@ -54,40 +59,49 @@ void encode_idt_entry(void (*handlePtr)(IntFrame*), byte intNum) {
 
 __attribute__((interrupt)) void zero_divide_err(IntFrame* frame) {
     kerror("\nОШИБКА: Деление на ноль\n");
+    traceStack();
 }
 
 __attribute__((interrupt)) void overflow_err(IntFrame* frame) {
     kerror("\nОШИБКА: Переполнение\n");
+    traceStack();
 }
 
 __attribute__((interrupt)) void bound_err(IntFrame* frame) {
     kerror("\nОШИБКА: Индекс превышает длину массива\n");
+    traceStack();
 }
 
 __attribute__((interrupt)) void invalid_opcode_err(IntFrame* frame) {
     kerror("\nОШИБКА: Невозможная инструкция\n");
+    traceStack();
 }
 
 __attribute__((interrupt)) void dev_unavailable_err(IntFrame* frame) {
     kerror("\nОШИБКА: Устройство недоступно\n");
+    traceStack();
 }
 
 __attribute__((interrupt)) void double_fault(IntFrame* frame) {
     kerror("\nОШИБКА: Двойной сбой\n");
     kwarn("Возврат невозможен!\n");
+    traceStack();
     __asm__ ("hlt");
 }
 
 __attribute__((interrupt)) void invalid_task_switch_err(IntFrame* frame) {
     kerror("\nОШИБКА: Неправильный переход на процесс\n");
+    traceStack();
 }
 
 __attribute__((interrupt)) void seg_not_present_err(IntFrame* frame) {
     kerror("\nОШИБКА: Сегмент ненастоящий\n");
+    traceStack();
 }
 
 __attribute__((interrupt)) void stack_seg_fault(IntFrame* frame) {
     kerror("\nОШИБКА: Сбой сегмента стека\n");
+    traceStack();
 }
 
 __attribute__((interrupt)) void general_prot_fault(IntFrame* frame) {
@@ -113,6 +127,7 @@ __attribute__((interrupt)) void general_prot_fault(IntFrame* frame) {
             break;
     }
     kerror("Номер сегмента: %d\n", (errcode >> 3) & 0xFFFF);
+    traceStack();
     enableInts();
     while (true) {io_wait();}
 }
@@ -123,14 +138,17 @@ __attribute__((interrupt)) void page_fault(IntFrame* frame) {
     kerror("ОШИБКА: Страничный сбой\n");
     kerror("Адрес сбоя: %x\n", faultAddr);
     kerror("Код ошибки: %b\n", (dword)frame);
+    traceStack();
 }
 
 __attribute__((interrupt)) void float_exception(IntFrame* frame) {
     kerror("\nОШИБКА: Сбой математического сопроцессора\n");
+    traceStack();
 }
 
 __attribute__((interrupt)) void align_check(IntFrame* frame) {
     kerror("\nОШИБКА: Сбой ровнения\n");
+    traceStack();
 }
 
 __attribute__((interrupt)) void irq0(IntFrame* frame) {
@@ -380,5 +398,12 @@ __attribute__ ((interrupt)) void irq8(IntFrame* frame) {
 }
 
 __attribute__((interrupt)) void irq2(IntFrame* frame) {
+    int_exit_master();
+}
+
+__attribute__((interrupt)) void irq7(IntFrame* frame) {
+    if (!(getISR() & 0x80))
+        return;
+
     int_exit_master();
 }

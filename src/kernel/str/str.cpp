@@ -33,8 +33,8 @@ bool strstartswith(char* str, char* substr) {
     return *substr == *str;
 }
 
-byte strcpy(char* str1, char* str2) {
-    byte len = 0;
+dword strcpy(char* str1, char* str2) {
+    dword len = 0;
     while (*str1 != 0) {
         *str2 = *str1;
         str1 ++;

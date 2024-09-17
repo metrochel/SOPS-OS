@@ -55,6 +55,14 @@ inline byte memcmp(byte *a, byte* b, dword n) {
     return 0x80;
 }
 
+inline void disableInts() {
+    __asm__ ("cli");
+}
+
+inline void enableInts() {
+    __asm__ ("sti");
+}
+
 inline void setCarry() {
     __asm__ ("stc");
 }

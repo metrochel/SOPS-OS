@@ -1,29 +1,35 @@
 #include "aml.hpp"
 #include "../str/str.hpp"
+#include "../dbg/dbg.hpp"
+#include "../graphics/glyphs.hpp"
+#include <stdarg.h>
 
 const dword parsingPathBase = 0x13000;
 AMLName* parsingPath = (AMLName*)parsingPathBase;
 
-const dword scopePathBase = 0x13010;
-AMLName* scopePath = (AMLName*)scopePathBase;
+const dword varPathBase = 0x13040;
+AMLName* varPath = (AMLName*)varPathBase;
 
-const dword bufferedPathBase = 0x13020;
+const dword bufferedPathBase = 0x13080;
 AMLName* bufferedPath = (AMLName*)bufferedPathBase;
 
-const dword acpiNamespaceBase = 0x13100;
+const dword acpiNamespaceBase = 0x13200;
 dword* acpiNamespace = (dword*)acpiNamespaceBase;
 
-const dword acpiFieldsBase = 0x14000;
+const dword acpiFieldsBase = 0x15200;
 byte* acpiFields = (byte*)acpiFieldsBase;
 
-const dword acpiDataBase = 0x14400;
+const dword acpiDataBase = 0x15600;
 byte* acpiData = (byte*)acpiDataBase;
 
-const dword acpiFuncsBase = 0x16400;
+const dword acpiFuncsBase = 0x18600;
 byte* acpiFuncs = (byte*)acpiFuncsBase;
 
-bool acpiNamespaceInit = false;
+const dword acpiReEvalBase = 0x12C00;
+dword* acpiReEval = (dword*)acpiReEvalBase;
 
+bool acpiNamespaceInit = false;
+bool reEvaluating = false;
 byte defBlockRevision = 0;
 
 inline byte getPkgBytes(byte *pkg) {
@@ -163,10 +169,34 @@ byte encodeIntegerTerm(qword num, byte *ptr) {
 }
 
 void logPath(AMLName* path, byte len) {
+    if (!len) {
+        kdebug("<пусто>.");
+        return;
+    }
     for (byte i = 0; i < len; i++) {
         logName(path[i]);
         kdebug((byte)'.');
     }
+}
+
+void storeParsingPath() {
+    byte len = getParsingPathLen();
+    AMLName *addr = bufferedPath;
+    AMLName *ptr = (AMLName*)parsingPathBase;
+    for (byte i = 0; i < len; i++) {
+        *bufferedPath++ = ptr[i];
+    }
+    *bufferedPath++ = (dword)len;
+}
+
+void restoreParsingPath() {
+    byte len = *(--bufferedPath);
+    parsingPath = (AMLName*)parsingPathBase;
+    for (byte i = 0; i < len; i++) {
+        parsingPath[len - i - 1] = *(--bufferedPath);
+        *bufferedPath = 0;
+    }
+    parsingPath += len;
 }
 
 EISAId dwordToEISAId(dword num) {
@@ -187,23 +217,23 @@ EISAId dwordToEISAId(dword num) {
 
 void logEISAid(EISAId id) {
     for (byte i = 0; i < 3; i++)
-        writeCom(id.mfg[i], 1);
+        kdebug((byte)id.mfg[i]);
     for (byte i = 0; i < 4; i++) {
         if (id.prodNo[i] < 10)
-            writeCom(id.prodNo[i] + 0x30, 1);
+            kdebug((byte)(id.prodNo[i] + 0x30));
         else
-            writeCom(id.prodNo[i] + 0x41 - 10, 1);
+            kdebug((byte)(id.prodNo[i] + 0x41 - 10));
     }
 }
 
 dword parseBuffer(byte *aml) {
-    dword bufLen = getPkgLength(aml);
-    kdebug("Длина буфера: %d Б.\n", bufLen);
-    aml += getPkgBytes(aml);
-    qword numBytes = getIntegerTerm(aml);
+    if (*aml++ == 0x11)
+        aml += getPkgBytes(aml);
+    dword numBytes = getIntegerTerm(aml);
+    kdebug("Длина буфера: %d Б.\n", numBytes);
     aml += getIntegerTermBytes(aml);
     byte element = 1;
-    for (byte i = 0; i < numBytes; i++) {
+    for (dword i = 0; i < numBytes; i++) {
         word elLen;
         byte type;
         bool isLarge = aml[i] & 0x80;
@@ -239,7 +269,7 @@ dword parseBuffer(byte *aml) {
                     kdebug(", %d", j);
                 }
             }
-            kdebug("\n");
+            kdebugnewl();
             if (elLen == 3) {
                 byte irqFlags = aml[i];
                 i++;
@@ -443,9 +473,9 @@ dword parseBuffer(byte *aml) {
                 i ++;
                 kdebug("\tИсточник: \"");
                 for (byte j = 0; j < elLen - 43; j ++) {
-                    if (aml[i] == 0) break;
-                    writeCom(aml[i], 1);
-                    i ++;
+                    if (aml[j] == 0) break;
+                    kdebug(aml[j]);
+                    j ++;
                 }
                 kdebug("\"\n");
             }
@@ -493,7 +523,7 @@ dword parseBuffer(byte *aml) {
                 kdebug("\tИсточник: \"");
                 for (byte j = 0; j < elLen - 23; j ++) {
                     if (aml[i] == 0) break;
-                    writeCom(aml[i], 1);
+                    kdebug(aml[i]);
                     i ++;
                 }
                 kdebug("\"\n");
@@ -542,7 +572,7 @@ dword parseBuffer(byte *aml) {
                 kdebug("\tИсточник: \"");
                 for (byte j = 0; j < elLen - 13; j ++) {
                     if (aml[i] == 0) break;
-                    writeCom(aml[i], 1);
+                    kdebug(aml[i]);
                     i ++;
                 }
                 kdebug("\"\n");
@@ -556,7 +586,7 @@ dword parseBuffer(byte *aml) {
 
         element ++;
     }
-    return bufLen;
+    return numBytes;
 }
 
 dword parseVarPackage(byte *aml) {
@@ -612,12 +642,10 @@ dword parsePackage(byte *aml) {
             kdebug("Buffer.\n");
             aml ++;
             aml += parseBuffer(aml);
-        } else if (*aml >= 0x20 && *aml <= 0x7E){
-            kdebug("ссылка.\nЗначение = \"");
-            for (byte i = 0; i < 4; i++) {
-                writeCom(*aml++, 1);
-            }
-            kdebug("\".\n");
+        } else if (isLeadNameChar(*aml)){
+            kdebug("ссылка.\n");
+            word nameSegs = parseName(aml);
+            aml += nameSegs >> 8;
         } else {
             kdebug("не определён.\nВНИМАНИЕ: Не удалось определить тип элемента %d.\nРовнение, вероятнее всего, сбито.\n", i+1);
             break;
@@ -627,33 +655,57 @@ dword parsePackage(byte *aml) {
 }
 
 word parseName(byte *aml) {
+    varPath = (AMLName*)varPathBase;
+    memcpy((byte*)parsingPathBase, (byte*)varPath, getParsingPathLen() * 4);
+    varPath += getParsingPathLen();
     byte bytes = 0;
+    if (*aml == 0x5C) {
+        clearVarPath();
+        aml ++;
+        bytes ++;
+    }
     if (*aml == 0x2E) {
         aml++;
         bytes ++;
         kdebug("Двойное имя: \"");
+        if (!getVarPathLen())
+            kdebug((byte)0x5C);
         AMLName name1 = 0;
-        for (byte i = 0; i < 4; i++) {
+        byte prefixes = 0;
+        for (byte i = 0; i < 4 + prefixes; i++) {
             if (*aml == 0) {bytes ++; break;}
-            if (*aml != '_' || i == 0)
-                writeCom(*aml, 1);
-            name1 |= (dword)*aml << (8*i);
+            if (*aml != '_' || i == prefixes)
+                kdebug(*aml);
+            if (*aml == '^') {
+                varPath --;
+                prefixes++;
+            }
+            else {
+                name1 |= (dword)*aml << (8*i);
+            }
             bytes ++;
             aml ++;
         }
         kdebug("\", \"");
         AMLName name2 = 0;
-        for (byte i = 0; i < 4; i++) {
+        prefixes = 0;
+        for (byte i = 0; i < 4 + prefixes; i++) {
             if (*aml == 0) {bytes ++; break;}
-            if (*aml != '_' || i == 0)
-                writeCom(*aml, 1);
-            name2 |= (dword)(*aml << (8*i));
+            if (*aml != '_' || i == prefixes)
+                kdebug(*aml);
+            if (*aml == '^') {
+                varPath --;
+                prefixes++;
+            }
+            else {
+                name2 |= (dword)*aml << (8*i);
+            }
             bytes ++;
             aml ++;
         }
         kdebug("\".\n");
-        *parsingPath++ = name1;
-        *parsingPath++ = name2;
+        *varPath++ = name1;
+        *varPath++ = name2;
         return (bytes << 8) | 2;
     } else if (*aml == 0x2F) {
         aml++;
@@ -662,81 +714,164 @@ word parseName(byte *aml) {
         bytes ++;
         AMLName seg = 0;
         kdebug("Множественное имя (%d): \"", len);
-        for (byte j = 0; j < 4; j++) {
+        if (!getVarPathLen())
+            kdebug((byte)0x5C);
+        byte prefixes = 0;
+        for (byte j = 0; j < 4 + prefixes; j++) {
             if (*aml == 0) {bytes ++; break;}
-            if (*aml != '_' || j == 0)
-                writeCom(*aml, 1);
-            seg |= (dword)(*aml << (8*j));
-            aml ++;
+            if (*aml != '_' || j == prefixes)
+                kdebug(*aml);
+            if (*aml == '^') {
+                varPath --;
+                prefixes++;
+            }
+            else {
+                seg |= (dword)*aml << (8*j);
+            }
             bytes ++;
+            aml ++;
         }
-        *parsingPath++ = seg;
+        *varPath++ = seg;
         seg = 0;
         for (byte i = 1; i < len; i++) {
             kdebug("\", \"");
-            for (byte j = 0; j < 4; j++) {
+            for (byte j = 0; j < 4 + prefixes; j++) {
                 if (*aml == 0) {bytes ++; break;}
-                if (*aml != '_' || j == 0)
-                    writeCom(*aml, 1);
-                seg |= (dword)((*aml) << (8*j));
-                aml ++;
+                if (*aml != '_' || i == prefixes)
+                    kdebug(*aml);
+                if (*aml == '^') {
+                    varPath --;
+                    prefixes++;
+                } else {
+                    seg |= (dword)*aml << (8*i);
+                }
                 bytes ++;
+                aml ++;
             }
-            *parsingPath++ = seg;
+            *varPath++ = seg;
             seg = 0;
+            prefixes = 0;
         }
         kdebug("\".\n");
         return (bytes << 8) | len;
     } else {
         kdebug("Имя: \"");
+        if (!getVarPathLen())
+            kdebug((byte)0x5C);
         AMLName name = 0;
-        for (byte i = 0; i < 4; i++) {
+        byte prefixes = 0;
+        for (byte i = 0; i < 4 + prefixes; i++) {
             if (*aml == 0) {bytes ++; break;}
-            if (*aml != '_' || i == 0)
-                writeCom(*aml, 1);
-            name |= (dword)(*aml << (8*i));
+            if (*aml != '_' || i == prefixes)
+                kdebug(*aml);
+            if (*aml == '^') {
+                varPath --;
+                prefixes++;
+            }
+            else {
+                name |= (dword)*aml << (8*i);
+            }
             bytes ++;
             aml ++;
         }
         kdebug("\".\n");
         if ((name & 0xFF) == 0x5C)
-            clearParsingPath();
+            clearVarPath();
         else if (name)
-            *parsingPath++ = name;
+            *varPath++ = name;
         return (bytes << 8) | 1;
     }
 }
 
+word getName(byte *aml) {
+    word nameSegs = parseName(aml);
+    AMLName name = *(--varPath);
+    varPath++;
+    while ((dword)varPath > varPathBase) {
+        if (getACPIObjAddr((AMLName*)varPathBase, getVarPathLen()))
+            return nameSegs;
+        varPath --;
+        *(--varPath) = name;
+        varPath ++;
+    }
+    return nameSegs;
+}
+
 dword parseDevice(byte* aml) {
+    storeParsingPath();
     dword deviceLen = getPkgLength(aml);
+    dword _len;
+    _len = deviceLen;
     kdebug("Длина: %d Б.\n", deviceLen);
     deviceLen -= getPkgBytes(aml);
     aml += getPkgBytes(aml);
     word nameSegs = parseName(aml);
     kdebug("Абсолютный путь к устройству: ");
+    logVarPath();
+    kdebugnewl();
+    parsingPath = (AMLName*)parsingPathBase;
+    for (byte i = 0; i < getVarPathLen(); i++)
+        *parsingPath++ = *(AMLName*)(varPathBase + 4*i);
+    *acpiNamespace++ = getVarPathLen();
+    memcpy((byte*)varPathBase, (byte*)acpiNamespace, getVarPathLen() * 4);
+    acpiNamespace += getVarPathLen();
+    *acpiNamespace = (dword)acpiData;
+    *acpiData++ = 0x82;
+    *(dword*)acpiData = (dword)(acpiData + 4);
+    acpiData += 4;
+    kdebug("Устройство записано в адрес %x.\n", *acpiNamespace++);
+    *acpiNamespace++ = 5;
     deviceLen -= nameSegs >> 8;
     aml += nameSegs >> 8;
-    logParsingPath();
-    kdebug("\n");
     parseTermList(aml, deviceLen);
-    for (byte i = 0; i < (nameSegs & 0xFF); i++)
-        if (getParsingPathLen()) *(--parsingPath) = 0;
-    return deviceLen;
+    restoreParsingPath();
+    return _len;
+}
+
+dword parseThermalZone(byte* aml) {
+    storeParsingPath();
+    dword tzLen = getPkgLength(aml);
+    dword _len;
+    _len = tzLen;
+    kdebug("Длина: %d Б.\n", tzLen);
+    tzLen -= getPkgBytes(aml);
+    aml += getPkgBytes(aml);
+    word nameSegs = parseName(aml);
+    kdebug("Абсолютный путь к термозоне: ");
+    logVarPath();
+    kdebugnewl();
+    parsingPath = (AMLName*)parsingPathBase;
+    for (byte i = 0; i < getVarPathLen(); i++)
+        *parsingPath++ = *(AMLName*)(varPathBase + 4*i);
+    *acpiNamespace++ = getVarPathLen();
+    memcpy((byte*)varPathBase, (byte*)acpiNamespace, getVarPathLen() * 4);
+    acpiNamespace += getVarPathLen();
+    *acpiNamespace = (dword)acpiData;
+    *acpiData++ = 0x85;
+    *(dword*)acpiData = (dword)(acpiData + 4);
+    acpiData += 4;
+    kdebug("Термозона записана в адрес %x.\n", *acpiNamespace++);
+    *acpiNamespace++ = 5;
+    tzLen -= nameSegs >> 8;
+    aml += nameSegs >> 8;
+    parseTermList(aml, tzLen);
+    restoreParsingPath();
+    return _len;
 }
 
 dword parseOpRegion(byte *aml) {
     dword length = 0;
     word nameSegs = parseName(aml);
     dword start = (dword)aml;
-    *acpiNamespace++ = getParsingPathLen();
-    memcpy((byte*)parsingPathBase, (byte*)acpiNamespace, getParsingPathLen() * 4);
-    acpiNamespace += getParsingPathLen();
+    *acpiNamespace++ = getVarPathLen();
+    memcpy((byte*)varPathBase, (byte*)acpiNamespace, getVarPathLen() * 4);
+    acpiNamespace += getVarPathLen();
     *acpiNamespace++ = (dword)acpiData;
     length += nameSegs >> 8;
     aml += nameSegs >> 8;
     kdebug("Абсолютный путь к региону: ");
-    logParsingPath();
-    kdebug("\n");
+    logVarPath();
+    kdebugnewl();
     byte regSpace = *aml++;
     length ++;
     kdebug("Пространство региона - ");
@@ -764,10 +899,12 @@ dword parseOpRegion(byte *aml) {
     aml += getIntegerTermBytes(aml);
     kdebug("Длина AML-блока региона: %d Б.\n", length);
     *(word*)acpiData = 0x805B;
-    memcpy((byte*)start + (nameSegs >> 8), acpiData + 2, length - (nameSegs >> 8));
-    acpiData += length + 2 - (nameSegs >> 8);
-    for (byte i = 0; i < (nameSegs & 0xFF); i++)
-        if (getParsingPathLen()) *(--parsingPath) = 0;
+    acpiData += 2;
+    length -= nameSegs >> 8;
+    memcpy((byte*)start + (nameSegs >> 8), acpiData, length);
+    acpiData += length;
+    *acpiNamespace++ = length + 2;
+    length += nameSegs >> 8;
     return length;
 }
 
@@ -777,9 +914,9 @@ dword parseField(byte *aml) {
     kdebug("Длина: %d Б.\n", amlLength);
     word nameSegs = parseName(aml);
     kdebug("Абсолютный путь к региону поля: ");
-    logParsingPath();
-    kdebug("\n");
-    byte *opReg = getACPIObjAddr((AMLName*)parsingPathBase, getParsingPathLen());
+    logVarPath();
+    kdebugnewl();
+    byte *opReg = getACPIObjAddr((AMLName*)varPathBase, getVarPathLen());
     opReg += 2;
     byte regSpace = *opReg++;
     kdebug("Пространство региона - ");
@@ -797,7 +934,7 @@ dword parseField(byte *aml) {
         case 10: kdebug("PCC.\n"); break;
         default: kdebug("<%x>.\n", regSpace); break;
     }
-    qword offset = getIntegerTerm(opReg) * 8;
+    qword offset = getIntegerTerm(opReg);
     aml += nameSegs >> 8;
     byte flags = *aml++;
     kdebug("Параметры поля:\n\tВид доступа: ");
@@ -820,7 +957,9 @@ dword parseField(byte *aml) {
         default: kdebug("<%x>\n", (flags & 96) >> 5); break;
     }
     word fieldNo = 1;
-    for (dword i = 0; i < amlLength - (nameSegs >> 8) - 1; i++) {
+    dword bitsOffset = 0;
+    dword fieldsBlock = amlLength - (nameSegs >> 8) - getPkgBytes(amlLength) - 1;
+    for (dword i = 0; i < fieldsBlock; i++) {
         dword bits = 0;
         dword fieldLen = 0;
         if (aml[i] == 0) {
@@ -828,50 +967,41 @@ dword parseField(byte *aml) {
             i ++;
             bits = getPkgLength(aml + i);
             kdebug("\tДлина поля: %d бит\n", bits);
-            i += getPkgBytes(aml + i) - 1;
+            i += getPkgBytes(aml + i);
         } else if (isLeadNameChar(aml[i])) {
             kdebug("Тип поля %d - названное.\n", fieldNo);
-            dword nameSeg = *(dword*)(aml + i);
-            kdebug("\tИмя поля: \"");
-            kdebug(nameSeg);
-            kdebug("\"\n");
-            i += 4;
-            bits = aml[i];
-            kdebug("\tРазмер поля: %d бит\n", bits);
-            if (bits % 8 == 0)
-                bits /= 8;
-            else
-                bits |= 0x80;
-            *acpiFields = 0xFD;
-            fieldLen ++;
-            *(acpiFields+1) = flags;
-            fieldLen ++;
-            *(acpiFields+2) = regSpace;
-            fieldLen ++;
-            if (offset % 8 == 0)
-                fieldLen += encodeIntegerTerm(offset / 8, acpiFields + fieldLen);
-            else
-                fieldLen += encodeIntegerTerm(offset, acpiFields + fieldLen);
-            if (offset % 8 == 0)
-                fieldLen += encodeIntegerTerm(bits / 8, acpiFields + fieldLen);
-            else
-                fieldLen += encodeIntegerTerm(bits | 0x80, acpiFields + fieldLen);
-            kdebug("Поле записано в адрес %x.\n", acpiFields);
-            *acpiNamespace++ = 1;
-            *acpiNamespace++ = nameSeg;
+            word nameSegs = parseName(aml + i);
+            i += nameSegs >> 8;
+            kdebug("Абсолютный путь к полю: ");
+            logVarPath();
+            kdebugnewl();
+            bits = getPkgLength(aml + i);
+            i += getPkgBytes(aml + i);
+            kdebug("\tДлина поля: %d бит\n", bits);
+            dword addr = (dword)acpiFields;
+            *acpiNamespace++ = getVarPathLen();
+            memcpy((byte*)varPathBase, (byte*)acpiNamespace, getVarPathLen() * 4);
+            acpiNamespace += getVarPathLen();
             *acpiNamespace++ = (dword)acpiFields;
-            acpiFields += fieldLen;
+            *acpiFields++ = 0xFD;
+            *acpiFields++ = flags;
+            *acpiFields++ = regSpace;
+            acpiFields += encodeIntegerTerm(offset, acpiFields);
+            acpiFields += encodeIntegerTerm(bitsOffset, acpiFields);
+            acpiFields += encodeIntegerTerm(bits, acpiFields);
+            *acpiNamespace++ = (dword)acpiFields - addr;
         }
         fieldNo++;
-        offset += bits / 8;
+        bitsOffset += bits;
+        i--;
     }
-    for (byte i = 0; i < (nameSegs & 0xFF); i++)
-        if (getParsingPathLen()) *(--parsingPath) = 0;
     return amlLength;
 }
 
 dword parseScope(byte *aml) {
+    storeParsingPath();
     dword scopeLen = getPkgLength(aml);
+    dword _len = scopeLen;
     kdebug("Длина: %d Б.\n", scopeLen);
     scopeLen -= getPkgBytes(aml);
     aml += getPkgBytes(aml);
@@ -880,43 +1010,77 @@ dword parseScope(byte *aml) {
     scopeLen -= nameSegs >> 8;
     aml += nameSegs >> 8;
     kdebug("Новый путь обработки: ");
-    logParsingPath();
+    logVarPath();
+    parsingPath = (AMLName*)parsingPathBase;
+    for (byte i = 0; i < getVarPathLen(); i++)
+        *parsingPath++ = *(AMLName*)(varPathBase + 4*i);
     kdebug("\nДлина пути обработки: %d имён\n", getParsingPathLen());
     parseTermList(aml, scopeLen - 1);
-    for (byte i = 0; i < (nameSegs & 0xFF); i++)
-        if (getParsingPathLen()) *(--parsingPath) = 0;
-    return scopeLen;
+    restoreParsingPath();
+    return _len;
 }
 
 dword parseMethod(byte *aml) {
     dword methodLen = getPkgLength(aml);
+    dword _len = methodLen;
     dword addr = (dword)acpiFuncs;
     *acpiFuncs++ = 0x14;
+    byte pkgBytes = getPkgBytes(aml);
     methodLen -= getPkgBytes(aml);
     aml += getPkgBytes(aml);
     word nameSegs = parseName(aml);
     aml += nameSegs >> 8;
     methodLen -= nameSegs >> 8;
     acpiFuncs += encodeIntegerTerm(methodLen, acpiFuncs);
+    dword _methodLen = methodLen + 1 + getIntegerTermBytes(methodLen);
     memcpy(aml, acpiFuncs, methodLen);
     kdebug("Абсолютный путь к методу: ");
-    logParsingPath();
+    logVarPath();
     byte flags = *aml++;
     kdebug("\n\tЧисло аргументов: %d\n", flags & 7);
     kdebug("\tСериализация: ");
     kdebug((flags & 8) ? "Да\n" : "Нет\n");
     kdebug("\tУровень синхронизации: %x\n", (flags & 0xF0) >> 4);
-    byte names = getParsingPathLen();
+    byte names = getVarPathLen();
     *acpiNamespace++ = names;
-    memcpy((byte*)parsingPathBase, (byte*)acpiNamespace, names * 4);
+    memcpy((byte*)varPathBase, (byte*)acpiNamespace, names * 4);
     acpiNamespace += names;
-    *(dword*)acpiNamespace = addr;
-    acpiNamespace++;
+    *acpiNamespace++ = addr;
     acpiFuncs += methodLen;
     kdebug("Метод сохранён в %x.\n", addr);
-    for (byte i = 0; i < (nameSegs & 0xFF); i++)
-        if (getParsingPathLen()) *(--parsingPath) = 0;
-    return methodLen;
+    *acpiNamespace++ = _methodLen;
+    return _len;
+}
+
+dword parseMutex(byte *aml) {
+    word nameSegs = parseName(aml);
+    aml += nameSegs >> 8;
+    dword addr = (dword)acpiData;
+    *acpiData++ = 0x01;
+    byte syncChannel = *aml++;
+    kdebug("Канал синхронизации: %d.\n", syncChannel);
+    *acpiData++ = syncChannel;
+    acpiData += defBlockRevision > 1 ? 8 : 4;
+    *acpiNamespace++ = getVarPathLen();
+    memcpy((byte*)varPathBase, (byte*)acpiNamespace, (getVarPathLen()) * 4);
+    acpiNamespace += getVarPathLen();
+    *acpiNamespace++ = addr;
+    *acpiNamespace++ = 2 + (defBlockRevision > 1 ? 8 : 4);
+    return 1 + (nameSegs >> 8);
+}
+
+dword parseEvent(byte *aml) {
+    word nameSegs = parseName(aml);
+    aml += nameSegs >> 8;
+    dword addr = (dword)acpiData;
+    *acpiData++ = 0x02;
+    *acpiData++ = 0x00;
+    *acpiNamespace++ = getVarPathLen();
+    memcpy((byte*)varPathBase, (byte*)acpiNamespace, (getVarPathLen()) * 4);
+    acpiNamespace += getVarPathLen();
+    *acpiNamespace++ = addr;
+    *acpiNamespace++ = 2;
+    return nameSegs >> 8;
 }
 
 byte strToPath(const char* str, AMLName* out) {
@@ -951,263 +1115,320 @@ byte strToPath(const char* str, AMLName* out) {
     return length;
 }
 
+dword upgradePackage(byte *pkg, byte *&out, FuncFrame *frame) {
+    *out++ = 0x9A;
+    pkg ++;
+    pkg += getPkgBytes(*pkg);
+    byte elements = *pkg++;
+    *out++ = elements;
+    dword *pkgEls = (dword*)out;
+    out += elements * 8;
+    dword pkgLen = 2 + elements * 8;
+    kdebugdisable();
+    for (byte i = 0; i < elements; i++) {
+        byte *addr = pkg;
+        pkgEls[2*i] = (dword)out;
+        TermArg a = getTermArg(pkg, frame);
+        if (a.type == maxqword) {
+            kdebugenable();
+            kdebug("ОШИБКА: Не удалось рассчитать элемент %d\n", i+1);
+            return 0;
+        }
+        if (a.type & 0x80) {
+            dword len = getACPIObjLen((byte*)a.value);
+            if (a.type == 0x91)
+                upgradeBuffer(addr, out, frame);
+            else if (a.type != 0x92) {
+                memcpy((byte*)a.value, out, len);
+                out += len;
+            }
+            pkgEls[2*i+1] = len;
+            pkgLen += len;
+        } else if (isLeadNameChar(*addr)) {
+            word nameSegs = parseName(addr);
+            memcpy(addr, out, nameSegs >> 8);
+            out += nameSegs >> 8;
+            pkgEls[2*i+1] = nameSegs >> 8;
+            pkgLen += nameSegs >> 8;
+        } else {
+            dword len = getIntegerTermBytes(a.value);
+            out += encodeIntegerTerm(a.value, out);
+            pkgEls[2*i+1] = len;
+            pkgLen += len;
+        }
+    }
+    kdebugenable();
+    return pkgLen;
+}
+
+void remapPackage(byte *pkg, byte *newAddr) {
+    dword addr = (dword)newAddr;
+    pkg++;
+    byte elements = *pkg++;
+    dword *table = (dword*)pkg;
+    dword base = *table;
+    base -= elements * 8 + 2;
+    newAddr += elements * 8 + 2;
+    for (byte i = 0; i < elements; i++) {
+        table[2*i] -= base;
+        table[2*i] += addr;
+        byte *maybePackage = (byte*)table[2*i];
+        if (*maybePackage == 0x9A)
+            remapPackage(maybePackage, newAddr);
+        newAddr += table[2*i + 1];
+    }
+}
+
+dword upgradeBuffer(byte *buf, byte *&out, FuncFrame *frame) {
+    *out++ = 0x22;
+    if (*buf++ == 0x11)
+        buf += getPkgBytes(*buf);
+    dword bufLen = getIntegerTerm(buf);
+    buf += getIntegerTermBytes(buf);
+    out += encodeIntegerTerm(bufLen, out);
+    memcpy(buf, out, bufLen);
+    return bufLen + getIntegerTermBytes(bufLen) + 1;
+}
+
 dword nameACPIObj(byte* aml) {
     dword addr = (dword)aml;
-    word nameLen = parseName(aml);
+    word nameSegs = parseName(aml);
     kdebug("Абсолютный путь к объекту: ");
-    logParsingPath();
-    kdebug("\n");
-    if (getACPIObjAddr((AMLName*)parsingPathBase, getParsingPathLen())) {
+    logVarPath();
+    kdebugnewl();
+    if (getACPIObjAddr((AMLName*)varPathBase, getVarPathLen())) {
         kdebug("ВНИМАНИЕ: Объект с таким названием уже существует\n");
-        for (byte i = 0; i < (nameLen & 0xFF); i++)
-            if (getParsingPathLen()) *(--parsingPath) = 0;
-        return getACPIObjLen((AMLName*)parsingPathBase, getParsingPathLen()) + (nameLen >> 8);
+        return getACPIObjLen((AMLName*)varPathBase, getVarPathLen()) + (nameSegs >> 8);
     }
-    AMLName name = *(parsingPath - 1);
-    aml += nameLen >> 8;
-    byte names = getParsingPathLen();
-    *acpiNamespace++ = names;
-    memcpy((byte*)parsingPathBase, (byte*)acpiNamespace, names * 4);
-    acpiNamespace += names;
-    dword dataSize = 0;
+    aml += nameSegs >> 8;
     kdebug("Первый байт объекта: %x.\n", *aml);
-    if (*aml == 0x0A) {
-        aml ++;
-        kdebug("Вид объекта - ByteConst; данные = %x.\n", *aml);
-        *acpiData++ = 0x0A;
-        *acpiData-- = *aml;
-        dataSize = 2;
-    }
-    else if (*aml == 0x0B) {
-        aml ++;
-        word val = *(word*)aml;
-        kdebug("Вид объекта - WordConst; данные = %x.\n", val);
-        *acpiData++ = 0x0B;
-        *(word*)acpiData = val;
-        acpiData--;
-        dataSize = 3;
-        aml ++;
-    }
-    else if (*aml == 0x0C) {
-        aml ++;
-        dword val = *(dword*)aml;
-        kdebug("Вид объекта - DWordConst; данные = %x", val);
-        if (name == 'DIH_') {
-            kdebug(" (\"");
-            EISAId id = dwordToEISAId(val);
-            logEISAid(id);
-            kdebug("\")");
+    FuncFrame _frame = {};
+    _frame.tmpSpace = (byte*)0x2000000;
+    TermArg arg = getTermArg(aml, &_frame);
+    if (arg.type == maxqword) {
+        if (!reEvaluating) {
+            kdebug("Объект потребует дополнительного вычисления.\n");
+            *acpiReEval++ = (dword)'NAME';
+            *acpiReEval++ = addr;
+            return (dword)aml - addr;
+        } else {
+            kdebug("ОШИБКА: Не удаётся вычислить объект\n");
+            return (dword)aml - addr;
         }
-        kdebug(".\n");
-        *acpiData++ = 0x0C;
-        *(dword*)acpiData = val;
-        acpiData --;
-        dataSize = 5;
-        aml += 3;
-    } else if (*aml == 0x0E) {
-        aml ++;
-        qword val = *(qword*)aml;
-        kdebug("Вид объекта - QWordConst; данные = %X.\n", val);
-        *acpiData++ = 0x0E;
-        *(qword*)acpiData = val;
-        acpiData--;
-        aml += 7;
-        dataSize = 9;
-    } else if (*aml == 0x0D) {
-        aml ++;
-        kdebug("Вид объекта - String; данные = \"");
-        dword length = 1;
+    }
+    *acpiNamespace++ = getVarPathLen();
+    memcpy((byte*)varPathBase, (byte*)acpiNamespace, getVarPathLen() * 4);
+    acpiNamespace += getVarPathLen();
+    *acpiNamespace++ = (dword)acpiData;
+    dword dataSize = 0;
+    if (arg.type == 0x01 || arg.type == 0x02) {
+        dataSize = encodeIntegerTerm(arg.value, acpiData);
+        acpiData += dataSize;
+        *acpiNamespace++ = dataSize;
+    }
+    else if (arg.type == 0x8D) {
+        dataSize = 2;
         *acpiData++ = 0x0D;
-        while (*aml != 0) {
-            kdebug(*aml);
-            *acpiData++ = *aml++;
-            length ++;
+        byte *ptr = (byte*)arg.value;
+        ptr ++;
+        while (*ptr) {
+            *acpiData++ = *ptr++;
+            dataSize ++;
         }
         *acpiData++ = 0;
-        length ++;
-        acpiData -= length;
-        aml++;
-        kdebug("\".\n");
-        dataSize = length;
-    } else if (*aml == 0x12) {
-        aml ++;
-        kdebug("Вид объекта - Package.\n");
-        dataSize = parsePackage(aml);
-        memcpy((byte*)(aml - 1), acpiData, dataSize);
-        aml += dataSize - 1;
-    } else if (*aml == 0) {
-        kdebug("Значение объекта - 0.\n");
-        dataSize = 1;
-        *acpiData = 0;
-    } else if (*aml == 1) {
-        kdebug("Значение объекта - 1.\n");
-        dataSize = 1;
-        *acpiData = 1;
-    } else if (*aml == 0xFF) {
-        kdebug("Значение объекта - 255.\n");
-        dataSize = 1;
-        *acpiData = 0xFF;
-    } else if (*aml == 0x11) {
-        aml ++;
-        kdebug("Вид объекта - Buffer.\n");
-        dataSize = parseBuffer(aml) + 1;
-        memcpy((byte*)(aml - 1), acpiData, dataSize);
-        aml += dataSize - 2;
+        *acpiNamespace++ = dataSize;
     }
-    *acpiNamespace++ = (dword)acpiData;
-    acpiData += dataSize;
-    for (byte i = 0; i < (nameLen & 0xFF); i++)
-        if (getParsingPathLen()) *(--parsingPath) = 0;
+    else if (arg.type == 0x91) {
+        byte *ptr = (byte*)arg.value;
+        dataSize = upgradeBuffer(ptr, acpiData, &_frame);
+        *acpiNamespace++ = dataSize;
+    }
+    else if (arg.type == 0x92) {
+        byte *ptr = (byte*)arg.value;
+        dataSize = getACPIObjLen(ptr);
+        memcpy(ptr, acpiData, dataSize);
+        remapPackage(acpiData, acpiData);
+        acpiData += dataSize;
+        *acpiNamespace++ = dataSize;
+    }
+    else if (arg.type == 0xF1) {
+        dataSize = 9;
+        *acpiData++ = 0xF1;
+        *(qword*)acpiData = arg.value;
+        acpiData += 8;
+        *acpiNamespace++ = dataSize;
+    }
+    else if (arg.type == maxqword) {
+        kdebug("Объект потребует дополнительного вычисления.\n");
+    }
     return (dword)aml - addr;
 }
 
 byte* getACPIObjAddr(const char* strPath) {
     AMLName path[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-    byte length;
-    length = strToPath(strPath, path);
+    byte length = strToPath(strPath, path);
     return getACPIObjAddr(path, length);
 }
 
 byte* getACPIObjAddr(AMLName* path, byte length) {
-    kdebug("Попытка найти адрес объекта ");
-    logPath(path, length);
-    kdebug("\nДлина пути: %d имён.\n", length);
     dword *names = (dword*)acpiNamespaceBase;
-    for (dword i = 0; i < 0x2000; i += 0) {
+    for (dword i = 0; i < 0x1000; i += 0) {
         if (names[i] == 0) {
-            kdebug("ВНИМАНИЕ: Не удалось найти объект.\nВозвращается nullptr.\n");
             return nullptr;
         }
         if (names[i] != length) {
-            i += names[i] + 2;
+            i += names[i] + 3;
             continue;
         }
         i ++;
         if (memcmp((byte*)(names + i), (byte*)path, length * 4) != 0x80) {
-            i += names[i-1] + 1;
+            i += names[i-1] + 2;
             continue;
         }
         
         i += length;
-        kdebug("Найден объект в пространстве.\nАдрес = %x.\n", names[i]);
+        kdebug("Найден объект в пространстве.\n");
+        kdebug("Адрес = %x.\n", names[i]);
         return (byte*)names[i];
     }
     return nullptr;
 }
 
+bool sameACPIDomain(dword a1, dword a2) {
+    return (a1 >= acpiFieldsBase && a2 >= acpiFieldsBase && a1 < (acpiFieldsBase + 0x400) && a2 < (acpiFieldsBase + 0x400)) ||
+        (a1 >= acpiDataBase && a2 >= acpiDataBase && a1 < (acpiDataBase + 0x2000) && a2 < (acpiDataBase + 0x2000)) ||
+        (a1 >= acpiFuncsBase && a2 >= acpiFuncsBase && a1 < (acpiFuncsBase + 0x2000) && a2 < (acpiFuncsBase + 0x2000));
+}
+
 dword getACPIObjLen(AMLName* path, byte length) {
-    kdebug("Попытка найти длину объекта ");
-    logPath(path, length);
-    kdebug("\nДлина пути: %d имён.\n", length);
     dword *names = (dword*)acpiNamespaceBase;
-    for (dword i = 0; i < 0x2000; i += 0) {
+    for (dword i = 0; i < 0x1000; i += 0) {
         if (names[i] == 0) {
-            kdebug("ВНИМАНИЕ: Не удалось найти объект.\nВозвращается 0.\n");
             return 0;
         }
         if (names[i] != length) {
-            i += names[i] + 2;
+            i += names[i] + 3;
             continue;
         }
         i ++;
         if (memcmp((byte*)(names + i), (byte*)path, length * 4) != 0x80) {
-            i += names[i-1] + 1;
+            i += names[i-1] + 2;
             continue;
         }
-        i += length;
-        dword startAddr = names[i];
-        kdebug("Найден объект в пространстве.\nАдрес = %x.\n", startAddr);
-        dword endAddr = 0;
-        do {
-            i++;
-            i += names[i] + 1;
-            endAddr = names[i];
-        } while (endAddr < startAddr);
-        kdebug("Адрес следующего объекта = %x.\n", endAddr);
-        kdebug("Длина объекта - %d Б.", endAddr - startAddr);
-        return endAddr - startAddr;
+        i += length + 1;
+        dword objLen = names[i];
+        kdebug("Найден объект в пространстве.\n");
+        kdebug("Длина объекта - %d Б.\n", objLen);
+        return objLen;
     }
     return 0;
 }
 
 dword getACPIObjLen(byte *ptr) {
-    kdebug("Попытка определить длину объекта по адресу %x.", ptr);
     byte id = *ptr;
-    if (id >= 0x0A && id <= 0x0C || id == 0x0E) {
+    kdebug("Тип объекта - ");
+    if (id >= 0x0A && id <= 0x0C || id == 0x0E || id == 0x00 || id == 0x01 || id == 0xFF) {
+        kdebug("IntegerTerm.\n");
         byte len = getIntegerTermBytes(ptr);
-        kdebug("Тип объекта - IntegerTerm.\n");
         kdebug("Длина = %d Б.\n", len);
         return len;
     }
+    else if (isLeadNameChar(*ptr)) {
+        kdebug("ссылка.\n");
+        word nameSegs = parseName(ptr);
+        kdebug("Длина = %d Б.\n", nameSegs >> 8);
+        return nameSegs >> 8;
+    }
     ptr ++;
     if (id == 0x0D) {
-        kdebug("Тип объекта - строка.\n");
+        kdebug("строка.\n");
         byte len = strlen((char*)ptr);
         kdebug("Длина = %d Б.\n", len);
         return len;
     }
     if (id == 0x11) {
-        kdebug("Тип объекта - Buffer.\n");
+        kdebug("Buffer.\n");
         dword len = getPkgLength(ptr);
+        kdebug("Длина = %d Б.\n", len);
+        return len;
+    }
+    if (id == 0x22) {
+        kdebug("Buffer+.\n");
+        dword len = getIntegerTerm(ptr);
         kdebug("Длина = %d Б.\n", len);
         return len;
     }
     if (id == 0x12) {
-        kdebug("Тип объекта - Package.\n");
+        kdebug("Package.\n");
         dword len = getPkgLength(ptr);
+        kdebug("Длина = %d Б.\n", len);
+        return len;
+    }
+    if (id == 0x9A) {
+        kdebug("Package+.\n");
+        dword len = 2;
+        byte elements = *ptr++;
+        len += elements * 8;
+        dword *elementTable = (dword*)ptr;
+        for (byte i = 0; i < elements; i++) {
+            len += elementTable[2 * i + 1];
+        }
         kdebug("Длина = %d Б.\n", len);
         return len;
     }
     if (id == 0x13) {
-        kdebug("Тип объекта - VarPackage.\n");
+        kdebug("VarPackage.\n");
         dword len = getPkgLength(ptr);
         kdebug("Длина = %d Б.\n", len);
         return len;
     }
+    kdebug("<%x>.\n", id);
+    kdebug("ВНИМАНИЕ: Невозможно определить длину. Возвращается 0\n");
+    return 0;
+}
+
+dword getACPIObjLen(const char* strPath) {
+    AMLName path[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+    byte length = strToPath(strPath, path);
+    return getACPIObjLen(path, length);
 }
 
 void remapACPIObj(const char* strPath, byte *newPtr) {
     AMLName path[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-    byte length;
-    length = strToPath(strPath, path);
+    byte length = strToPath(strPath, path);
     remapACPIObj(path, length, newPtr);
 }
 
 void remapACPIObj(AMLName* path, byte length, byte *newPtr) {
-    kdebug("Попытка изменить адрес объекта ");
-    logPath(path, length);
-    kdebug("\nДлина пути: %d имён.\n", length);
     dword *names = (dword*)acpiNamespaceBase;
-    for (dword i = 0; i < 0x2000; i += 0) {
+    for (dword i = 0; i < 0x1000; i += 0) {
         if (names[i] == 0) {
-            kdebug("ВНИМАНИЕ: Не удалось найти объект.\n");
+            kdebug("ВНИМАНИЕ: Не удалось найти объект\n");
             return;
         }
         if (names[i] != length) {
-            i += names[i] + 2;
+            i += names[i] + 3;
             continue;
         }
         i ++;
         if (memcmp((byte*)(names + i), (byte*)path, length * 4) != 0x80) {
-            i += names[i-1] + 1;
+            i += names[i-1] + 2;
             continue;
         }
         i += length;
         kdebug("Найден объект в пространстве.\nАдрес = %x.\n", names[i]);
         names[i] = (dword)newPtr;
         kdebug("Адрес изменён на %x.\n", names[i]);
+        i++;
+        dword newlen = getACPIObjLen(newPtr);
+        if (names[i] < newlen)
+            names[i] = newlen;
     }
-}
-
-dword getACPIObjLen(const char* strPath) {
-    AMLName path[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-    byte length;
-    length = strToPath(strPath, path);
-    return getACPIObjLen(path, length);
 }
 
 void parseTermList(byte *aml, dword len) {
     for (dword i = 0; i < len; i++) {
+        kdebug("Основа = %x Сдвиг = %d Адрес = %x Байт = %x\n", aml, i, aml+i, aml[i]);
         if (aml[i] == 0x10) {
             kdebug("Найдено определение Scope.\n");
             i ++;
@@ -1216,7 +1437,7 @@ void parseTermList(byte *aml, dword len) {
         else if (aml[i] == 0x08) {
             kdebug("Найдено определение Name.\n");
             i ++;
-            i += nameACPIObj(aml + i);
+            i += nameACPIObj(aml + i) - 1;
         }
         else if (aml[i] == 0x14) {
             kdebug("Найдено определение Method.\n");
@@ -1225,7 +1446,17 @@ void parseTermList(byte *aml, dword len) {
         }
         else if (aml[i] == 0x5B) {
             i ++;
-            if (aml[i] == 0x80) {
+            if (aml[i] == 0x01) {
+                kdebug("Найдено определение Mutex.\n");
+                i ++;
+                i += parseMutex(aml + i) - 1;
+            }
+            else if (aml[i] == 0x02) {
+                kdebug("Найдено определение Event.\n");
+                i ++;
+                i += parseEvent(aml + i) - 1;
+            }
+            else if (aml[i] == 0x80) {
                 kdebug("Найдено определение OperationRegion.\n");
                 i ++;
                 dword regSize = parseOpRegion(aml + i);
@@ -1239,19 +1470,50 @@ void parseTermList(byte *aml, dword len) {
             else if (aml[i] == 0x82) {
                 kdebug("Найдено определение Device.\n");
                 i ++;
-                i += parseDevice(aml + i) - 2;
+                dword dl = parseDevice(aml + i) - 1;
+                i += dl;
+            }
+            else if (aml[i] == 0x85) {
+                kdebug("Найдено определение ThermalZone.\n");
+                i ++;
+                dword dl = parseThermalZone(aml + i) - 1;
+                i += dl;
             }
         }
     }
 }
 
+void reEvaluate() {
+    if (acpiReEval == (dword*)acpiReEvalBase) {
+        kdebug("Перерасчёт объектов не требуется.\n");
+        return;
+    }
+    kdebug("Начат перерасчёт объектов.\n");
+    reEvaluating = true;
+    dword *ptr = (dword*)acpiReEvalBase;
+    while (ptr < acpiReEval) {
+        if (*ptr == (dword)'NAME') {
+            kdebug("Требуется перерасчёт имени.\n");
+            ptr ++;
+            byte *addr = (byte*)*ptr;
+            kdebug("Адрес = %x.\n", addr);
+            nameACPIObj(addr);
+        }
+        ptr ++;
+    }
+}
+
 void parseDefBlock(byte *aml) {
     kdebug("Начата обработка блока AML по адресу %x.\n", (dword)aml);
-
+    reEvaluating = false;
     if (!acpiNamespaceInit) {
         kdebug("Расчистка места.\n");
         for (byte i = 0; i < 0x10; i++) {
             parsingPath[i] = 0;
+        }
+
+        for (byte i = 0; i < 0x10; i++) {
+            varPath[i] = 0;
         }
 
         for (word i = 0; i < 0x3C0; i++) {
@@ -1269,8 +1531,6 @@ void parseDefBlock(byte *aml) {
         for (word i = 0; i < 0x2000; i++) {
             acpiFuncs[i] = 0;
         }
-        createPages(0x700000, 0x700000, 4);
-        createPages(0x710000, 0x710000, 4);
 
         acpiNamespaceInit = true;
     }
@@ -1279,7 +1539,7 @@ void parseDefBlock(byte *aml) {
     kdebug("\tПодпись: \"");
     for (byte i = 0; i < 4; i++) {
         if (aml[i] != 0)
-            writeCom(aml[i], 1);
+            kdebug(aml[i]);
     }
     aml += 4;
     kdebug("\"\n");
@@ -1292,14 +1552,14 @@ void parseDefBlock(byte *aml) {
     kdebug("\tИдентификатор OEM: \"");
     for (byte i = 0; i < 6; i++) {
         if (aml[i] != 0)
-            writeCom(aml[i], 1);
+            kdebug(aml[i]);
     }
     aml += 6;
     kdebug("\"\n");
     kdebug("\tИдентификатор таблицы: \"");
     for (byte i = 0; i < 8; i++) {
         if (aml[i] != 0)
-            writeCom(aml[i], 1);
+            kdebug(aml[i]);
     }
     aml += 8;
     kdebug("\"\n");
@@ -1312,7 +1572,8 @@ void parseDefBlock(byte *aml) {
     kdebug("AML начинается с адреса %x.\n", (dword)aml);
 
     parseTermList(aml, len - 36);
-    
+    reEvaluate();
+
     kdebug("Длина пространства имён: %d Б.\n", (dword)acpiNamespace - acpiNamespaceBase);
     kdebug("Длина пространства полей: %d Б.\n", (dword)acpiFields - acpiFieldsBase);
     kdebug("Длина пространства данных: %d Б.\n", (dword)acpiData - acpiDataBase);
@@ -1321,8 +1582,8 @@ void parseDefBlock(byte *aml) {
 }
 
 qword callMethod(const char* strPath, ...) {
-    va_list args;
-    va_start(args, strPath);
+    va_list l;
+    va_start(l, strPath);
     kdebug("\nВызван метод \"");
     kdebug(strPath);
     kdebug("\".\n");
@@ -1331,14 +1592,51 @@ qword callMethod(const char* strPath, ...) {
     byte len = strToPath(strPath, parsingPath);
     parsingPath += len;
     byte *code = getACPIObjAddr((AMLName*)parsingPathBase, getParsingPathLen());
+    if (!code) {
+        kdebug("ОШИБКА: Метод не существует\n");
+        return maxqword;
+    }
     kdebug("Адрес метода: %x.\n", code);
     code++;
-    dword length = getIntegerTerm(code);
+    dword length = getIntegerTerm(code) - 1;
     kdebug("Длина метода: %d Б.\n", length);
     code += getIntegerTermBytes(code);
     byte argc = *code & 7;
     kdebug("Число аргументов: %d.\n", argc);
-    qword retVal = runMethod(code, length, argc, args);
+    byte syncLevel = (*code >> 4) & 0xF;
+    kdebug("Уровень синхронизации: %d.\n", syncLevel);
+    qword args[] = {0,0,0,0,0,0,0};
+    for (byte i = 0; i < argc; i++) {
+        args[i] = va_arg(l, dword);
+    }
+    code ++;
+    FuncFrame frame;
+    for (byte i = 0; i < 7; i++) {
+        frame.locals[i] = {0x7F,0};
+    }
+    for (byte i = 0; i < argc; i++) {
+        frame.args[i] = {0x7F, args[i]};
+    }
+    frame.syncLevel = syncLevel;
+    dword addr = (dword)code;
+    frame.addr = (byte*)addr;
+    frame.tmpSpace = (byte*)0x801000;
+    TermArg retVal = runMethod(code, length, syncLevel, &frame);
     restoreParsingPath();
-    return retVal;
+    if (retVal.type == 0xAAAAAAAA)
+        return 0;
+    return retVal.value;
+}
+
+void processEvent(byte eventNo) {
+    byte *addr = getACPIObjAddr((AMLName*)varPathBase, getVarPathLen());
+    kdebug("Событие %d выпущено ", eventNo);
+    switch (*addr) {
+        case 0x82: kdebug("устройством "); break;
+        case 0x85: kdebug("термозоной "); break;
+        case 0x83: kdebug("процессором "); break;
+    }
+    logVarPath();
+    kdebugnewl();
+    kdebug("// TODO\n");
 }

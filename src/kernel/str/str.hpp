@@ -14,7 +14,7 @@ bool strstartswith(char* str, char* substr);
 
 bool strendswith(char* str, char* substr);
 
-byte strcpy(char* str1, char* str2);
+dword strcpy(char* str1, char* str2);
 
 dword strlen(char* str);
 

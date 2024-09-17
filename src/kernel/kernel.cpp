@@ -70,7 +70,7 @@ void initGraphics() {
 
 /// @brief Создаёт немного временного пространства.
 void initTempSpace() {
-    createPages(0x2000000, 0x5000000, 8);
+    createPages(0x2000000, 0x7000000, 8);
     dword *tmpPtr = (dword*)0x2000000;
     for (dword i = 0; i < 8*1024/4; i++) {
         tmpPtr[i] = 0;
@@ -100,7 +100,7 @@ int main() {
 
     if (initCom(1)) {
         kprint("COM1 успешно инициализирован!\n");
-        writeCom("=============== ОТЛАДЧИК СОПС ===============\nВерсия 1.0.0-АЛЬФА\n\n", 1);
+        kdebug("=============== ОТЛАДЧИК СОПС ===============\nВерсия 1.0.0-АЛЬФА\n\n");
     }
     if (initCom(2))
         kprint("COM2 успешно инициализирован!\n");
@@ -133,7 +133,7 @@ int main() {
 
     setPITTimer(500000);
     unmaskIRQ(0);
-    
+
     unmaskIRQ(14);
     unmaskIRQ(15);
     if (initIDE()) {
@@ -157,14 +157,14 @@ int main() {
     kprint(".\n");
 
     kprint("\nПогрузите таблицу на адрес 0x2100000\n");
-    createPage(0x2100000, 0x2100000);
+    createPage(0x2100000, 0x5000000);
     magicBreakpoint();
     byte *ptr = (byte*)0x2100000;
     if (!(*ptr))
         kwarn("ВНИМАНИЕ: Таблица не была погружена\n");
     else {
         parseDefBlock(ptr);
-        qword val = callMethod("_SB.PCI0.TEST");
+        qword val = callMethod("_SB.TEST.LOL");
         kprint("%X\n", val);
         if (val == maxqword)
             kerror("Ошибка\n");
@@ -172,7 +172,15 @@ int main() {
             kprint("Да\n");
         else
             kprint("Нет\n");
-        //kprint((const char*)val);
+        val = callMethod("_SB.TEST.LOL2");
+        kprint("%X\n", val);
+        if (val == maxqword)
+            kerror("Ошибка\n");
+        else if (val)
+            kprint("Да\n");
+        else
+            kprint("Нет\n");
+        kprint("%x\n", getACPIObjAddr("_SB.TEST"));
     }
 
     while (true) {
