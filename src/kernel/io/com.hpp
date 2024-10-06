@@ -156,6 +156,8 @@ inline void kdebugnewl() {
 void kdebugdisable();
 void kdebugenable();
 
+void exitDebugger();
+
 dword getComBaseR(byte port);
 
 dword getComBaseW(byte port);

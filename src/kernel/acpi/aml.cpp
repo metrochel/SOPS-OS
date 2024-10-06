@@ -4,28 +4,28 @@
 #include "../graphics/glyphs.hpp"
 #include <stdarg.h>
 
-const dword parsingPathBase = 0x13000;
+const dword parsingPathBase = 0xA000;
 AMLName* parsingPath = (AMLName*)parsingPathBase;
 
-const dword varPathBase = 0x13040;
+const dword varPathBase = 0xA040;
 AMLName* varPath = (AMLName*)varPathBase;
 
-const dword bufferedPathBase = 0x13080;
+const dword bufferedPathBase = 0xA080;
 AMLName* bufferedPath = (AMLName*)bufferedPathBase;
 
-const dword acpiNamespaceBase = 0x13200;
+const dword acpiNamespaceBase = 0xA200;
 dword* acpiNamespace = (dword*)acpiNamespaceBase;
 
-const dword acpiFieldsBase = 0x15200;
+const dword acpiFieldsBase = 0xC200;
 byte* acpiFields = (byte*)acpiFieldsBase;
 
-const dword acpiDataBase = 0x15600;
+const dword acpiDataBase = 0xC600;
 byte* acpiData = (byte*)acpiDataBase;
 
-const dword acpiFuncsBase = 0x18600;
+const dword acpiFuncsBase = 0xF600;
 byte* acpiFuncs = (byte*)acpiFuncsBase;
 
-const dword acpiReEvalBase = 0x12C00;
+const dword acpiReEvalBase = 0x9C00;
 dword* acpiReEval = (dword*)acpiReEvalBase;
 
 bool acpiNamespaceInit = false;
@@ -716,18 +716,11 @@ word parseName(byte *aml) {
         kdebug("Множественное имя (%d): \"", len);
         if (!getVarPathLen())
             kdebug((byte)0x5C);
-        byte prefixes = 0;
-        for (byte j = 0; j < 4 + prefixes; j++) {
+        for (byte j = 0; j < 4; j++) {
             if (*aml == 0) {bytes ++; break;}
-            if (*aml != '_' || j == prefixes)
+            if (*aml != '_' || j == 0)
                 kdebug(*aml);
-            if (*aml == '^') {
-                varPath --;
-                prefixes++;
-            }
-            else {
                 seg |= (dword)*aml << (8*j);
-            }
             bytes ++;
             aml ++;
         }
@@ -735,22 +728,16 @@ word parseName(byte *aml) {
         seg = 0;
         for (byte i = 1; i < len; i++) {
             kdebug("\", \"");
-            for (byte j = 0; j < 4 + prefixes; j++) {
+            for (byte j = 0; j < 4; j++) {
                 if (*aml == 0) {bytes ++; break;}
-                if (*aml != '_' || i == prefixes)
+                if (*aml != '_' || j == 0)
                     kdebug(*aml);
-                if (*aml == '^') {
-                    varPath --;
-                    prefixes++;
-                } else {
-                    seg |= (dword)*aml << (8*i);
-                }
+                seg |= (dword)*aml << (8*j);
                 bytes ++;
                 aml ++;
             }
             *varPath++ = seg;
             seg = 0;
-            prefixes = 0;
         }
         kdebug("\".\n");
         return (bytes << 8) | len;

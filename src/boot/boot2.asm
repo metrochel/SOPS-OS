@@ -510,7 +510,7 @@ enable_prot_mode:
     mov ebx, 0x00000000
     mov cl,  0b10011011
     mov ch,  0b1100
-    mov di,  lvl_0_code
+    mov edi, 0x1008
     call .encode_gdt
 
     ; Сегмент данных уровня 0
@@ -518,7 +518,7 @@ enable_prot_mode:
     mov ebx, 0x00000000
     mov cl,  0b10010011
     mov ch,  0b1100
-    mov di,  lvl_0_data
+    mov edi, 0x1010
     call .encode_gdt
 
     ; Сегмент кода уровня 1
@@ -526,7 +526,7 @@ enable_prot_mode:
     mov ebx, 0x00000000
     mov cl,  0b10111011
     mov ch,  0b1100
-    mov di,  lvl_1_code
+    mov edi, 0x1018
     call .encode_gdt
 
     ; Сегмент данных уровня 1
@@ -534,7 +534,7 @@ enable_prot_mode:
     mov ebx, 0x00000000
     mov cl,  0b10110011
     mov ch,  0b1100
-    mov di,  lvl_1_data
+    mov edi, 0x1020
     call .encode_gdt
 
     ; Сегмент кода уровня 2
@@ -542,7 +542,7 @@ enable_prot_mode:
     mov ebx, 0x00000000
     mov cl,  0b11011011
     mov ch,  0b1100
-    mov di,  lvl_2_code
+    mov edi, 0x1028
     call .encode_gdt
 
     ; Сегмент данных уровня 2
@@ -550,7 +550,7 @@ enable_prot_mode:
     mov ebx, 0x00000000
     mov cl,  0b11010011
     mov ch,  0b1100
-    mov di,  lvl_2_data
+    mov edi, 0x1030
     call .encode_gdt
 
     ; Сегмент кода уровня 3
@@ -558,7 +558,7 @@ enable_prot_mode:
     mov ebx, 0x00000000
     mov cl,  0b11111011
     mov ch,  0b1100
-    mov di,  lvl_3_code
+    mov edi, 0x1038
     call .encode_gdt
 
     ; Сегмент данных уровня 3
@@ -566,16 +566,15 @@ enable_prot_mode:
     mov ebx, 0x00000000
     mov cl,  0b11110111
     mov ch,  0b1100
-    mov di,  lvl_3_data
+    mov edi, 0x1040
     call .encode_gdt
 
     ; Регистрация GDT
-    mov eax, gdt_start
-    mov dword [es:bp + 2], eax      ; Кладём в структуру GDTR начало таблицы GDT
-    mov eax, gdt_end
-    sub eax, gdt_start              ; Длина = Конец - Начало
-    mov word [es:bp], ax            ; Кладём в структуру GDTR длину таблицы GDT
-    lgdt [es:bp]                    ; Загружаем структуру GDTR в процессор
+    mov eax, 0x1000
+    mov dword [0x1502], eax         ; Кладём в структуру GDTR начало таблицы GDT
+    mov ax, 0x48
+    mov word [0x1500], ax           ; Кладём в структуру GDTR длину таблицы GDT
+    lgdt [0x1500]                   ; Загружаем структуру GDTR в процессор
     add bp, 6                       ; Перемещаем указатель памяти в свободное место
 
     ; Активация защищённого режима

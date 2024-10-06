@@ -486,3 +486,13 @@ void kdebugenable() {
     if (initPorts[0])
         debugActive = true;
 }
+
+void exitDebugger() {
+    enableInts();
+    kdebug("Отладчик отключается.\n");
+    kdebug("============= ОТЛАДКА СОПС ЗАВЕРШЕНА =============\n");
+    enableTraInt(1);
+
+    while (comWriteBufferLength(1)) {io_wait();}
+    initPorts[0] = false;
+}

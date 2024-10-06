@@ -95,15 +95,6 @@ bool initIDE() {
 
         dma = true;
     }
-    outb(ATA_DRIVE_CONTROL_PRIMARY, 4);
-    io_wait();
-    outb(ATA_DRIVE_CONTROL_PRIMARY, 0);
-    kdebug("1 канал ATA сброшен.\n");
-
-    outb(ATA_DRIVE_CONTROL_SECONDARY, 4);
-    io_wait();
-    outb(ATA_DRIVE_CONTROL_SECONDARY, 0);
-    kdebug("2 канал ATA сброшен.\n");
 
     kdebug("Инициализация контроллера IDE завершена успешно.\n\n");
     return true;

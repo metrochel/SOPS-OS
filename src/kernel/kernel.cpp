@@ -113,8 +113,9 @@ int main() {
         kwarn("ВНИМАНИЕ: COM4 на данный момент не работает.\nИзвините, пока не доделали.\n");
     }
 
-    if (!initACPI())
+    if (!initACPI()) {
         kerror("ОШИБКА: ACPI не инициализирован\n");
+    }
     else
         kprint("ACPI успешно инициализирован!\n");
 
@@ -155,33 +156,6 @@ int main() {
     out -= 6;
     kprint(out);
     kprint(".\n");
-
-    kprint("\nПогрузите таблицу на адрес 0x2100000\n");
-    createPage(0x2100000, 0x5000000);
-    magicBreakpoint();
-    byte *ptr = (byte*)0x2100000;
-    if (!(*ptr))
-        kwarn("ВНИМАНИЕ: Таблица не была погружена\n");
-    else {
-        parseDefBlock(ptr);
-        qword val = callMethod("_SB.TEST.LOL");
-        kprint("%X\n", val);
-        if (val == maxqword)
-            kerror("Ошибка\n");
-        else if (val)
-            kprint("Да\n");
-        else
-            kprint("Нет\n");
-        val = callMethod("_SB.TEST.LOL2");
-        kprint("%X\n", val);
-        if (val == maxqword)
-            kerror("Ошибка\n");
-        else if (val)
-            kprint("Да\n");
-        else
-            kprint("Нет\n");
-        kprint("%x\n", getACPIObjAddr("_SB.TEST"));
-    }
 
     while (true) {
         kprint("\n>");
@@ -227,6 +201,12 @@ int main() {
             out -= 6;
             kprint(out);
             kprint(".");
+        } else if (strcmp((char*)stdin, (char*)"shutdown") == 0x80) {
+            kprint("До свидания!");
+            kshutdown();
+        } else if (strcmp((char*)stdin, (char*)"reboot") == 0x80) {
+            kprint("Перезагрузка!");
+            krestart();
         } else {
             kerror("ОШИБКА: Команды или исполняемого файла \"");
             kerror((const char*)stdin);

@@ -32,10 +32,4 @@ void* kmalloc(dword amount);
 /// @param var Адрес удаляемой переменной
 void kfree(void* var);
 
-
-void memset(byte *ptr, dword count, byte val);
-
-
-void memcpy(byte *a, byte *b, dword n);
-
 #endif

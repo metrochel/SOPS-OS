@@ -1,13 +1,19 @@
 #include "acpi.hpp"
-#include "../io/com.hpp"
 #include "../memmgr/paging.hpp"
-#include "../io/io.hpp"
 #include "../graphics/glyphs.hpp"
+#include "../io/io.hpp"
+#include "../int/pic.hpp"
+#include "../pci/pci.hpp"
 
 dword *globalLock = nullptr;
 dword *apics = (dword*)0x13000;
 
-FADT fadt;
+FADT *fadt;
+FACS *facs;
+
+bool hwReduced;
+bool wbinvd;
+bool resetRegSupport;
 
 bool verifyRSDP(RSDP rsdp) {
     byte sum = 0;
@@ -27,7 +33,7 @@ bool verifyHeader(ACPITableHeader *header) {
 }
 
 bool checkACPI() {
-    return fadt.smiCmdPort == 0 || (fadt.acpiEnable == 0 && fadt.acpiDisable == 0) || inw(fadt.pm1aCtrlBlock) & 1;
+    return fadt->smiCmdPort == 0 || (fadt->acpiEnable == 0 && fadt->acpiDisable == 0) || inw(fadt->pm1aCtrlBlock) & 1;
 }
 
 RSDP findRSDP() {
@@ -51,7 +57,7 @@ bool parseTable(dword *table) {
     if (*table == 'PCAF') {
         kdebug("Тип таблицы - FADT.\n");
         FADT* _fadt = (FADT*)table;
-        fadt = *_fadt;
+        fadt = _fadt;
         if (!verifyHeader(&(_fadt->header))) {
             kdebug("ОШИБКА: FADT повреждена.\n");
             return false;
@@ -79,10 +85,9 @@ bool parseTable(dword *table) {
     }
     else if (*table == 'SCAF') {
         kdebug("Обработка FACS.\n");
-        FACS* facs = (FACS*)table;
-        facs->wakingVector = 0x12000;
-        kdebug("Адрес вектора пробуждения установлен на %x.\n", facs->wakingVector);
-        globalLock = &(facs->globalLock);
+        FACS* _facs = (FACS*)table;
+        facs = _facs;
+        globalLock = &(_facs->globalLock);
         kdebug("Адрес глобального замка установлен на %x.\n", (dword)globalLock);
         return true;
     }
@@ -162,10 +167,190 @@ bool parseTable(dword *table) {
     else {
         kdebug("Вид таблицы не определён.\nПодпись таблицы: ");
         for (byte i = 0; i < 4; i++) {
-            writeCom(((byte*)table)[i], 1);
+            kdebug(((byte*)table)[i]);
         }
         kdebug(".\n");
         return true;
+    }
+}
+
+word readPM1aSts() {
+    if (fadt->header.revision >= 2) {
+        kdebug("Используется поле X_PM1a_EVT.\n");
+        kdebug("Пространство поля: ");
+        if (fadt->x_pm1aEventBlock.addrSpace == 0) {
+            kdebug("ОЗУ.\n");
+            return *(word*)(fadt->x_pm1aEventBlock.addr);
+        }
+        else {
+            kdebug("I/O.\n");
+            return inw(fadt->x_pm1aEventBlock.addr);
+        }
+    } else {
+        kdebug("Используется поле PM1a_EVT.\n");
+        return inw(fadt->pm1aEventBlock);
+    }
+}
+
+void writePM1aSts(word val) {
+    if (fadt->header.revision >= 2) {
+        kdebug("Используется поле X_PM1a_EVT.\n");
+        kdebug("Пространство поля: ");
+        if (fadt->x_pm1aEventBlock.addrSpace == 0) {
+            kdebug("ОЗУ.\n");
+            *(word*)(fadt->x_pm1aEventBlock.addr) = val;
+        }
+        else {
+            kdebug("I/O.\n");
+            outw(fadt->x_pm1aEventBlock.addr, val);
+        }
+    } else {
+        kdebug("Используется поле PM1a_EVT.\n");
+        outw(fadt->pm1aEventBlock, val);
+    }
+}
+
+void writePM1aEnable(word val) {
+    if (fadt->header.revision >= 2) {
+        kdebug("Используется поле X_PM1a_EVT.\n");
+        kdebug("Пространство поля: ");
+        if (fadt->x_pm1aEventBlock.addrSpace == 0) {
+            kdebug("ОЗУ.\n");
+            *(word*)(fadt->x_pm1aEventBlock.addr + fadt->pm1EventLength / 2) = val;
+        }
+        else {
+            kdebug("I/O.\n");
+            outw(fadt->x_pm1aEventBlock.addr + fadt->pm1EventLength / 2, val);
+        }
+    } else {
+        kdebug("Используется поле PM1a_EVT.\n");
+        outw(fadt->pm1aEventBlock + fadt->pm1EventLength / 2, val);
+    }
+}
+
+word readPM1bSts() {
+    if (fadt->header.revision >= 2) {
+        kdebug("Используется поле X_PM1b_EVT.\n");
+        kdebug("Пространство поля: ");
+        if (fadt->x_pm1bEventBlock.addrSpace == 0) {
+            kdebug("ОЗУ.\n");
+            return *(word*)(fadt->x_pm1bEventBlock.addr);
+        }
+        else {
+            kdebug("I/O.\n");
+            return inw(fadt->x_pm1bEventBlock.addr);
+        }
+    } else {
+        kdebug("Используется поле PM1b_EVT.\n");
+        return inw(fadt->pm1bEventBlock);
+    }
+}
+
+void writePM1bSts(word val) {
+    if (fadt->header.revision >= 2) {
+        kdebug("Используется поле X_PM1b_EVT.\n");
+        kdebug("Пространство поля: ");
+        if (fadt->x_pm1bEventBlock.addrSpace == 0) {
+            kdebug("ОЗУ.\n");
+            *(word*)(fadt->x_pm1bEventBlock.addr) = val;
+        }
+        else {
+            kdebug("I/O.\n");
+            outw(fadt->x_pm1bEventBlock.addr, val);
+        }
+    } else {
+        kdebug("Используется поле PM1b_EVT.\n");
+        outw(fadt->pm1bEventBlock, val);
+    }
+}
+
+void writePM1bEnable(word val) {
+    if (fadt->header.revision >= 2) {
+        kdebug("Используется поле X_PM1b_EVT.\n");
+        kdebug("Пространство поля: ");
+        if (fadt->x_pm1bEventBlock.addrSpace == 0) {
+            kdebug("ОЗУ.\n");
+            *(word*)(fadt->x_pm1bEventBlock.addr + fadt->pm1EventLength / 2) = val;
+        }
+        else {
+            kdebug("I/O.\n");
+            outw(fadt->x_pm1bEventBlock.addr + fadt->pm1EventLength / 2, val);
+        }
+    } else {
+        kdebug("Используется поле PM1b_EVT.\n");
+        outw(fadt->pm1bEventBlock + fadt->pm1EventLength / 2, val);
+    }
+}
+
+word readPM1aCtrl() {
+    if (fadt->header.revision >= 2) {
+        kdebug("Используется поле X_PM1a_CTRL.\n");
+        kdebug("Пространство поля: ");
+        if (fadt->x_pm1aCtrlBlock.addrSpace == 0) {
+            kdebug("ОЗУ.\n");
+            return *(word*)(fadt->x_pm1aCtrlBlock.addr);
+        }
+        else {
+            kdebug("I/O.\n");
+            return inw(fadt->x_pm1aCtrlBlock.addr);
+        }
+    } else {
+        kdebug("Используется поле PM1a_CTRL.\n");
+        return inw(fadt->pm1aCtrlBlock);
+    }
+}
+
+void writePM1aCtrl(word val) {
+    if (fadt->header.revision >= 2) {
+        kdebug("Используется поле X_PM1a_CTRL.\n");
+        kdebug("Пространство поля: ");
+        if (fadt->x_pm1aCtrlBlock.addrSpace == 0) {
+            kdebug("ОЗУ.\n");
+            *(word*)(fadt->x_pm1aCtrlBlock.addr) = val;
+        }
+        else {
+            kdebug("I/O.\n");
+            outw(fadt->x_pm1aCtrlBlock.addr, val);
+        }
+    } else {
+        kdebug("Используется поле PM1a_CTRL.\n");
+        outw(fadt->pm1aCtrlBlock, val);
+    }
+}
+
+word readPM1bCtrl() {
+    if (fadt->header.revision >= 2) {
+        kdebug("Используется поле X_PM1b_CTRL.\n");
+        kdebug("Пространство поля: ");
+        if (fadt->x_pm1bCtrlBlock.addrSpace == 0) {
+            kdebug("ОЗУ.\n");
+            return *(word*)(fadt->x_pm1bCtrlBlock.addr);
+        }
+        else {
+            kdebug("I/O.\n");
+            return inw(fadt->x_pm1bCtrlBlock.addr);
+        }
+    } else {
+        kdebug("Используется поле PM1b_CTRL.\n");
+        return inw(fadt->pm1bCtrlBlock);
+    }
+}
+
+void writePM1bCtrl(word val) {
+    if (fadt->header.revision >= 2) {
+        kdebug("Используется поле X_PM1b_CTRL.\n");
+        kdebug("Пространство поля: ");
+        if (fadt->x_pm1bCtrlBlock.addrSpace == 0) {
+            kdebug("ОЗУ.\n");
+            *(word*)(fadt->x_pm1bCtrlBlock.addr) = val;
+        }
+        else {
+            kdebug("I/O.\n");
+            outw(fadt->x_pm1bCtrlBlock.addr, val);
+        }
+    } else {
+        kdebug("Используется поле PM1b_EVT.\n");
+        outw(fadt->pm1bCtrlBlock, val);
     }
 }
 
@@ -180,12 +365,12 @@ bool initACPI() {
     kdebug("Найден целый RSDP:\n");
     kdebug("\tПодпись: \"");
     for (byte i = 0; i < 8; i++)
-        writeCom(rsdp.signature[i], 1);
+        kdebug((byte)rsdp.signature[i]);
     kdebug("\"\n");
     kdebug("\tКонтрольная сумма: %x\n", rsdp.checksum);
     kdebug("\tИдентификатор OEM: \"");
     for (byte i = 0; i < 6; i++)
-        writeCom(rsdp.oemID[i], 1);
+        kdebug((byte)rsdp.oemID[i]);
     kdebug("\"\n");
     kdebug("\tРевизия: %d\n", rsdp.revision);
     kdebug("\tАдрес RSDT: %x\n", rsdp.rsdtAddr);
@@ -211,17 +396,153 @@ bool initACPI() {
         return true;
     }
 
-    outb(fadt.smiCmdPort, fadt.acpiEnable);
-    while (inw(fadt.pm1aCtrlBlock) & 1 == 0) {io_wait();}
+    outb(fadt->smiCmdPort, fadt->acpiEnable);
+    while (inw(fadt->pm1aCtrlBlock) & 1 == 0) {io_wait();}
 
     if (!checkACPI()) {
         kdebug("ОШИБКА: ACPI не активировался.\n\n");
         return false;
     }
-    kdebug("Режим ACPI успешно активирован.\n\n");
+    kdebug("Режим ACPI успешно активирован.\n");
+
+    writePM1aEnable(0b1100100000);
+    writePM1bEnable(0b1100100000);
+
+    wbinvd = fadt->flags & 1;
+    kdebug("Поддерживается ли инструкция WBINVD? ");
+    kdebug(wbinvd ? "Да\n" : "Нет\n");
+
+    hwReduced = fadt->flags & (1 << 20);
+    kdebug("Является ли платформа HW-редуцированной? ");
+    kdebug(hwReduced ? "Да\n" : "Нет\n");
+
+    resetRegSupport = fadt->flags & (1 << 10);
+    kdebug("Поддерживается ли регистр RESET? ");
+    kdebug(resetRegSupport ? "Да\n" : "Нет\n");
+
+    byte sciIntNo = irqOffset + fadt->sciInt;
+    kdebug("Номер прерывания SCI: %x.\n", sciIntNo);
+    encode_idt_entry(sciHandler, sciIntNo);
+    unmaskIRQ(sciIntNo);
+
+    kdebug("Инициализация ACPI завершена успешно.\n\n");
     return true;
 }
 
 void enterSleepState(byte state) {
+    kdebug("Запрошен переход в состояние сна S%d.\n", state);
+    dword name;
+    byte *ptr = (byte*)&name;
+    ptr[0] = '_';
+    ptr[1] = 'S';
+    ptr[2] = state + 0x30;
+    ptr[3] = '_';
+    kdebug("Имя пакета: ");
+    logName(name);
+    kdebug(".\n");
+    byte *addr = getACPIObjAddr(&name, 1);
+    addr += 2;
+    dword addr1 = *(dword*)addr;
+    addr += 4;
+    byte slp_typA = getIntegerTerm((byte*)addr1);
+    dword addr2 = *(dword*)addr;
+    byte slp_typB = getIntegerTerm((byte*)addr1);
+    kdebug("Значение SLP_TYPa: %b.\n", slp_typA);
+    kdebug("Значение SLP_TYPb: %b.\n", slp_typB);
+
+    callMethod("\\_TTS", state);
+
+    // TODO: Перевод всех устройств в нужное состояние сна
+
+    callMethod("\\_PTS", state);
+
+    if (state != 5) {
+        kdebug("Производится переход в состояние сна.\n");
+        kdebug("// TODO: Записать контекст других ядер в память\n");
+        facs->wakingVector = 0x3000;
+        kdebug("Вектор пробуждения установлен на %x.\n", facs->wakingVector);
+        if (state < 4) {
+            kdebug("Производится очистка кэша ЦП.\n");
+            if (wbinvd) {
+                __asm__ ("wbinvd");
+            } else {
+                kdebug("// TODO: Ручная очистка кэша ЦП");
+            }
+        }
+    }
+
+    if (!hwReduced) {
+        word pm1aSts = readPM1aSts();
+        kdebug("Значение PM1a_STS: %b.\n", pm1aSts);
+        writePM1aSts(pm1aSts | (1 << 15));
+        word pm1bSts = readPM1bSts();
+        kdebug("Значение PM1b_STS: %b.\n", pm1bSts);
+        writePM1bSts(pm1bSts | (1 << 15));
+
+        word pm1aCtrl = readPM1aCtrl();
+        kdebug("Значение PM1a_CTRL: %b.\n", pm1aCtrl);
+        writePM1aCtrl(pm1aCtrl | (1 << 13) | (slp_typA << 10));
+    }
+    word pm1bCtrl = readPM1bCtrl();
+    kdebug("Значение PM1b_CTRL: %b.\n", pm1bCtrl);
+    writePM1bCtrl(pm1bCtrl | (1 << 13) | (slp_typB << 10));
+}
+
+void kshutdown() {
+    kdebug("Запрошена процедура отключения.\n");
+    exitDebugger();
+    enterSleepState(5);
+}
+
+void krestart() {
+    kdebug("Запрошена процедура перезагрузки.\n");
+
+    if (resetRegSupport) {
+        kdebug("Используется RESET_REGISTER.\n");   
+        kdebug("Адрес регистра сброса: %x.\n", fadt->resetRegister.addr);
+        kdebug("Пространство регистра сброса: ");
+        if (fadt->resetRegister.addrSpace == 0) {
+            kdebug("ОЗУ.\n");
+            createPage(fadt->resetRegister.addr, fadt->resetRegister.addr);
+            *(byte*)fadt->resetRegister.addr = fadt->resetValue;
+        }
+        else if (fadt->resetRegister.addrSpace == 1) {
+            kdebug("I/O.\n");
+            outb(fadt->resetRegister.addr, fadt->resetValue);
+        }
+        else if (fadt->resetRegister.addrSpace == 2) {
+            kdebug("PCI.\n");
+            byte device = (fadt->resetRegister.addr >> 32) & 0xFF;
+            byte func = (fadt->resetRegister.addr >> 16) & 0xFF;
+            byte offset = (fadt->resetRegister.addr) & 0xFF;
+            pciConfigWriteB(0, device, func, offset, fadt->resetValue);
+        }
+    }
+    else {
+        kdebug("RESET_REG не поддерживается.\n");
+        kdebug("// TODO: Ручной сброс всех периферийных устройств\n");
+
+        byte tmp;
+        do {
+            tmp = inb(0x64);
+        } while (tmp & 0x02);
+        outb(0x64, 0xFE);
+    }
+}
+
+void ksleep() {
+    kdebug("Запрошена процедура сна.\n");
+
+    byte maxSleep = 0;
+    if (getACPIObjAddr("_S1"))
+        maxSleep = 1;
+    if (getACPIObjAddr("_S2"))
+        maxSleep = 2;
+    if (getACPIObjAddr("_S3"))
+        maxSleep = 3;
+    if (getACPIObjAddr("_S4"))
+        maxSleep = 4;
     
+    kdebug("Максимальное состояние сна: %d.\n", maxSleep);
+    enterSleepState(maxSleep);
 }

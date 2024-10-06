@@ -6,6 +6,7 @@
 #include "../util/nums.hpp"
 #include "acpitables.hpp"
 #include "aml.hpp"
+#include "sci.hpp"
 
 /// @brief Утверждает контрольную сумму RSDP.
 /// @param rsdp RSDP
@@ -23,5 +24,25 @@ bool initACPI();
 /// @param state Номер состояния
 void enterSleepState(byte state);
 
+word readPM1aSts();
+void writePM1aSts(word val);
+void writePM1aEnable(word val);
+word readPM1aCtrl();
+void writePM1aCtrl(word val);
+
+word readPM1bSts();
+void writePM1bSts(word val);
+void writePM1bEnable(word val);
+word readPM1bCtrl();
+void writePM1bCtrl(word val);
+
+// =====================
+
 /// @brief Выключает компьютер.
-void shutdownPC();
+void kshutdown();
+
+/// @brief Перезагружает компьютер.
+void krestart();
+
+/// @brief Переводит компьютер в состояние сна.
+void ksleep();

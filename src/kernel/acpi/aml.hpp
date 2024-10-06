@@ -6,12 +6,10 @@
 #ifndef _AML_OBJS_INCL
 #define _AML_OBJS_INCL
 
-#include <stdarg.h>
 #include "../util/nums.hpp"
-#include "../io/com.hpp"
 #include "../memmgr/memmgr.hpp"
 #include "../util/util.hpp"
-#include "../util/nums.hpp"
+#include "../io/com.hpp"
 
 #define ones defBlockRevision > 1 ? maxqword : maxdword
 #define recret recDepth--; return

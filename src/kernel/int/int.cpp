@@ -12,6 +12,7 @@
 #include "../util/util.hpp"
 
 IDT_Register idtr{ 50*8-1, (byte*)0x10000  };
+const byte irqOffset = 0x20;
 
 void initInts() {
     for (int i = 0; i < idtr.size; i++)
@@ -31,15 +32,15 @@ void initInts() {
     encode_idt_entry(float_exception, 0x10);
     encode_idt_entry(align_check, 0x11);
 
-    encode_idt_entry(irq0,  0x20);
-    encode_idt_entry(irq1,  0x21);
-    encode_idt_entry(irq2,  0x22);
-    encode_idt_entry(irq3,  0x23);
-    encode_idt_entry(irq4,  0x24);
-    encode_idt_entry(irq7,  0x27);
-    encode_idt_entry(irq8,  0x28);
-    encode_idt_entry(irq14, 0x2E);
-    encode_idt_entry(irq15, 0x2F);
+    encode_idt_entry(irq0,  irqOffset + 0x0);
+    encode_idt_entry(irq1,  irqOffset + 0x1);
+    encode_idt_entry(irq2,  irqOffset + 0x2);
+    encode_idt_entry(irq3,  irqOffset + 0x3);
+    encode_idt_entry(irq4,  irqOffset + 0x4);
+    encode_idt_entry(irq7,  irqOffset + 0x7);
+    encode_idt_entry(irq8,  irqOffset + 0x8);
+    encode_idt_entry(irq14, irqOffset + 0xE);
+    encode_idt_entry(irq15, irqOffset + 0xF);
 
     lidt(idtr);
     enableInts();
@@ -160,7 +161,6 @@ __attribute__((interrupt)) void irq1(IntFrame* frame) {
     disableInts();
     while (!(inb(0x64) & 1)) {io_wait();}
     byte scancode = inb(0x60);
-    io_wait();
     if (scancode == KB_ACK) {
         byte ackdCmd = *(byte*)KB_CMD_BUF_BASE;
         shiftKBCmdQueue();
@@ -179,7 +179,6 @@ __attribute__((interrupt)) void irq1(IntFrame* frame) {
     }
     if (cmdAwaitingResponse) {
         *kbBufPtr = inb(0x60);
-        io_wait();
         cmdAwaitingResponse = false;
         shiftKBCmdQueue();
         sendKBCmd();
@@ -201,9 +200,7 @@ __attribute__((interrupt)) void irq1(IntFrame* frame) {
         return;
     }
     while (inb(0x64) & 1) {
-        io_wait();
         *kbBufPtr = inb(0x60);
-        io_wait();
         if (*kbBufPtr == 0xF0)
             releaseScancode = true;
         kbBufPtr ++;

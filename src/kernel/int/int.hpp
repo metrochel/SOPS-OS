@@ -17,6 +17,7 @@ struct IntFrame {
 };
 
 extern IDT_Register idtr;
+extern const byte irqOffset;
 
 /// @brief Инициализирует прерывания, доступные процессору.
 void initInts();
