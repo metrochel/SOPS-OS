@@ -4,28 +4,28 @@
 #include "../graphics/glyphs.hpp"
 #include <stdarg.h>
 
-const dword parsingPathBase = 0xA000;
+const dword parsingPathBase = 0x13000;
 AMLName* parsingPath = (AMLName*)parsingPathBase;
 
-const dword varPathBase = 0xA040;
+const dword varPathBase = 0x13040;
 AMLName* varPath = (AMLName*)varPathBase;
 
-const dword bufferedPathBase = 0xA080;
+const dword bufferedPathBase = 0x13080;
 AMLName* bufferedPath = (AMLName*)bufferedPathBase;
 
-const dword acpiNamespaceBase = 0xA200;
+const dword acpiNamespaceBase = 0x13200;
 dword* acpiNamespace = (dword*)acpiNamespaceBase;
 
-const dword acpiFieldsBase = 0xC200;
+const dword acpiFieldsBase = 0x15200;
 byte* acpiFields = (byte*)acpiFieldsBase;
 
-const dword acpiDataBase = 0xC600;
+const dword acpiDataBase = 0x15600;
 byte* acpiData = (byte*)acpiDataBase;
 
-const dword acpiFuncsBase = 0xF600;
+const dword acpiFuncsBase = 0x18600;
 byte* acpiFuncs = (byte*)acpiFuncsBase;
 
-const dword acpiReEvalBase = 0x9C00;
+const dword acpiReEvalBase = 0x12C00;
 dword* acpiReEval = (dword*)acpiReEvalBase;
 
 bool acpiNamespaceInit = false;
