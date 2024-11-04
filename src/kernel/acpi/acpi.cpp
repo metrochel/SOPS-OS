@@ -4,9 +4,7 @@
 #include "../io/io.hpp"
 #include "../int/pic.hpp"
 #include "../pci/pci.hpp"
-
-dword *globalLock = nullptr;
-dword *apics = (dword*)0x13000;
+#include "../dbg/dbg.hpp"
 
 FADT *fadt;
 FACS *facs;
@@ -14,6 +12,12 @@ FACS *facs;
 bool hwReduced;
 bool wbinvd;
 bool resetRegSupport;
+
+byte maxSleep = 0;
+
+const dword wakeStrapAddr = 0x3000;
+
+CPUContext *ctxBuf;
 
 bool verifyRSDP(RSDP rsdp) {
     byte sum = 0;
@@ -62,17 +66,17 @@ bool parseTable(dword *table) {
             kdebug("ОШИБКА: FADT повреждена.\n");
             return false;
         }
-        kdebug("Вид системы ");
+        kdebug("Вид системы - ");
         switch (_fadt->preferredPMP) {
-            case 1: kdebug("- компьютер.\n"); break;
-            case 2: kdebug("- мобильное устройство.\n"); break;
-            case 3: kdebug("- рабочая станция.\n"); break;
-            case 4: kdebug("- сервер.\n"); break;
-            case 5: kdebug("- сервер SOHO.\n"); break;
-            case 6: kdebug("- ПК.\n"); break;
-            case 7: kdebug("- производительный сервер.\n"); break;
-            case 8: kdebug("- планшет.\n"); break;
-            default: kdebug("не определён (%d).\n", _fadt->preferredPMP); break;
+            case 1: kdebug("компьютер.\n"); break;
+            case 2: kdebug("мобильное устройство.\n"); break;
+            case 3: kdebug("рабочая станция.\n"); break;
+            case 4: kdebug("сервер.\n"); break;
+            case 5: kdebug("сервер SOHO.\n"); break;
+            case 6: kdebug("ПК.\n"); break;
+            case 7: kdebug("производительный сервер.\n"); break;
+            case 8: kdebug("планшет.\n"); break;
+            default: kdebug("(%d).\n", _fadt->preferredPMP); break;
         }
         kdebug("Прерывания SCI настроены на номер %d.\n", _fadt->sciInt);
         kdebug("Адрес FACS: %x.\n", _fadt->facsAddr);
@@ -87,8 +91,6 @@ bool parseTable(dword *table) {
         kdebug("Обработка FACS.\n");
         FACS* _facs = (FACS*)table;
         facs = _facs;
-        globalLock = &(_facs->globalLock);
-        kdebug("Адрес глобального замка установлен на %x.\n", (dword)globalLock);
         return true;
     }
     else if (*table == 'CIPA') {
@@ -105,7 +107,6 @@ bool parseTable(dword *table) {
                     kdebug("Обнаружен I/O APIC.\n");
                     apicAddr = *((dword*)(ctrl + 4));
                     kdebug("\tАдрес APICа: %x.\n", apicAddr);
-                    *apics++ = apicAddr;
                     break;
                 case 2:
                     kdebug("Обнаружена перегрузка источника прерывания.\n");
@@ -354,6 +355,28 @@ void writePM1bCtrl(word val) {
     }
 }
 
+void prepareWakeFunction() {
+    kdebug("Функция пробуждения расположена по адресу %x.\n", wakeStrapAddr);
+
+    byte func[] = { 0xEA, 0x09, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x31, 0xC0, 0x8E, 0xD8, 
+    0x8E, 0xD0, 0x8E, 0xC0, 0xBC, 0x00, 0x50, 0x89, 0xE5, 0xBF, 0x00, 0x15, 0xB8, 0x48, 0x00, 0xAB, 
+    0x66, 0xB8, 0x00, 0x10, 0x00, 0x00, 0x66, 0xAB, 0x0F, 0x01, 0x16, 0x00, 0x15, 0xBF, 0x10, 0x15, 
+    0xB8, 0x8F, 0x01, 0xAB, 0x66, 0xB8, 0x00, 0x00, 0x01, 0x00, 0x66, 0xAB, 0x0F, 0x01, 0x1E, 0x10, 
+    0x15, 0x66, 0xB8, 0x00, 0x10, 0x10, 0x00, 0x0F, 0x22, 0xD8, 0x0F, 0x20, 0xC0, 0x66, 0x0D, 0x01, 
+    0x00, 0x00, 0x80, 0x0F, 0x22, 0xC0, 0xEA, 0x58, 0x30, 0x08, 0x00, 0x66, 0xB8, 0x10, 0x00, 0x8E, 
+    0xD8, 0x8E, 0xD0, 0x8E, 0xC0, 0xFF, 0x25, 0x05, 0x30, 0x00, 0x00, 0xFA, 0xF4 };
+
+    byte *ptr = (byte*)wakeStrapAddr;
+
+    memcpy(func, ptr, sizeof(func));
+    dword *kernelWakeAddr = (dword*)0x3005;
+    *kernelWakeAddr = (dword)&wake;
+    ptr += sizeof(func);
+    ctxBuf = (CPUContext*)ptr;
+
+    kdebug("Функция пробуждения подготовлена.\n");
+}
+
 bool initACPI() {
     kdebug("Начата инициализация ACPI.\n");
     RSDP rsdp = findRSDP();
@@ -425,7 +448,19 @@ bool initACPI() {
     encode_idt_entry(sciHandler, sciIntNo);
     unmaskIRQ(sciIntNo);
 
+    if (getACPIObjAddr("_S1"))
+        maxSleep = 1;
+    if (getACPIObjAddr("_S2"))
+        maxSleep = 2;
+    if (getACPIObjAddr("_S3"))
+        maxSleep = 3;
+    
+    kdebug("Максимальное поддерживаемое состояние сна: S%d.\n", maxSleep);
+
+    prepareWakeFunction();
+
     kdebug("Инициализация ACPI завершена успешно.\n\n");
+
     return true;
 }
 
@@ -452,14 +487,56 @@ void enterSleepState(byte state) {
 
     callMethod("\\_TTS", state);
 
-    // TODO: Перевод всех устройств в нужное состояние сна
+    FOR_ALL_DEVICES {
+        byte len = *device++;
+        kdebug("Рассматривается устройство ");
+        logPath(device, len);
+        kdebugnewl();
+
+        byte dstate = 0;
+        bool allowWake = false;
+        char* sxw = (char*)"_SxW";
+        sxw[2] = 0x30 + state;
+        char* sxd = (char*)"_SxD";
+        sxd[2] = 0x30 + state;
+        byte deviceState = evaluateDeviceObj(device, len, (const char*)sxd);
+        byte wakeState   = evaluateDeviceObj(device, len, (const char*)sxw);
+        if (deviceState == maxbyte)
+            deviceState = 0;
+        if (wakeState == maxbyte)
+            wakeState = 3;
+        kdebug("Значение _S%dD: %d.\n", state, deviceState);
+        kdebug("Значение _S%dW: %d.\n", state, wakeState);
+        byte *prw = (byte*)evaluateDeviceObj(device, len, "_PRW");
+        if ((dword)prw != maxdword) {
+            prw += 10;
+            byte *sstateAddr = (byte*)*(dword*)prw;
+            byte maxWakeSState = getIntegerTerm(sstateAddr);
+            kdebug("Максимальное состояние сна с пробуждением: S%d.\n", maxWakeSState);
+            if (maxWakeSState < state) dstate = 3;
+            else if (wakeState == 3) dstate = deviceState;
+            else dstate = (deviceState + wakeState) / 2;
+            allowWake = maxWakeSState >= state;
+        } else {
+            allowWake = false;
+            dstate = 3;
+        }
+
+        if (allowWake) {
+            evaluateDeviceObj(device, len, "_DSW", 1, state, dstate);
+        }
+        
+        transitionToDState(device, len, dstate);
+
+        device += len;
+    }
 
     callMethod("\\_PTS", state);
 
     if (state != 5) {
         kdebug("Производится переход в состояние сна.\n");
-        kdebug("// TODO: Записать контекст других ядер в память\n");
-        facs->wakingVector = 0x3000;
+        kdebug("// TODO: Записать контекст других процессоров в память\n");
+        facs->wakingVector = wakeStrapAddr;
         kdebug("Вектор пробуждения установлен на %x.\n", facs->wakingVector);
         if (state < 4) {
             kdebug("Производится очистка кэша ЦП.\n");
@@ -471,13 +548,15 @@ void enterSleepState(byte state) {
         }
     }
 
+    callMethod("\\_GTS", state);
+
     if (!hwReduced) {
         word pm1aSts = readPM1aSts();
         kdebug("Значение PM1a_STS: %b.\n", pm1aSts);
-        writePM1aSts(pm1aSts | (1 << 15));
+        writePM1aSts(1 << 15);
         word pm1bSts = readPM1bSts();
         kdebug("Значение PM1b_STS: %b.\n", pm1bSts);
-        writePM1bSts(pm1bSts | (1 << 15));
+        writePM1bSts(1 << 15);
 
         word pm1aCtrl = readPM1aCtrl();
         kdebug("Значение PM1a_CTRL: %b.\n", pm1aCtrl);
@@ -486,6 +565,28 @@ void enterSleepState(byte state) {
     word pm1bCtrl = readPM1bCtrl();
     kdebug("Значение PM1b_CTRL: %b.\n", pm1bCtrl);
     writePM1bCtrl(pm1bCtrl | (1 << 13) | (slp_typB << 10));
+}
+
+void wake() {
+    kprint("Доброе утро!\n");
+
+    callMethod("\\_WAK");
+
+    callMethod("\\_TTS", 0);
+
+    CPUContext ctx = *ctxBuf;
+    magicBreakpoint();
+    ctx.restore();
+    return;
+}
+
+void ksleep() {
+    CPUContext ctx = CPUContext::store();
+    *ctxBuf = ctx;
+
+    kdebug("Запрошена процедура сна.\n");
+
+    enterSleepState(maxSleep);
 }
 
 void kshutdown() {
@@ -521,6 +622,7 @@ void krestart() {
     else {
         kdebug("RESET_REG не поддерживается.\n");
         kdebug("// TODO: Ручной сброс всех периферийных устройств\n");
+        kdebug("============ ПЕРЕЗАГРУЗКА ============\n\n");
 
         byte tmp;
         do {
@@ -528,21 +630,4 @@ void krestart() {
         } while (tmp & 0x02);
         outb(0x64, 0xFE);
     }
-}
-
-void ksleep() {
-    kdebug("Запрошена процедура сна.\n");
-
-    byte maxSleep = 0;
-    if (getACPIObjAddr("_S1"))
-        maxSleep = 1;
-    if (getACPIObjAddr("_S2"))
-        maxSleep = 2;
-    if (getACPIObjAddr("_S3"))
-        maxSleep = 3;
-    if (getACPIObjAddr("_S4"))
-        maxSleep = 4;
-    
-    kdebug("Максимальное состояние сна: %d.\n", maxSleep);
-    enterSleepState(maxSleep);
 }

@@ -11,12 +11,15 @@
 #include "../dbg/dbg.hpp"
 #include "../util/util.hpp"
 
-IDT_Register idtr{ 50*8-1, (byte*)0x10000  };
+IDT_Register *idtr;
 const byte irqOffset = 0x20;
 
 void initInts() {
-    for (int i = 0; i < idtr.size; i++)
-        *(idtr.base + i) = 0;
+    idtr = (IDT_Register*)0x1510;
+    idtr->size = 399;
+    idtr->base = (byte*)0x10000;
+    for (int i = 0; i < idtr->size; i++)
+        *(idtr->base + i) = 0;
 
     encode_idt_entry(zero_divide_err, 0);
     encode_idt_entry(overflow_err, 1);
@@ -42,12 +45,12 @@ void initInts() {
     encode_idt_entry(irq14, irqOffset + 0xE);
     encode_idt_entry(irq15, irqOffset + 0xF);
 
-    lidt(idtr);
+    lidt(*idtr);
     enableInts();
 }
 
 void encode_idt_entry(void (*handlePtr)(IntFrame*), byte intNum) {
-    word *entryPtr = (word*)idtr.base + 4 * intNum;
+    word *entryPtr = (word*)(idtr->base) + 4 * intNum;
     word offset1 = (dword)handlePtr & 0xFFFF;
     *entryPtr++ = offset1;
     word selector = 0x8;

@@ -6,6 +6,8 @@
 #ifndef _AML_OBJS_INCL
 #define _AML_OBJS_INCL
 
+#include <stdarg.h>
+
 #include "../util/nums.hpp"
 #include "../memmgr/memmgr.hpp"
 #include "../util/util.hpp"
@@ -13,6 +15,8 @@
 
 #define ones defBlockRevision > 1 ? maxqword : maxdword
 #define recret recDepth--; return
+
+#define FOR_ALL_DEVICES dword *device = (dword*)acpiDevBase; while (*device != 0)
 
 typedef unsigned int AMLName;
 
@@ -52,21 +56,15 @@ extern byte* acpiData;
 extern const dword acpiFuncsBase;
 extern byte* acpiFuncs;
 
+extern const dword acpiDevBase;
+extern dword* acpiDev;
+
 extern bool acpiNamespaceInit;
 
 extern byte defBlockRevision;
 
-inline byte getParsingPathLen() {
-    return ((dword)parsingPath - parsingPathBase) / sizeof(AMLName);
-}
-
-inline byte getBufferedPathLen() {
-    return ((dword)bufferedPath - bufferedPathBase) / sizeof(AMLName);
-}
-
-inline byte getVarPathLen() {
-    return ((dword)varPath - varPathBase) / sizeof(AMLName);
-}
+#define parsingPathLen ((dword)parsingPath - parsingPathBase) / sizeof(AMLName)
+#define varPathLen ((dword)varPath - varPathBase) / sizeof(AMLName)
 
 inline void clearParsingPath() {
     parsingPath = (AMLName*)parsingPathBase;
@@ -97,11 +95,11 @@ inline void logName(AMLName name) {
 void logPath(AMLName* path, byte len);
 
 inline void logParsingPath() {
-    logPath((AMLName*)parsingPathBase, getParsingPathLen());
+    logPath((AMLName*)parsingPathBase, parsingPathLen);
 }
 
 inline void logVarPath() {
-    logPath((AMLName*)varPathBase, getVarPathLen());
+    logPath((AMLName*)varPathBase, varPathLen);
 }
 
 byte strToPath(const char* str, AMLName* out);
@@ -226,6 +224,7 @@ struct FuncFrame {
 /// @param ... Аргументы метода
 /// @return Значение, возвращённое методом
 qword callMethod(const char* path, ...);
+qword callMethod(AMLName *path, byte len, va_list argv);
 
 /// @brief Исполняет метод.
 /// @param code Указатель на код
@@ -256,5 +255,9 @@ dword upgradeBuffer(byte *buf, byte *&out, FuncFrame *frame);
 dword upgradePackage(byte *pkg, byte *&out, FuncFrame *frame);
 
 void processEvent(byte eventNo);
+
+qword evaluateDeviceObj(dword *path, byte len, const char* objName, ...);
+
+void transitionToDState(dword *path, byte len, byte state);
 
 #endif

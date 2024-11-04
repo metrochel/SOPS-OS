@@ -1,5 +1,4 @@
 #include "aml.hpp"
-#include "../memmgr/paging.hpp"
 #include "../io/io.hpp"
 #include "../pci/pci.hpp"
 #include "../str/str.hpp"
@@ -962,9 +961,9 @@ void createBufferField(byte *buf, dword offset, dword size, byte *&dest) {
         buf += getPkgBytes(*buf);
     }
     buf += getIntegerTermBytes(buf);
-    *acpiNamespace++ = getVarPathLen();
-    memcpy((byte*)varPathBase, (byte*)acpiNamespace, getVarPathLen() * 4);
-    acpiNamespace += getVarPathLen();
+    *acpiNamespace++ = varPathLen;
+    memcpy((byte*)varPathBase, (byte*)acpiNamespace, varPathLen * 4);
+    acpiNamespace += varPathLen;
     *acpiNamespace++ = (dword)dest;
     dword addr = (dword)dest;
     *dest++ = 0xFD;
@@ -1122,7 +1121,7 @@ TermArg getTermArg(byte*& code, FuncFrame* frame) {
         kdebug("Абсолютный адрес объекта: ");
         logVarPath();
         kdebugnewl();
-        byte *addr = getACPIObjAddr((AMLName*)varPathBase, getVarPathLen());
+        byte *addr = getACPIObjAddr((AMLName*)varPathBase, varPathLen);
         if (!addr) {
             addr = getACPIObjAddr(varPath - 1, 1);
             if (!addr) {
@@ -1648,7 +1647,7 @@ TermArg getTermArg(byte*& code, FuncFrame* frame) {
             kdebug("Абсолютный путь к цели: ");
             logVarPath();
             kdebugnewl();
-            byte *addr = getACPIObjAddr((AMLName*)varPathBase, getVarPathLen());
+            byte *addr = getACPIObjAddr((AMLName*)varPathBase, varPathLen);
             if (!addr) {
                 kdebug("ОШИБКА: Такой объект не существует\n");
                 recret errorArg;
@@ -1720,8 +1719,8 @@ TermArg getTermArg(byte*& code, FuncFrame* frame) {
         if (*code == 0x0D) {
             code ++;
             varPath = (AMLName*)varPathBase;
-            memcpy((byte*)parsingPathBase, (byte*)varPath, getParsingPathLen() * 4);
-            varPath += getParsingPathLen(); 
+            memcpy((byte*)parsingPathBase, (byte*)varPath, parsingPathLen * 4);
+            varPath += parsingPathLen; 
             byte *addr = code;
             word len = 0;
             AMLName seg = 0;
@@ -1783,7 +1782,7 @@ TermArg getTermArg(byte*& code, FuncFrame* frame) {
             addr = (byte*)res.value;
         }
         else
-            addr = getACPIObjAddr((AMLName*)varPathBase, getVarPathLen());
+            addr = getACPIObjAddr((AMLName*)varPathBase, varPathLen);
         kdebug("Адрес объекта: %x.\n", addr);
 
         byte type = identifyTermArg(*addr);
@@ -1896,7 +1895,7 @@ TermArg getTermArg(byte*& code, FuncFrame* frame) {
         kdebug("Абсолютный путь к мьютексу: ");
         logVarPath();
         kdebugnewl();
-        byte* addr = getACPIObjAddr((AMLName*)varPathBase, getVarPathLen());
+        byte* addr = getACPIObjAddr((AMLName*)varPathBase, varPathLen);
         code += nameSegs >> 8;
         word timeout = *(word*)code;
         kdebug("Тайм-аут: %d мс.\n", timeout);
@@ -1921,7 +1920,7 @@ TermArg getTermArg(byte*& code, FuncFrame* frame) {
         kdebug("Абсолютный путь к мьютексу: ");
         logVarPath();
         kdebugnewl();
-        byte* addr = getACPIObjAddr((AMLName*)varPathBase, getVarPathLen());
+        byte* addr = getACPIObjAddr((AMLName*)varPathBase, varPathLen);
         code += nameSegs >> 8;
         byte res = releaseMutex(addr, frame);
         kdebug("Удалось освободить мьютекс? ");
@@ -1944,7 +1943,7 @@ TermArg getTermArg(byte*& code, FuncFrame* frame) {
         logVarPath();
         kdebugnewl();
         code += nameSegs >> 8;
-        byte* addr = getACPIObjAddr((AMLName*)varPathBase, getVarPathLen());
+        byte* addr = getACPIObjAddr((AMLName*)varPathBase, varPathLen);
         if (*addr != 0x02) {
             kdebug("ОШИБКА: Объект не является событием\n");
             recret errorArg;
@@ -1970,7 +1969,7 @@ TermArg getTermArg(byte*& code, FuncFrame* frame) {
         logVarPath();
         kdebugnewl();
         TermArg res = {0x01, 0};
-        dword size = getACPIObjLen((AMLName*)varPathBase, getVarPathLen());
+        dword size = getACPIObjLen((AMLName*)varPathBase, varPathLen);
         res.value = size;
         recret res;
     }
@@ -2123,7 +2122,7 @@ void setTermArg(byte*& code, FuncFrame *frame, TermArg newVal) {
         kdebug("Новое значение: %X.\n", newVal.value);
         word nameSegs = getName(code);
         code += nameSegs >> 8;
-        byte *addr = getACPIObjAddr((AMLName*)varPathBase, getVarPathLen());
+        byte *addr = getACPIObjAddr((AMLName*)varPathBase, varPathLen);
         if (!addr) {
             addr = getACPIObjAddr(varPath - 1, 1);
             if (!addr)
@@ -2136,7 +2135,7 @@ void setTermArg(byte*& code, FuncFrame *frame, TermArg newVal) {
             writeField(addr, newVal);
             return;
         }
-        dword targetLen = getACPIObjLen((AMLName*)varPathBase, getVarPathLen());
+        dword targetLen = getACPIObjLen((AMLName*)varPathBase, varPathLen);
         dword valueLen = 0;
         bool isInteger = newVal.type == 0x01 || newVal.type == 0x7F;
         if (isInteger) {
@@ -2144,7 +2143,7 @@ void setTermArg(byte*& code, FuncFrame *frame, TermArg newVal) {
             kdebug("Длина нового значения: %d Б.\n", valueLen);
             if (valueLen > targetLen) {
                 acpiData += encodeIntegerTerm(newVal.value, acpiData);
-                remapACPIObj((AMLName*)varPathBase, getVarPathLen(), acpiData);
+                remapACPIObj((AMLName*)varPathBase, varPathLen, acpiData);
             } else {
                 encodeIntegerTerm(newVal.value, addr);
             }
@@ -2163,7 +2162,7 @@ void setTermArg(byte*& code, FuncFrame *frame, TermArg newVal) {
                 memcpy((byte*)newVal.value, acpiData, valueLen);
                 logVarPath();
                 kdebugnewl();
-                remapACPIObj((AMLName*)varPathBase, getVarPathLen(), acpiData);
+                remapACPIObj((AMLName*)varPathBase, varPathLen, acpiData);
                 acpiData += valueLen;
             } else {
                 memcpy((byte*)newVal.value, addr, valueLen);
@@ -2555,7 +2554,7 @@ TermArg runMethod(byte* code, dword length, byte syncLevel, FuncFrame *frame) {
             kdebug("Абсолютный путь к событию: ");
             logVarPath();
             kdebugnewl();
-            byte *ptr = getACPIObjAddr((AMLName*)varPathBase, getVarPathLen());
+            byte *ptr = getACPIObjAddr((AMLName*)varPathBase, varPathLen);
             if (*ptr != 0x02) {
                 kdebug("ОШИБКА: Объект не является событием");
                 return {maxqword, 84};
@@ -2578,7 +2577,7 @@ TermArg runMethod(byte* code, dword length, byte syncLevel, FuncFrame *frame) {
             kdebug("Абсолютный путь к событию: ");
             logVarPath();
             kdebugnewl();
-            byte *ptr = getACPIObjAddr((AMLName*)varPathBase, getVarPathLen());
+            byte *ptr = getACPIObjAddr((AMLName*)varPathBase, varPathLen);
             if (*ptr != 0x02) {
                 kdebug("ОШИБКА: Объект не является событием");
                 return {maxqword, 84};
@@ -2666,7 +2665,7 @@ TermArg runMethod(byte* code, dword length, byte syncLevel, FuncFrame *frame) {
             kdebug("Абсолютный путь к целевому буферу: ");
             logVarPath();
             kdebugnewl();
-            ptr = getACPIObjAddr((AMLName*)varPathBase, getVarPathLen());
+            ptr = getACPIObjAddr((AMLName*)varPathBase, varPathLen);
             if (!ptr) {
                 kdebug("ОШИБКА: Буфер не существует\n");
                 return {maxqword, 0};
@@ -2678,7 +2677,7 @@ TermArg runMethod(byte* code, dword length, byte syncLevel, FuncFrame *frame) {
             kdebug("Абсолютный путь к полю: ");
             logVarPath();
             kdebugnewl();
-            if (getACPIObjAddr((AMLName*)varPathBase, getVarPathLen())) {
+            if (getACPIObjAddr((AMLName*)varPathBase, varPathLen)) {
                 kdebug("ВНИМАНИЕ: Поле уже существует\n");
                 i --;
                 continue;

@@ -17,6 +17,7 @@ __attribute__((interrupt)) void sciHandler(IntFrame *frame) {
 
     if (sts & 512) {
         kdebug("Событие вызвано нажатием кнопки сна.\n");
+        kdebug("// TODO: Сохранение контекста ЦП\n");
         writePM1aSts(512);
         writePM1bSts(512);
         int_exit_slave();

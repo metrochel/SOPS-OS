@@ -36,6 +36,8 @@ void writePM1bEnable(word val);
 word readPM1bCtrl();
 void writePM1bCtrl(word val);
 
+void wake();
+
 // =====================
 
 /// @brief Выключает компьютер.

@@ -1,3 +1,5 @@
 .vscode
+.zed
 build
 debug
+.clangd
