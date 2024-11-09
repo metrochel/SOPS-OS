@@ -45,7 +45,7 @@ $(BOOTBINS): $(BOOTSRC)
 #	Создание файла дискеты
 #
 $(DISKFILE):
-	dd if=/dev/zero of=$(DISKFILE) count=16000 bs=512
+	dd if=/dev/zero of=$(DISKFILE) count=524280 bs=512
 
 #
 #	Компиляция файлов ядра
