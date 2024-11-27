@@ -1,7 +1,13 @@
 #include "str.hpp"
 #include "../io/com.hpp"
+#include "../util/util.hpp"
+#include "../graphics/glyphs.hpp"
 
-byte strcmp(char* str1, char* str2) {
+bool strcmp(char* str1, char* str2) {
+    return strcmpS(str1, str2) == 0x80;
+}
+
+byte strcmpS(char* str1, char* str2) {
     byte s1 = *str1;
     byte s2 = *str2;
     if (s1 > s2)
@@ -71,4 +77,27 @@ byte numasstr(dword num, char* out) {
         num /= 10;
     }
     return digits;
+}
+
+char** strsplit(char *str, char *pattern) {
+    dword stlen = strlen(str);
+    dword plen = strlen(pattern);
+    dword possibleFits = stlen / plen;
+
+    char** result = (char**)0x2000000;
+    char *ptr = (char*)result + possibleFits * sizeof(char**);
+    word i = 0;
+    while (*str) {
+        if (memcmp((byte*)str, (byte*)pattern, plen)) {
+            *ptr++ = 0;
+            result[i] = ptr;
+            i ++;
+            str += plen;
+        } else {
+            *ptr++ = *str++;
+        }
+    }
+    result[i] = nullptr;
+    *ptr++ = 0;
+    return result;
 }

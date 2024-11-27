@@ -267,50 +267,50 @@ TermArg performMatch(byte *pkg, byte op1, TermArg obj1, byte op2, TermArg obj2, 
                 if (obj1.type == 0x01 || obj1.type == 0x02)
                     match1 = arg.value == obj1.value;
                 else if (obj1.type == 0x8D)
-                    match1 = strcmp((char*)(arg.value + 1), (char*)(obj1.value + 1)) == 0x80 ? 1 : 0;
+                    match1 = strcmp((char*)(arg.value + 1), (char*)(obj1.value + 1));
                 else if (obj1.type == 0x91) {
                     dword length = getPkgLength((byte*)(arg.value + 1));
-                    match1 = memcmp((byte*)arg.value, (byte*)obj1.value, length) == 0x80 ? 1 : 0;
+                    match1 = memcmp((byte*)arg.value, (byte*)obj1.value, length);
                 }
                 break;
             case 2:
                 if (obj1.type == 0x01 || obj1.type == 0x02)
                     match1 = arg.value <= obj1.value;
                 else if (obj1.type == 0x8D)
-                    match1 = strcmp((char*)(arg.value + 1), (char*)(obj1.value + 1)) <= 0x80 ? 1 : 0;
+                    match1 = strcmpS((char*)(arg.value + 1), (char*)(obj1.value + 1)) <= 0x80 ? 1 : 0;
                 else if (obj1.type == 0x91) {
                     dword length = getPkgLength((byte*)(arg.value + 1));
-                    match1 = memcmp((byte*)arg.value, (byte*)obj1.value, length) <= 0x80 ? 1 : 0;
+                    match1 = memcmpS((byte*)arg.value, (byte*)obj1.value, length) <= 0x80 ? 1 : 0;
                 }
                 break;
             case 3:
                 if (obj1.type == 0x01 || obj1.type == 0x02)
                     match1 = arg.value < obj1.value;
                 else if (obj1.type == 0x8D)
-                    match1 = strcmp((char*)(arg.value + 1), (char*)(obj1.value + 1)) < 0x80 ? 1 : 0;
+                    match1 = strcmpS((char*)(arg.value + 1), (char*)(obj1.value + 1)) < 0x80 ? 1 : 0;
                 else if (obj1.type == 0x91) {
                     dword length = getPkgLength((byte*)(arg.value + 1));
-                    match1 = memcmp((byte*)arg.value, (byte*)obj1.value, length) < 0x80 ? 1 : 0;
+                    match1 = memcmpS((byte*)arg.value, (byte*)obj1.value, length) < 0x80 ? 1 : 0;
                 }
                 break;
             case 4:
                 if (obj1.type == 0x01 || obj1.type == 0x02)
                     match1 = arg.value >= obj1.value;
                 else if (obj1.type == 0x8D)
-                    match1 = strcmp((char*)(arg.value + 1), (char*)(obj1.value + 1)) >= 0x80 ? 1 : 0;
+                    match1 = strcmpS((char*)(arg.value + 1), (char*)(obj1.value + 1)) >= 0x80 ? 1 : 0;
                 else if (obj1.type == 0x91) {
                     dword length = getPkgLength((byte*)(arg.value + 1));
-                    match1 = memcmp((byte*)arg.value, (byte*)obj1.value, length) >= 0x80 ? 1 : 0;
+                    match1 = memcmpS((byte*)arg.value, (byte*)obj1.value, length) >= 0x80 ? 1 : 0;
                 }
                 break;
             case 5:
                 if (obj1.type == 0x01 || obj1.type == 0x02)
                     match1 = arg.value > obj1.value;
                 else if (obj1.type == 0x8D)
-                    match1 = strcmp((char*)(arg.value + 1), (char*)(obj1.value + 1)) > 0x80 ? 1 : 0;
+                    match1 = strcmpS((char*)(arg.value + 1), (char*)(obj1.value + 1)) > 0x80 ? 1 : 0;
                 else if (obj1.type == 0x91) {
                     dword length = getPkgLength((byte*)(arg.value + 1));
-                    match1 = memcmp((byte*)arg.value, (byte*)obj1.value, length) > 0x80 ? 1 : 0;
+                    match1 = memcmpS((byte*)arg.value, (byte*)obj1.value, length) > 0x80 ? 1 : 0;
                 }
                 break;
         }
@@ -321,50 +321,50 @@ TermArg performMatch(byte *pkg, byte op1, TermArg obj1, byte op2, TermArg obj2, 
                 if (obj2.type == 0x01 || obj2.type == 0x02)
                     match2 = arg.value == obj2.value;
                 else if (obj2.type == 0x8D)
-                    match2 = strcmp((char*)(arg.value + 1), (char*)(obj2.value + 1)) == 0x80 ? 1 : 0;
+                    match2 = strcmp((char*)(arg.value + 1), (char*)(obj2.value + 1));
                 else if (obj2.type == 0x91) {
                     dword length = getPkgLength((byte*)(arg.value + 1));
-                    match2 = memcmp((byte*)arg.value, (byte*)obj2.value, length) == 0x80 ? 1 : 0;
+                    match2 = memcmp((byte*)arg.value, (byte*)obj2.value, length);
                 }
                 break;
             case 2:
                 if (obj2.type == 0x01 || obj2.type == 0x02)
                     match2 = arg.value <= obj2.value;
                 else if (obj2.type == 0x8D)
-                    match2 = strcmp((char*)(arg.value + 1), (char*)(obj2.value + 1)) <= 0x80 ? 1 : 0;
+                    match2 = strcmpS((char*)(arg.value + 1), (char*)(obj2.value + 1)) <= 0x80 ? 1 : 0;
                 else if (obj2.type == 0x91) {
                     dword length = getPkgLength((byte*)(arg.value + 1));
-                    match2 = memcmp((byte*)arg.value, (byte*)obj2.value, length) <= 0x80 ? 1 : 0;
+                    match2 = memcmpS((byte*)arg.value, (byte*)obj2.value, length) <= 0x80 ? 1 : 0;
                 }
                 break;
             case 3:
                 if (obj2.type == 0x01 || obj2.type == 0x02)
                     match2 = arg.value < obj2.value;
                 else if (obj2.type == 0x8D)
-                    match2 = strcmp((char*)(arg.value + 1), (char*)(obj2.value + 1)) < 0x80 ? 1 : 0;
+                    match2 = strcmpS((char*)(arg.value + 1), (char*)(obj2.value + 1)) < 0x80 ? 1 : 0;
                 else if (obj2.type == 0x91) {
                     dword length = getPkgLength((byte*)(arg.value + 1));
-                    match2 = memcmp((byte*)arg.value, (byte*)obj2.value, length) < 0x80 ? 1 : 0;
+                    match2 = memcmpS((byte*)arg.value, (byte*)obj2.value, length) < 0x80 ? 1 : 0;
                 }
                 break;
             case 4:
                 if (obj2.type == 0x01 || obj2.type == 0x02)
                     match2 = arg.value >= obj2.value;
                 else if (obj2.type == 0x8D)
-                    match2 = strcmp((char*)(arg.value + 1), (char*)(obj2.value + 1)) >= 0x80 ? 1 : 0;
+                    match2 = strcmpS((char*)(arg.value + 1), (char*)(obj2.value + 1)) >= 0x80 ? 1 : 0;
                 else if (obj2.type == 0x91) {
                     dword length = getPkgLength((byte*)(arg.value + 1));
-                    match2 = memcmp((byte*)arg.value, (byte*)obj2.value, length) >= 0x80 ? 1 : 0;
+                    match2 = memcmpS((byte*)arg.value, (byte*)obj2.value, length) >= 0x80 ? 1 : 0;
                 }
                 break;
             case 5:
                 if (obj2.type == 0x01 || obj2.type == 0x02)
                     match2 = arg.value > obj2.value;
                 else if (obj2.type == 0x8D)
-                    match2 = strcmp((char*)(arg.value + 1), (char*)(obj2.value + 1)) > 0x80 ? 1 : 0;
+                    match2 = strcmpS((char*)(arg.value + 1), (char*)(obj2.value + 1)) > 0x80 ? 1 : 0;
                 else if (obj2.type == 0x91) {
                     dword length = getPkgLength((byte*)(arg.value + 1));
-                    match2 = memcmp((byte*)arg.value, (byte*)obj2.value, length) > 0x80 ? 1 : 0;
+                    match2 = memcmpS((byte*)arg.value, (byte*)obj2.value, length) > 0x80 ? 1 : 0;
                 }
                 break;
         }
@@ -1521,10 +1521,10 @@ TermArg getTermArg(byte*& code, FuncFrame* frame) {
             if (op1.type == 0x01 || op1.type == 0x02)
                 result.value = op1.value == op2.value;
             else if (op1.type == 0x8D)
-                result.value = strcmp((char*)(op1.value + 1), (char*)(op2.value + 1)) == 0x80 ? 1 : 0;
+                result.value = strcmp((char*)(op1.value + 1), (char*)(op2.value + 1));
             else if (op1.type == 0x91) {
                 dword length = getPkgLength((byte*)(op1.value + 1));
-                result.value = memcmp((byte*)op1.value, (byte*)op2.value, length) == 0x80 ? 1 : 0;
+                result.value = memcmp((byte*)op1.value, (byte*)op2.value, length);
             }
         }
         else if (opType == 0x94) {
@@ -1532,10 +1532,10 @@ TermArg getTermArg(byte*& code, FuncFrame* frame) {
             if (op1.type == 0x01 || op1.type == 0x02)
                 result.value = op1.value > op2.value;
             else if (op1.type == 0x8D)
-                result.value = strcmp((char*)(op1.value + 1), (char*)(op2.value + 1)) == 0xFF ? 1 : 0;
+                result.value = strcmpS((char*)(op1.value + 1), (char*)(op2.value + 1)) == 0xFF ? 1 : 0;
             else if (op1.type == 0x91) {
                 dword length = getPkgLength((byte*)(op1.value + 1));
-                result.value = memcmp((byte*)op1.value, (byte*)op2.value, length) == 0xFF ? 1 : 0;
+                result.value = memcmpS((byte*)op1.value, (byte*)op2.value, length) == 0xFF ? 1 : 0;
             }
         }
         else if (opType == 0x95) {
@@ -1543,10 +1543,10 @@ TermArg getTermArg(byte*& code, FuncFrame* frame) {
             if (op1.type == 0x01 || op1.type == 0x02)
                 result.value = op1.value < op2.value;
             else if (op1.type == 0x8D)
-                result.value = strcmp((char*)(op1.value + 1), (char*)(op2.value + 1)) == 0x00 ? 1 : 0;
+                result.value = strcmpS((char*)(op1.value + 1), (char*)(op2.value + 1)) == 0x00 ? 1 : 0;
             else if (op1.type == 0x91) {
                 dword length = getPkgLength((byte*)(op1.value + 1));
-                result.value = memcmp((byte*)op1.value, (byte*)op2.value, length) == 0x00 ? 1 : 0;
+                result.value = memcmpS((byte*)op1.value, (byte*)op2.value, length) == 0x00 ? 1 : 0;
             }
         }
         recret result;

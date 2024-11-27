@@ -24,6 +24,8 @@
 #include "util/util.hpp"
 #include "util/nums.hpp"
 #include "dbg/dbg.hpp"
+#include "shell/shell.hpp"
+#include "fat/fat.hpp"
 
 // Структура с данными из загрузчика
 struct BootLoaderData {
@@ -44,6 +46,7 @@ byte *stdin = (byte*)0x9300;
 /// @brief Инициализирует данные, добытые в загрузчике.
 void initBLD() {
     bld = (BootLoaderData*)0x100000;
+    bld->DiskNo &= 0x7F;
 }
 
 /// @brief Инициализирует графический драйвер.
@@ -93,10 +96,17 @@ int main() {
 
     kprint("Добро пожаловать в СОПС вер. 1.0.0-АЛЬФА!\n\n");
 
-    byte cmosStatusB = readCMOSReg(0x0B);
+    disableInts();
+    outb(0x70, 0x8B);
+    byte cmosStatusB = inb(0x71);
     cmosStatusB |= 16;
-    writeCMOSReg(0x0B, cmosStatusB);
+    outb(0x70, 0x8B);
+    outb(0x71, cmosStatusB);
+    outb(0x70, 0x8C);
+    inb(0x71);
+    outb(0x70, 0x00);
     unmaskIRQ(8);
+    enableInts();
 
     if (initCom(1)) {
         kprint("COM1 успешно инициализирован!\n");
@@ -113,11 +123,13 @@ int main() {
         kwarn("ВНИМАНИЕ: COM4 на данный момент не работает.\nИзвините, пока не доделали.\n");
     }
 
+    kdebugdisable();
     if (!initACPI()) {
         kerror("ОШИБКА: ACPI не инициализирован\n");
     }
     else
         kprint("ACPI успешно инициализирован!\n");
+    kdebugenable();
 
     if (!initPS2())
         kerror("ОШИБКА: Контроллер PS/2 не инициализирован\n");
@@ -148,69 +160,26 @@ int main() {
     while (kgettime() == Time()) {tinyWait();}
     kprint("Сейчас ");
     Time time = kgettime();
-    char* out = (char*)0x11000;
-    out += time.asStringWeekday(out);
-    *out++ = ',';
-    *out++ = ' ';
-    time.asStringFull(out);
-    out -= 6;
-    kprint(out);
+    char* timestr = (char*)0x11000;
+    timestr += time.asStringWeekday(timestr);
+    *timestr++ = ',';
+    *timestr++ = ' ';
+    time.asStringFull(timestr);
+    timestr -= 6;
+    kprint(timestr);
     kprint(".\n");
 
-    while (true) {
-        kprint("\n>");
-        kread(stdin);
-        kprint("\n");
-        stdin = (byte*)0x9300;
-        if (strcmp((char*)stdin, (char*)"iddisk") == 0x80) {
-            DiskData d = identifyDisk();
-            switch (d.DiskType) {
-                case DISK_TYPE_NONE:
-                    kprint("Диск А не подключён");
-                    break;
-                case DISK_TYPE_ATA:
-                    kprint("Тип диска А - ATA");
-                    break;
-                case DISK_TYPE_ATAPI:
-                    kprint("Тип диска А - ATAPI");
-                    break;
-                case DISK_TYPE_SATA:
-                    kprint("Тип диска А - SATA");
-                    break;
-                case DISK_TYPE_SATAPI:
-                    kprint("Тип диска А - SATAPI");
-                    break;
-            }
-            if (d.DiskType == 0)
-                continue;
-            if (d.LBA48Supported)
-                kprint("\nДиск А поддерживает LBA48");
-            else
-                kprint("\nДиск А не поддерживает LBA48");
-            kprint("\nНа диске А доступно\n    %d секторов в режиме LBA28;\n    %d секторов в режиме LBA48", d.TotalLBA28Sectors, d.TotalLBA48Sectors);
-            kprint("\nМаксимальный режим UDMA - %d, активен %d", d.MaxUDMAMode, d.ActUDMAMode);
-        }
-        else if (strcmp((char*)stdin, (char*)"time") == 0x80) {
-            kprint("Сейчас ");
-            Time time = kgettime();
-            out = (char*)0x11000;
-            out += time.asStringWeekday(out);
-            *out++ = ',';
-            *out++ = ' ';
-            time.asStringFull(out);
-            out -= 6;
-            kprint(out);
-            kprint(".");
-        } else if (strcmp((char*)stdin, (char*)"shutdown") == 0x80) {
-            kprint("До свидания!");
-            kshutdown();
-        } else if (strcmp((char*)stdin, (char*)"reboot") == 0x80) {
-            kprint("Перезагрузка!");
-            krestart();
-        } else {
-            kerror("ОШИБКА: Команды или исполняемого файла \"");
-            kerror((const char*)stdin);
-            kerror("\" не существует.\nПроверьте правильность написания команды.");
-        }
-    }
+    byte driveNo = bld->DiskNo;
+    if (initFAT(driveNo))
+        kprint("FAT32 успешно инициализирована!\n");
+    else
+        kerror("ОШИБКА: FAT32 не инициализирована\n");
+
+    readCluster(driveNo, ebpbs[driveNo].rootCluster, (byte*)0x2004000);
+    File f = File::construct((byte*)0x2004000, driveNo);
+    byte *out = (byte*)0x2000100;
+    f.read(out);
+    magicBreakpoint();
+
+    shellMain();
 }

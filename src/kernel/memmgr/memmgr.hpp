@@ -26,7 +26,7 @@ void initMemMgr();
 /// @brief Выделяет несколько байт из кучи.
 /// @param amount Длина блока, Б
 /// @return Указатель на выделенное место
-void* kmalloc(dword amount);
+byte* kmalloc(dword amount);
 
 /// @brief Освобождает место в куче.
 /// @param var Адрес удаляемой переменной

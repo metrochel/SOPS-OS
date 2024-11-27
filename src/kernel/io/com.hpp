@@ -153,6 +153,8 @@ inline void kdebugnewl() {
     kdebug((word)0x0A0D);
 }
 
+void kdebugwait();
+
 void kdebugdisable();
 void kdebugenable();
 

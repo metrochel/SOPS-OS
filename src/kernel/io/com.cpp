@@ -336,9 +336,10 @@ void kdebug(const char* text, ...) {
     if (!initPorts[0] || !debugActive)
         return;
     qword len = strlen((char*)text);
-    if (comWriteBufferLength(1) + len > 0xA000) {
+    if (comWriteBufferLength(1) + len >= 0xA000) {
+        enableInts();
         enableTraInt(1);
-        while(comWriteBufferLength(1) + len > 0xA000) {io_wait();}
+        while (comWriteBufferLength(1) + len >= 0xA000) {io_wait();}
         disableTraInt(1);
     }
     va_list l;
@@ -422,9 +423,10 @@ void kdebug(const char* text, ...) {
 void kdebug(byte num) {
     if (!initPorts[0] || !debugActive)
         return;
-    if (comWriteBufferLength(1) + 1 > 0xA000) {
+    if (comWriteBufferLength(1) + 1 >= 0xA000) {
+        enableInts();
         enableTraInt(1);
-        while(comWriteBufferLength(1) + 1 > 0xA000) {io_wait();}
+        while(comWriteBufferLength(1) + 1 >= 0xA000) {io_wait();}
         disableTraInt(1);
     }
     *comWriteBuffers[0]++ = num;
@@ -434,9 +436,10 @@ void kdebug(byte num) {
 void kdebug(word num) {
     if (!initPorts[0] || !debugActive)
         return;
-    if (comWriteBufferLength(1) + 1 > 0xA000) {
+    if (comWriteBufferLength(1) + 1 >= 0xA000) {
+        enableInts();
         enableTraInt(1);
-        while(comWriteBufferLength(1) + 1 > 0xA000) {io_wait();}
+        while(comWriteBufferLength(1) + 1 >= 0xA000) {io_wait();}
         disableTraInt(1);
     }
     *comWriteBuffers[0]++ = num & 0xFF;
@@ -447,9 +450,10 @@ void kdebug(word num) {
 void kdebug(dword num) {
     if (!initPorts[0] || !debugActive)
         return;
-    if (comWriteBufferLength(1) + 1 > 0xA000) {
+    if (comWriteBufferLength(1) + 1 >= 0xA000) {
+        enableInts();
         enableTraInt(1);
-        while(comWriteBufferLength(1) + 1 > 0xA000) {io_wait();}
+        while(comWriteBufferLength(1) + 1 >= 0xA000) {io_wait();}
         disableTraInt(1);
     }
     *comWriteBuffers[0]++ = num & 0xFF;
@@ -462,9 +466,10 @@ void kdebug(dword num) {
 void kdebug(qword num) {
     if (!initPorts[0] || !debugActive)
         return;
-    if (comWriteBufferLength(1) + 1 > 0xA000) {
+    if (comWriteBufferLength(1) + 1 >= 0xA000) {
+        enableInts();
         enableTraInt(1);
-        while(comWriteBufferLength(1) + 1 > 0xA000) {io_wait();}
+        while(comWriteBufferLength(1) + 1 >= 0xA000) {io_wait();}
         disableTraInt(1);
     }
     *comWriteBuffers[0]++ = num & 0xFF;
@@ -476,6 +481,13 @@ void kdebug(qword num) {
     *comWriteBuffers[0]++ = (num >> 48) & 0xFF;
     *comWriteBuffers[0]++ = (num >> 56) & 0xFF;
     enableTraInt(1);
+}
+
+void kdebugwait() {
+    enableInts();
+    enableTraInt(1);
+    while (comWriteBufferLength(1)) {io_wait();}
+    disableTraInt(1);
 }
 
 void kdebugdisable() {

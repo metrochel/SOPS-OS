@@ -29,10 +29,30 @@ struct DiskData {
 /// @return Соответствующий виду диска код
 DiskData identifyDisk();
 
-void readSector(byte *buf, dword lba);
-void readSectors(byte *buf, dword lba, dword count);
+/// @brief Считывает один блок данных.
+/// @param buf Буфер выхода данных
+/// @param lba LBA-координаты блока
+/// @param drive Номер диска в системе
+void readSector(byte *buf, dword lba, byte drive);
 
-void writeSector(byte* buf, dword lba);
-void writeSectors(byte* buf, dword lba, dword count);
+/// @brief Считывает несколько блоков данных.
+/// @param buf Буфер выхода данных
+/// @param lba LBA-координаты первого блока
+/// @param count Количество блоков
+/// @param drive Номер диска в системе
+void readSectors(byte *buf, dword lba, dword count, byte drive);
+
+/// @brief Записывает один блок данных.
+/// @param buf Буфер новых данных
+/// @param lba LBA-координаты блока
+/// @param drive Номер диска в системе
+void writeSector(byte* buf, dword lba, byte drive);
+
+/// @brief Записывает несколько блоков данных.
+/// @param buf Буфер новых данных
+/// @param lba LBA-координаты первого блока
+/// @param count Количество блоков
+/// @param drive Номер диска в системе
+void writeSectors(byte* buf, dword lba, dword count, byte drive);
 
 #endif

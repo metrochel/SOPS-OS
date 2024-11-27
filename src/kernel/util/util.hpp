@@ -129,7 +129,19 @@ inline void memcpy(byte* a, byte* b, dword n) {
 }
 
 /// @brief Сравнивает N Б памяти на указателях A и B.
-inline byte memcmp(byte *a, byte* b, dword n) {
+inline byte memcmp(byte *a, byte *b, dword n) {
+    for (dword i = 0; i < n; i++) {
+        if (a[i] != b[i])
+            return false;
+    }
+    return true;
+}
+
+/// @brief Знаково сравнивает N Б памяти на указателях A и B.
+/// @returns `0x00` - блок A меньше блока B;
+/// @returns `0x80` - блоки A и B равны;
+/// @returns `0xFF` - блок A больше блока B
+inline byte memcmpS(byte *a, byte* b, dword n) {
     for (dword i = 0; i < n; i++) {
         if (a[i] > b[i]) return 0xFF;
         if (a[i] < b[i]) return 0x00;

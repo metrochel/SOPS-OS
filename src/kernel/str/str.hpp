@@ -8,7 +8,8 @@
 
 #include "../util/nums.hpp"
 
-byte strcmp(char* str1, char* str2);
+bool strcmp(char* str1, char* str2);
+byte strcmpS(char* str1, char* str2);
 
 bool strstartswith(char* str, char* substr);
 
@@ -19,5 +20,7 @@ dword strcpy(char* str1, char* str2);
 dword strlen(char* str);
 
 byte numasstr(dword num, char* str);
+
+char** strsplit(char* str, char* pattern);
 
 #endif

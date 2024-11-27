@@ -15,9 +15,9 @@ void initMemMgr() {
     // TODO
 }
 
-void* kmalloc(dword amount) {
+byte* kmalloc(dword amount) {
     // TODO
-    return nullptr;
+    return (byte*)0x2000000;
 }
 
 void kfree(void* ptr) {
