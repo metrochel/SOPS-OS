@@ -50,7 +50,7 @@ $(DISKFILE):
 #
 #	Компиляция файлов ядра
 #
-compile_cpp_source = $(CROSSCOMPILER) -c $(1) -o $(OBJSDIR)/$(subst .cpp,.o,$(notdir $(1))) -ffreestanding -O2 -lgc++ -Wall -Wextra -fno-exceptions -fno-rtti $(if $(filter-out src/kernel/int/int.cpp,$(1)),,-mgeneral-regs-only) $(if $(filter-out src/kernel/acpi/sci.cpp,$(1)),,-mgeneral-regs-only)
+compile_cpp_source = $(CROSSCOMPILER) -c $(1) -o $(OBJSDIR)/$(subst .cpp,.o,$(notdir $(1))) -ffreestanding -O2 -lgc++ -Wall -Wextra $(if $(filter-out src/kernel/graphics/text.cpp,$(1)),,-Wno-multichar) -fno-exceptions -fno-rtti $(if $(filter-out src/kernel/int/int.cpp,$(1)),,-mgeneral-regs-only) $(if $(filter-out src/kernel/acpi/sci.cpp,$(1)),,-mgeneral-regs-only)
 
 $(KERNELOBJ): $(KERNELSRC) $(OBJSDIR)
 	$(foreach cpp, $(KERNELSRC), $(shell $(call compile_cpp_source, $(cpp))))

@@ -10,14 +10,18 @@
 //  распределять память вручную.
 //
 
+byte *memPtr = (byte*)0x2000000;
 
 void initMemMgr() {
     // TODO
 }
 
 byte* kmalloc(dword amount) {
-    // TODO
-    return (byte*)0x2000000;
+    // TODO: Адекватный менеджер памяти
+    // (это временный)
+    byte *ret = memPtr;
+    memPtr += amount;
+    return ret;
 }
 
 void kfree(void* ptr) {

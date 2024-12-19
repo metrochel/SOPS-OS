@@ -8,6 +8,8 @@
 
 #include "nums.hpp"
 
+#define directconv(target, type) *((type*)&target)
+
 class CPUContext {
     public:
         dword eax;
@@ -147,6 +149,30 @@ inline byte memcmpS(byte *a, byte* b, dword n) {
         if (a[i] < b[i]) return 0x00;
     }
     return 0x80;
+}
+
+/// @brief Переводит символ из UTF-8 в UTF-16LE.
+inline word toUTF16(byte *&utf8) {
+    word utf16 = 0;
+    byte b = *utf8++;
+    if (b < 0x80)
+        return (word)b;
+    
+    if ((b & 0b11100000) == 0b11000000) {
+        utf16 |= ((b & 0b11111) << 6);
+        b = *utf8++;
+        utf16 |= b & 0b111111;
+        return utf16;
+    }
+
+    if ((b & 0b11110000) == 0b11100000) {
+        utf16 |= ((b & 0b1111) << 12);
+        b = *utf8++;
+        utf16 |= ((b & 0b111111) << 6);
+        b = *utf8++;
+        utf16 |= (b & 0b111111);
+        return utf16;
+    }
 }
 
 inline void disableInts() {

@@ -1279,7 +1279,7 @@ byte* getACPIObjAddr(AMLName* path, byte length) {
             continue;
         }
         i ++;
-        if (memcmp((byte*)(names + i), (byte*)path, length * 4) != 0x80) {
+        if (!memcmp((byte*)(names + i), (byte*)path, length * 4)) {
             i += names[i-1] + 2;
             continue;
         }
@@ -1309,7 +1309,7 @@ dword getACPIObjLen(AMLName* path, byte length) {
             continue;
         }
         i ++;
-        if (memcmp((byte*)(names + i), (byte*)path, length * 4) != 0x80) {
+        if (!memcmp((byte*)(names + i), (byte*)path, length * 4)) {
             i += names[i-1] + 2;
             continue;
         }
@@ -1409,7 +1409,7 @@ void remapACPIObj(AMLName* path, byte length, byte *newPtr) {
             continue;
         }
         i ++;
-        if (memcmp((byte*)(names + i), (byte*)path, length * 4) != 0x80) {
+        if (!memcmp((byte*)(names + i), (byte*)path, length * 4)) {
             i += names[i-1] + 2;
             continue;
         }

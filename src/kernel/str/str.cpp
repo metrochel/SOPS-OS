@@ -101,3 +101,75 @@ char** strsplit(char *str, char *pattern) {
     *ptr++ = 0;
     return result;
 }
+
+char chartranslit(word c) {
+    switch (c) {
+        case 'А': return 'A';
+        case 'Б': return 'B';
+        case 'В': return 'V';
+        case 'Г': return 'G';
+        case 'Д': return 'D';
+        case 'Е': return 'E';
+        case 'Ё': return 'E';
+        case 'Ж': return 'Z';
+        case 'З': return 'Z';
+        case 'И': return 'I';
+        case 'К': return 'K';
+        case 'Л': return 'L';
+        case 'М': return 'M';
+        case 'Н': return 'N';
+        case 'О': return 'O';
+        case 'П': return 'P';
+        case 'Р': return 'R';
+        case 'С': return 'S';
+        case 'Т': return 'T';
+        case 'У': return 'U';
+        case 'Ф': return 'F';
+        case 'Х': return 'H';
+        case 'Ц': return 'C';
+        case 'Ч': return 'C';
+        case 'Ш': return 'S';
+        case 'Щ': return 'S';
+        case 'Ъ': return '\'';
+        case 'Ы': return 'I';
+        case 'Ь': return '\'';
+        case 'Э': return 'E';
+        case 'Ю': return 'U';
+        case 'Я': return 'A';
+        
+        case 'а': return 'a';
+        case 'б': return 'b';
+        case 'в': return 'v';
+        case 'г': return 'g';
+        case 'д': return 'd';
+        case 'е': return 'e';
+        case 'ё': return 'e';
+        case 'ж': return 'z';
+        case 'з': return 'z';
+        case 'и': return 'i';
+        case 'к': return 'k';
+        case 'л': return 'l';
+        case 'м': return 'm';
+        case 'н': return 'n';
+        case 'о': return 'o';
+        case 'п': return 'p';
+        case 'р': return 'r';
+        case 'с': return 's';
+        case 'т': return 't';
+        case 'у': return 'u';
+        case 'ф': return 'f';
+        case 'х': return 'h';
+        case 'ц': return 'c';
+        case 'ч': return 'c';
+        case 'ш': return 's';
+        case 'щ': return 's';
+        case 'ъ': return '\'';
+        case 'ы': return 'i';
+        case 'ь': return '\'';
+        case 'э': return 'e';
+        case 'ю': return 'u';
+        case 'я': return 'a';
+
+        default: return c;
+    }
+}

@@ -232,10 +232,11 @@ __attribute__((interrupt)) void irq14(IntFrame* frame) {
     // kdebug("Статус контроллера: %b\n", pciConfigReadW(ideCon >> 16, ideCon >> 8, ideCon, 6));
     // kdebug("Статус диска: %b\n", ataStatus);
     if ((ideStatus & 2) || (ataStatus & ATA_STATUS_ERROR)) {
-        // kdebug("ВНИМАНИЕ: Была зафиксирована ошибка\n");
-        // kdebug("Статус диска: %b\n", inb(ATA_ERROR_PRIMARY));
+        kdebug("ВНИМАНИЕ: Была зафиксирована ошибка диска\n");
+        kdebug("Статус диска: %b\n", inb(ATA_ERROR_PRIMARY));
         dword errSector = (inb(ATA_LBA_HIGH_PRIMARY) << 16) | (inb(ATA_LBA_MID_PRIMARY) << 8) | inb(ATA_LBA_LOW_PRIMARY);
-        // kdebug("Проблемный сектор: %d\n", errSector);
+        kdebug("Проблемный сектор: %d\n", errSector);
+        outb(IDE_STATUS_PRIMARY, 2);
     }
     byte cmd = inb(IDE_COMMAND_PRIMARY);
     // kdebug("Команда 1 канала: %b\n", cmd);

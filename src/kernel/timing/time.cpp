@@ -15,7 +15,8 @@ byte Time::asString(char* out) {
     *out++ = ':';
     *out++ = (this->seconds / 10) + 0x30;
     *out++ = (this->seconds % 10) + 0x30;
-    return 8;
+    *out++ = 0;
+    return 9;
 }
 
 byte Time::asStringFull(char* out) {

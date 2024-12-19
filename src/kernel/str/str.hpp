@@ -23,4 +23,6 @@ byte numasstr(dword num, char* str);
 
 char** strsplit(char* str, char* pattern);
 
+char chartranslit(word c);
+
 #endif

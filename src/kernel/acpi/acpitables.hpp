@@ -86,7 +86,8 @@ struct FADT {
     dword flags;
     GAS resetRegister;
     byte resetValue;
-    byte reserved3[3];
+    word armBootArchFlags;
+    byte minorVer;
     qword x_facsAddr;
     qword x_dsdt;
     GAS x_pm1aEventBlock;

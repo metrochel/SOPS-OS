@@ -29,10 +29,10 @@
 
 // Структура с данными из загрузчика
 struct BootLoaderData {
-    byte DiskNo;             // Номер диска, с которого загрузилась СОпС
+    byte DiskNo;                // Номер диска, с которого загрузилась СОпС
     char CPUID_Vendor[12];      // Имя производителя процессора
-    dword CPUID_Flags1;      // Флаги ЦП-1
-    dword CPUID_Flags2;      // Флаги ЦП-2
+    dword CPUID_Flags1;         // Флаги ЦП-1
+    dword CPUID_Flags2;         // Флаги ЦП-2
     VBEModeInfo VBEInfo;        // Информация о графическом режиме
     dword MaxAddr1;
     dword MaxAddr2;
@@ -123,13 +123,11 @@ int main() {
         kwarn("ВНИМАНИЕ: COM4 на данный момент не работает.\nИзвините, пока не доделали.\n");
     }
 
-    kdebugdisable();
     if (!initACPI()) {
         kerror("ОШИБКА: ACPI не инициализирован\n");
     }
     else
         kprint("ACPI успешно инициализирован!\n");
-    kdebugenable();
 
     if (!initPS2())
         kerror("ОШИБКА: Контроллер PS/2 не инициализирован\n");
@@ -170,16 +168,11 @@ int main() {
     kprint(".\n");
 
     byte driveNo = bld->DiskNo;
+
     if (initFAT(driveNo))
         kprint("FAT32 успешно инициализирована!\n");
     else
         kerror("ОШИБКА: FAT32 не инициализирована\n");
-
-    readCluster(driveNo, ebpbs[driveNo].rootCluster, (byte*)0x2004000);
-    File f = File::construct((byte*)0x2004000, driveNo);
-    byte *out = (byte*)0x2000100;
-    f.read(out);
-    magicBreakpoint();
 
     shellMain();
 }

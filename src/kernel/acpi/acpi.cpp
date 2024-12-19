@@ -443,6 +443,14 @@ bool initACPI() {
     kdebug("Поддерживается ли регистр RESET? ");
     kdebug(resetRegSupport ? "Да\n" : "Нет\n");
 
+    byte majorVer = fadt->header.revision;
+    byte minorVer = fadt->minorVer & 0xF;
+    byte erratum  = fadt->minorVer >> 4;
+
+    kdebug("Версия спецификации: %d.%d", majorVer, minorVer);
+    if (erratum) kdebug((byte)(erratum + 0x41 - 1));
+    kdebug(".\n");
+
     byte sciIntNo = irqOffset + fadt->sciInt;
     kdebug("Номер прерывания SCI: %x.\n", sciIntNo);
     encode_idt_entry(sciHandler, sciIntNo);
@@ -456,7 +464,6 @@ bool initACPI() {
         maxSleep = 3;
     
     kdebug("Максимальное поддерживаемое состояние сна: S%d.\n", maxSleep);
-
     prepareWakeFunction();
 
     kdebug("Инициализация ACPI завершена успешно.\n\n");
@@ -591,8 +598,8 @@ void ksleep() {
 
 void kshutdown() {
     kdebug("Запрошена процедура отключения.\n");
-    exitDebugger();
     enterSleepState(5);
+    exitDebugger();
 }
 
 void krestart() {

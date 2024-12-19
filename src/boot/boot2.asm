@@ -71,6 +71,58 @@ printstr:
     jmp .loop
 ;============================
 
+;============================
+;
+;   Вывод шестнадцатеричного числа на экран
+;
+;   - Выводит на экран число в шестнадцатеричной системе счисления.
+;
+;   На вход:
+;       - DX - число
+;
+printhexnum:
+    pusha
+    mov ah, 0x0E
+    mov bx, 0
+    mov al, '0'
+    int 0x10
+    mov al, 'x'
+    int 0x10
+    mov cx, 0xF000
+.loop:
+    mov ax, dx
+    and ax, cx
+.digitloop:
+    cmp ax, 16
+    jb .digitloopout
+    shr ax, 4
+    jmp .digitloop
+.digitloopout:
+    call gethexdigit
+    mov ah, 0x0E
+    int 0x10
+    shr cx, 4
+    cmp cx, 0
+    jnz .loop
+.out:
+    mov al, CR
+    int 0x10
+    mov al, NEWL
+    int 0x10
+    popa
+    ret
+
+gethexdigit:
+    cmp al, 10
+    jae .strlet
+    add al, 0x30
+    ret
+.strlet:
+    add al, 0x41
+    sub al, 10
+    ret
+;============================
+
 
 ;======================================================
 ;
@@ -99,7 +151,7 @@ resetmem:
 
 ;===================================================
 ;
-;  Активация линии А20
+;  Активация адресной линии А20
 ;
 ;  - Без неё не получится использовать всю ОЗУ в ПК.
 ;
@@ -107,16 +159,66 @@ enable_a20:
     cli
     call .check_a20
     jc .a20_on
-    call .enable_a20
+    call .enable_a20_bios
+    jc .a20_on
+    call .check_a20
+    jc .a20_on
+    call .enable_a20_ps2
     call .check_a20
     jc .a20_on
     sti
     jnc .a20_fail
     ret
-; Активация линии А20
-.enable_a20:
+; Активация линии A20 через БИОС
+.enable_a20_bios:
     pusha
-    ; Для включения используем контроллер клавиатуры.
+    ; Пробуем прерывание БИОСа
+    mov ax, 0x2403
+    int 0x15
+
+    ; Если не сработало, выходим
+    jb ._bios_fail
+    cmp ah, 0
+    jb ._bios_fail
+
+    ; Проверяем, включена ли линия
+    mov ax, 0x2402
+    int 0x15
+
+    ; Если не сработало, выходим
+    jb ._bios_fail
+    cmp ah, 0
+    jnz ._bios_fail
+
+    ; Если AL = 1, то линия включена
+    cmp al, 1
+    jz ._bios_active
+
+    ; Пробуем включить
+    mov ax, 0x2401
+    int 0x15
+
+    ; Если не сработало, выходим
+    jb ._bios_fail
+    cmp ah, 0
+    jnz ._bios_fail
+
+._bios_active:
+    ; Если мы здесь, то всё сработало!
+    popa
+    stc
+    ret
+
+._bios_fail:
+    ; А если здесь, то не сработало
+    popa
+    clc
+    ret
+
+
+; Активация линии А20 через контроллер PS/2
+.enable_a20_ps2:
+    pusha
     ; Команда отключения клавиатуры
     call .a20_wait1
     mov al, 0xAD
@@ -221,6 +323,7 @@ getcpuinfo:
     jz .no_cpuid
     call .cpuid_getvendor
     call .cpuid_getdata
+    clc
     ret
 
 ; Проверка доступности инструкции CPUID
@@ -271,6 +374,8 @@ getcpuinfo:
 
 ; Инструкция CPUID недоступна
 .no_cpuid:
+    add bp, 20
+    stc
     ret
 ;==========================================
 
@@ -294,6 +399,7 @@ getvideomodes:
     mov ax, 0x4F00
     int 0x10
     cmp ax, 0x004F
+    mov dh, 0x01
     jne .video_fail
 
     ; Настраиваемся на обработку режимов
@@ -322,6 +428,7 @@ getvideomodes:
 
     ; Проверяем на успех
     cmp ax, 0x004F
+    mov dh, 2
     jne .video_fail
 
     ; Проверяем на наличие буфера кадров
@@ -365,6 +472,12 @@ getvideomodes:
     pop si
     jmp .videoloop
 
+.videocheck:
+    ; Проверяем, что нужный режим вообще есть
+    cmp word [MAXMODE], 0
+    mov dh, 3
+    jz  .video_fail
+
 .videoend:
     ; Устанавливаем видеорежим
     mov ax, 0x4F02
@@ -392,6 +505,16 @@ getvideomodes:
     ret
 
 .video_fail:
+    mov ah, 0x0E
+    mov al, dh
+    add al, 0x40
+    mov bx, 0
+    int 0x10
+    ; mov dx, cx
+    ; cmp al, 0x42
+    ; jne ._notprint
+    ; call printhexnum
+._notprint:
     popa
     stc
     ret
@@ -1241,6 +1364,9 @@ prot_mode_entry_point:
     mov gs, ax
 
     mov esp, 0x800000
+
+    mov byte [0xB8000], 'D'
+    mov byte [0xB8001], 0x0C
 
     ; Копирование 4 КиБ памяти в новое место для памяти
     call copyres
