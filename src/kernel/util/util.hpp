@@ -8,7 +8,7 @@
 
 #include "nums.hpp"
 
-#define directconv(target, type) *((type*)&target)
+#define directconv(target, type) (*((type*)&target))
 
 class CPUContext {
     public:
@@ -173,6 +173,15 @@ inline word toUTF16(byte *&utf8) {
         utf16 |= (b & 0b111111);
         return utf16;
     }
+}
+
+inline byte digitsLength(qword n) {
+    byte len = 0;
+    while (n) {
+        len ++;
+        n /= 10;
+    }
+    return len;
 }
 
 inline void disableInts() {

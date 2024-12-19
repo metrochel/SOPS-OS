@@ -243,7 +243,8 @@ __attribute__((interrupt)) void irq14(IntFrame* frame) {
     // kdebug("Команда была на ");
     bool read = cmd & 8;
     // kdebug(read ? "чтение.\n" : "запись.\n");
-    PRD donePrd = *prdt1base++;
+    // PRD donePrd = *prdt1base++;
+    prdt1base++;
     // kdebug("Обработанный PRD:\n\tФиз. адрес данных: %x\n\tРазмер блока данных: %d Б\n\tПоследний ли? ", donePrd.base, donePrd.count, donePrd.msb);
     // kdebug((donePrd.msb & 0x80) ? "Да\n" : "Нет\n");
     if (prdt1base == prdt1) {
@@ -275,7 +276,8 @@ __attribute__((interrupt)) void irq15(IntFrame* frame) {
     // kdebug("Команда была на ");
     bool read = cmd & 8;
     // kdebug(read ? "чтение.\n" : "запись.");
-    PRD donePrd = *prdt2base++;
+    // PRD donePrd = *prdt2base++;
+    prdt2base++;
     // kdebug("Обработанный PRD:\n\tФиз. адрес данных: %x\n\tРазмер блока данных: %d Б\n\tПоследний ли? ", donePrd.base, donePrd.count, donePrd.msb);
     // kdebug((donePrd.msb & 0x80) ? "Да\n" : "Нет\n");
     if (prdt2base == prdt2) {

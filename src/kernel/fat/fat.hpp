@@ -19,9 +19,13 @@
 
 #define FAT_CLUSTER_EOF         0xFFFFFF8
 #define FAT_CLUSTER_BAD         0xFFFFFF7
+#define FAT_CLUSTER_FREE        0x0000000
 
 #define is_lfn(x) x->attr == FAT_FILEATTR_LFN
-#define clustersize(x) bpbs[x].bytesPerSector * bpbs[x].sectorsPerCluster
+#define clustersize(x) (bpbs[x].bytesPerSector * bpbs[x].sectorsPerCluster)
+#define is_eof(x) (x >= FAT_CLUSTER_EOF)
+#define root(x) (ebpbs[x].rootCluster)
+#define freeEntry(x) x.name[0] = 0xE5
 
 /// @brief BIOS Parameter Block - структура, описывающая базовые данные о FAT.
 struct FAT_BPB {
@@ -58,22 +62,28 @@ struct FAT32_EBPB {
     byte  flSysType[8];         // "Тип файловой системы" (на деле всегда "FAT32   ")
 } __attribute__((packed));
 
-/// @brief Файл.
+/// ### File
+/// Этот класс описывает данные о файле и позволяет с ним взаимодействовать
+/// (читать, создавать, записывать и др.).
 class File {
     public:
         char *name;             // Имя файла
         byte attributes;        // Атрибуты файла
         dword startCluster;     // Первый кластер файла
         dword directoryCluster; // Кластер, содержащий папку, в которой лежит файл
+        word dirEntryOffset;    // Сдвиг по кластеру папки, на котором метка для данного файла
         byte drive;             // Номер диска с файлом
         dword size;             // Размер файла в байтах
         Time creationDate;      // Дата создания файла
         Time lastEditDate;      // Дата редактирования файла
+        bool text = true;       // Флаг; `true`, если файл открыт в текстовом режиме
 
         /// @brief Конструктор по метке директории.
-        /// @param ptr Указатель на метку
-        /// @param driveNo Номер диска
-        File(byte *ptr, byte driveNo);
+        /// @param cluster Кластер с меткой
+        /// @param offset Сдвиг метки
+        /// @param driveNo Номер диска метки
+        /// @attention Сдвиг указывать на первую LFN-метку файла!
+        File(dword cluster, word offset, byte driveNo);
 
         /// @brief Конструктор по непосредственным данным файла.
         /// @param name Имя файла
@@ -84,12 +94,27 @@ class File {
         /// @note Очень полезно для создания виртуальных файлов, то есть таких, которых нет сейчас на диске.
         File(char *name, byte attr, byte drive, dword size, Time creationDate, dword directoryCluster);
 
+        /// @brief Деструктор файла.
+        ~File();
+
+        /// @brief Создаёт файл на диске.
+        void create();
+
         /// @brief Считывает весь файл в память.
         /// @param out Указатель выхода данных
         void read(byte *out);
 
-        /// @brief Создаёт файл на диске.
-        void create();
+        /// @brief Записывает данные в файл.
+        /// @param in Указатель входа данных
+        /// @param dataSize Размер данных, Б
+        void write(byte *in, dword dataSize);
+
+        /// @brief Переименовывает файл.
+        /// @param newname Новое имя файла
+        void rename(char *newname);
+
+        /// @brief Удаляет файл с диска.
+        void remove();
     protected:
         /// @brief Пустой конструктор.
         File();
@@ -139,6 +164,16 @@ extern byte bootNo;
 extern FAT_BPB bpbs[16];
 extern FAT32_EBPB ebpbs[16];
 
+/// @brief Обновляет метку директории для файла.
+/// @param f Файл
+void updateDirEntry(File *f);
+
+/// @brief Создаёт SFN-имя для данного названия
+/// @param name Исходное название
+/// @param out Указатель на буфер выхода
+/// @return Флаг; `true`, если у файла есть расширение
+bool createSFNName(char *name, char *out);
+
 /// @brief Инициализирует FAT. (Ну надо же!)
 /// @param driveNo Номер диска, на котором читать FAT
 bool initFAT(byte driveNo);
@@ -172,5 +207,10 @@ dword getCluster(byte driveNo, dword clusterNo);
 /// @param clusterNo Номер кластера
 /// @param newVal Новое значение
 void setCluster(byte driveNo, dword clusterNo, dword newVal);
+
+/// @brief Определяет длину цепи кластеров.
+/// @param startCluster Начальный кластер
+/// @return Длина цепи кластеров
+dword getClusterChainLength(dword startCluster, byte drive);
 
 #endif

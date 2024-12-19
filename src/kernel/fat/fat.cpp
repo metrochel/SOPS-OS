@@ -131,11 +131,19 @@ File::File() {
 
 }
 
-File::File(byte *ptr, byte driveNo) {
+File::~File() {
+    kfree(this->name);
+}
+
+File::File(dword cluster, word offset, byte driveNo) {
     if (!fatInit) return;
-    FAT_DirEntry *entries = (FAT_DirEntry*)ptr;
-    kdebug("Начата сборка класса файла.\n");
-    kdebug("Адрес метки: %x.\n", ptr);
+
+    FAT_DirEntry clusterBuf[clustersize(driveNo) / sizeof(FAT_DirEntry)];
+    this->drive = driveNo;
+    readCluster(drive, cluster, (byte*)clusterBuf);
+
+    FAT_DirEntry *entries = clusterBuf + offset;
+
     byte lfnCount = 0;
     while (is_lfn(entries)) {
         lfnCount++;
@@ -148,8 +156,6 @@ File::File(byte *ptr, byte driveNo) {
     this->startCluster = (dword)entries->clusterHi << 16;
     this->startCluster |= entries->clusterLo;
     this->size = entries->fileSize;
-
-    this->drive = driveNo;
 
     kdebug("Атрибуты файла: %b.\n", this->attributes);
     kdebug("Номер первого кластера файла: %d.\n", this->startCluster);
@@ -174,6 +180,8 @@ File::File(byte *ptr, byte driveNo) {
         byte *name = kmalloc(12);
         this->name = (char*)name;
         extractShortName(*entries, name);
+        this->directoryCluster = cluster;
+        this->dirEntryOffset = offset + lfnCount;
         return;
     }
 
@@ -181,11 +189,14 @@ File::File(byte *ptr, byte driveNo) {
     this->name = (char*)name;
     entries--;
     FAT_LFNEntry *lfn = (FAT_LFNEntry*)entries;
-    do {
+    while (~lfn->order & 0x40) {
         extractLFNName(lfn, name);
         lfn --;
-    } while (~lfn->order & 0x40);
+    }
     extractLFNName(lfn, name);
+
+    this->directoryCluster = cluster;
+    this->dirEntryOffset = offset + lfnCount;
 }
 
 File::File(char *name, byte attr, byte drive, dword size, Time creationDate, dword directoryCluster) {
@@ -197,6 +208,7 @@ File::File(char *name, byte attr, byte drive, dword size, Time creationDate, dwo
     this->startCluster = maxdword;
     this->directoryCluster = directoryCluster;
     this->drive = drive;
+    this->dirEntryOffset  = maxword;
 }
 
 void File::read(byte *out) {
@@ -227,37 +239,163 @@ void File::read(byte *out) {
     kdebug("Считывание файла завершено.\n");
 }
 
-FAT_DirEntry craftSFN(File *f) {
-    FAT_DirEntry sfn;
+void File::write(byte *in, dword dataSize) {
+    kdebug("Начата запись %d байтов данных в файл ", dataSize);
+    kdebug(name);
+    kdebug(".\n");
+    dword curClusters = getClusterChainLength(startCluster, drive);
+    dword newClusters = (size + dataSize + clustersize(drive) - 1) / clustersize(drive);
+    kdebug("Сейчас использовано %d кластеров.\n", curClusters);
+    kdebug("Необходимо %d кластеров.\n", newClusters);
 
+    dword clus = startCluster;
+    dword _clus = getCluster(drive, clus);
+    while (!is_eof(_clus)) {
+        clus = _clus;
+        _clus = getCluster(drive, _clus);
+    }
+    kdebug("Последний кластер файла: %d.\n", clus);
+    if (newClusters > curClusters) {
+        kdebug("Необходимо добавить кластеры.\n", newClusters - curClusters);
+        dword previousClus = clus;
+        while (curClusters * clustersize(drive) < size + dataSize) {
+            _clus = allocateCluster(drive);
+            setCluster(drive, previousClus, _clus);
+            setCluster(drive, _clus, FAT_CLUSTER_EOF);
+            previousClus = _clus;
+            curClusters ++;
+        }
+    }
+
+    byte clusterBuf[clustersize(drive)];
+    dword _size = dataSize;
+
+    readCluster(drive, clus, clusterBuf);
+    kdebug("Считывается кластер %d.\n", clus);
+    word offset = size % clustersize(drive);
+    word fillSize = clustersize(drive) - offset;
+    if (_size < fillSize) {
+        kdebug("Прописывается %d Б.\n", _size);
+        memcpy(in, clusterBuf + offset, _size);
+        writeCluster(drive, clus, clusterBuf);
+        kdebug("Запись успешно завершена.\n");
+        size += _size;
+        _size = 0;
+        updateDirEntry(this);
+        return;
+    }
+    kdebug("Прописывается %d Б.\n", fillSize);
+    memcpy(in, clusterBuf + offset, fillSize);
+    _size -= fillSize;
+    in += fillSize;
+    writeCluster(drive, clus, clusterBuf);
+    clus = getCluster(drive, clus);
+
+    while (_size > clustersize(drive)) {
+        kdebug("Прописывается кластер %d.\n", clus);
+        kdebug("Прописывается %d Б.\n", clustersize(drive));
+        memcpy(in, clusterBuf, clustersize(drive));
+        writeCluster(drive, clus, clusterBuf);
+        clus = getCluster(drive, clus);
+        in += clustersize(drive);
+        _size -= clustersize(drive);
+    }
+
+    kdebug("Прописывается кластер %d.\n", clus);
+    kdebug("Прописывается %d Б.\n", _size);
+    memset(clusterBuf, clustersize(drive), 0);
+    memcpy(in, clusterBuf, _size);
+    writeCluster(drive, clus, clusterBuf);
+
+    size += dataSize;
+    updateDirEntry(this);
+
+    kdebug("Запись успешно завершена.\n");
+}
+
+bool dirNameExists(byte *name, dword dirCluster, byte drive) {
+    FAT_DirEntry clusterBuf[clustersize(drive) / sizeof(FAT_DirEntry)];
+
+    while (!is_eof(dirCluster)) {
+        readCluster(drive, dirCluster, (byte*)clusterBuf);
+        bool stop = false;
+        for (word i = 0; i < sizeof(clusterBuf) / sizeof(FAT_DirEntry); i++) {
+            if (memcmp(clusterBuf[i].name, name, 11))
+                return true;
+            if (clusterBuf[i].name[0] == 0) {
+                stop = true;
+                break;
+            }
+        }
+        if (stop) break;
+        dirCluster = getCluster(drive, dirCluster);
+    }
+    return false;
+}
+
+bool createSFNName(char *name, char *out) {
     byte i = 0;
-    char *str = f->name;
-    while (*str) {
+    bool hasExtension = false;
+    while (*name) {
         if (i == 11) {
-            sfn.name[9] = '~';
-            sfn.name[10] = '1';
+            out[9] = '~';
+            out[10] = '1';
             break;
         }
 
-        byte c = *(byte*)str++;
+        byte c = *(byte*)name++;
         if (c > 0x80) {
-            word bigChar = (c << 8) | *(byte*)str++;
-            c = chartranslit(bigChar);
+            c = '_';
         }
         if (c == '\'')
-            c = ' ';
+            c = '_';
         if (c >= 0x61) c -= 0x20;
         if (c == '.') {
+            hasExtension = true;
             while (i < 8)
-                sfn.name[i++] = ' ';
+                out[i++] = ' ';
             continue;
         }
-        sfn.name[i] = c;
+        out[i] = c;
         i++;
     }
+    while (*name && !hasExtension) {
+        if (*name == '.') {
+            name ++;
+            i = 8;
+            while (*name && i < 11) {
+                byte c = *name++;
+                if (c == '\'')
+                    c = '_';
+                if (c >= 0x61) c -= 0x20;
+                out[i++] = c;
+            }
+            hasExtension = true;
+        }
+        name ++;
+    }
     while (i < 11) {
-        sfn.name[i] = ' ';
+        out[i] = ' ';
         i++;
+    }
+    return hasExtension;
+}
+
+FAT_DirEntry craftSFN(File *f) {
+    FAT_DirEntry sfn;
+
+    bool hasExtension = createSFNName(f->name, (char*)sfn.name);
+
+    dword n = 0;
+    while (dirNameExists(sfn.name, f->directoryCluster, f->drive)) {
+        n ++;
+        byte i = hasExtension ? 7 : 10;
+        dword _n = n;
+        while (_n) {
+            sfn.name[i--] = (_n % 10) + 0x30;
+            _n /= 10;
+        }
+        sfn.name[i] = '~';
     }
 
     sfn.attr = f->attributes;
@@ -276,7 +414,7 @@ FAT_DirEntry craftSFN(File *f) {
 
 word computeDirEntries(char *str) {
     dword len = strlen(str);
-    return (len + 12) / 13;
+    return (len + 12 - 1) / 13;
 }
 
 byte computeChecksum(FAT_DirEntry sfn) {
@@ -287,12 +425,22 @@ byte computeChecksum(FAT_DirEntry sfn) {
     return sum;
 }
 
+void updateDirEntry(File *f) {
+    FAT_DirEntry clusterBuf[clustersize(f->drive) / sizeof(FAT_DirEntry)];
+
+    readCluster(f->drive, f->directoryCluster, (byte*)clusterBuf);
+    word curIndex = f->dirEntryOffset;
+    freeEntry(clusterBuf[curIndex--]);
+    while ((directconv(clusterBuf[curIndex], FAT_LFNEntry).order & 0x40) == 0)
+        freeEntry(clusterBuf[curIndex--]);
+    freeEntry(clusterBuf[curIndex]);
+    writeCluster(f->drive, f->directoryCluster, (byte*)clusterBuf);
+
+    (*f).create();
+}
+
 void File::create() {
     FAT_DirEntry clusterBuf[clustersize(this->drive) / sizeof(FAT_DirEntry)];
-    
-    kdebug("Начато создание файла ");
-    kdebug(this->name);
-    kdebug(".\n");
 
     word entriesNeeded = computeDirEntries(this->name);
     kdebug("Нужно %d меток.\n", entriesNeeded);
@@ -304,14 +452,14 @@ void File::create() {
         readCluster(this->drive, clus, (byte*)clusterBuf);
         word streak = 0;
         for (word i = 0; i < clustersize(this->drive) / sizeof(FAT_DirEntry); i++) {
-            char entryFirstChar = clusterBuf[i].name[0];
+            byte entryFirstChar = clusterBuf[i].name[0];
             if (streak == entriesNeeded + 1) {
-                index = i;
+                index = i - 1;
                 kdebug("Найдено место под метку. Индекс в буфере: %d.\n", index);
                 break;
             }
             if (entryFirstChar == 0x00 && i + entriesNeeded < sizeof(clusterBuf) / sizeof(FAT_DirEntry)) {
-                index = i + entriesNeeded;
+                index = i + entriesNeeded - streak;
                 kdebug("Найдено место под метку. Индекс в буфере: %d.\n", index);
                 break;
             }
@@ -322,7 +470,7 @@ void File::create() {
         }
         if (index != maxword) break;
         clus = getCluster(this->drive, clus);
-    } while (clus != FAT_CLUSTER_EOF);
+    } while (!is_eof(clus));
 
     if (index == maxword) {
         kdebug("ОШИБКА: Не хватило места под метку.\n");
@@ -334,11 +482,11 @@ void File::create() {
 
     if (this->startCluster == maxdword) {
         dword clustersCount = (this->size + clustersize(this->drive) - 1) / (clustersize(this->drive));
-        kdebug("Необходимо выделить %d кластеров под файл.\n", clustersCount);
+        if (!clustersCount) clustersCount = 1;
+        kdebug("Необходимо выделить %d кластеров под файл.\n");
         kdebug("Выделяются кластеры ");
         dword firstClus = allocateCluster(drive);
         this->startCluster = firstClus;
-        kdebug("%d", firstClus);
         setCluster(drive, firstClus, 1);
         dword clus = firstClus;
         for (dword i = 0; i < clustersCount - 1; i++) {
@@ -405,6 +553,39 @@ void File::create() {
 
     kdebug("Метки расставлены. Начинается запись.\n");
     writeCluster(this->drive, clus, (byte*)clusterBuf);
+
+    this->directoryCluster = clus;
+    this->dirEntryOffset = index + entriesNeeded + 1;
+    kdebug("Создание файла завершено.\n");
+}
+
+void File::remove() {
+    FAT_DirEntry clusterBuf[clustersize(drive) / sizeof(FAT_DirEntry)];
+
+    readCluster(drive, directoryCluster, (byte*)clusterBuf);
+    word offset = dirEntryOffset;
+    freeEntry(clusterBuf[offset]);
+    offset --;
+    while ((directconv(clusterBuf[offset], FAT_LFNEntry).order & 0x40) == 0) {
+        freeEntry(clusterBuf[offset]);
+        offset --;
+    }
+    freeEntry(clusterBuf[offset]);
+    writeCluster(drive, directoryCluster, (byte*)clusterBuf);
+
+    dword clus = startCluster;
+    dword _clus = getCluster(drive, clus);
+    while (!is_eof(_clus)) {
+        setCluster(drive, clus, FAT_CLUSTER_FREE);
+        clus = _clus;
+        _clus = getCluster(drive, _clus);
+    }
+    setCluster(drive, clus, FAT_CLUSTER_FREE);
+}
+
+void File::rename(char *newname) {
+    this->name = newname;
+    updateDirEntry(this);
 }
 
 void readCluster(byte driveNo, dword clusterNo, byte *out) {
@@ -482,4 +663,14 @@ void setCluster(byte driveNo, dword clusterNo, dword newVal) {
         writeSector((byte*)buf, fatSect, driveNo);
         fatSect += fatSize;
     }
+}
+
+dword getClusterChainLength(dword startCluster, byte drive) {
+    dword len = 0;
+    dword clus = startCluster;
+    do {
+        len ++;
+        clus = getCluster(drive, clus);
+    } while (!is_eof(clus));
+    return len;
 }

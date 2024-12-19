@@ -1,10 +1,12 @@
 #include "ps2.hpp"
 #include "../graphics/glyphs.hpp"
+#include "../util/util.hpp"
 
 bool firstPortAvailable = false;
 bool secondPortAvailable = false;
 
 bool initPS2() {
+    disableInts();
     sendPS2ConCommand(PS2_CMD_DISABLE_FIR_PORT);
     sendPS2ConCommand(PS2_CMD_DISABLE_SEC_PORT);
 
@@ -12,60 +14,59 @@ bool initPS2() {
     io_wait();
 
     sendPS2ConCommand(PS2_CMD_READFROMRAM);
-    while (!(inb(PS2_STATUS) & 1));
+    while (!(inb(PS2_STATUS) & 1)) {io_wait();}
     byte ccb = inb(PS2_DATA);
-    ccb &= ~(PS2_CCB_FIRSTPORT_INT | PS2_CCB_SECONDPORT_INT | PS2_CCB_FIRSTPORT_TRANSLATE);
+    ccb &= ~(PS2_CCB_FIRSTPORT_INT | PS2_CCB_SECONDPORT_INT | PS2_CCB_FIRSTPORT_TRANSLATE | PS2_CCB_FIRSTPORT_CLOCK);
     sendPS2ConCommand(PS2_CMD_WRITETORAM);
-    while (inb(PS2_STATUS) & 2);
+    while (inb(PS2_STATUS) & 2) {io_wait();}
     outb(PS2_DATA, ccb);
     io_wait();
 
     sendPS2ConCommand(PS2_CMD_TEST_CONTROLLER);
-    while (!(inb(PS2_STATUS) & 1));
-    if (inb(PS2_DATA) != 0x55)
+    while (!(inb(PS2_STATUS) & 1)) {io_wait();}
+    if (inb(PS2_DATA) != 0x55) {
+        enableInts();
         return false;
+    }
     io_wait();
     sendPS2ConCommand(PS2_CMD_WRITETORAM);
-    while (inb(PS2_STATUS) & 2);
+    while (inb(PS2_STATUS) & 2) {io_wait();}
     outb(PS2_DATA, ccb);
     io_wait();
 
-    if (ccb & 32) {
-        sendPS2ConCommand(PS2_CMD_ENABLE_SEC_PORT);
-        sendPS2ConCommand(PS2_CMD_READFROMRAM);
-        ccb = inb(PS2_DATA);
-        if (ccb & 32)
-            secondPortAvailable = false;
-        else {
-            secondPortAvailable = true;
-            sendPS2ConCommand(PS2_CMD_DISABLE_SEC_PORT);
-        }
+    sendPS2ConCommand(PS2_CMD_ENABLE_SEC_PORT);
+    io_wait();
+    sendPS2ConCommand(PS2_CMD_READFROMRAM);
+    while (!(inb(PS2_STATUS) & 1)) {io_wait();}
+    ccb = inb(PS2_DATA);
+    if (!(ccb & 32)) {
+        secondPortAvailable = true;
+        ccb &= ~(PS2_CCB_SECONDPORT_INT | PS2_CCB_SECONDPORT_CLOCK);
+        sendPS2ConCommand(PS2_CMD_WRITETORAM);
+        while (inb(PS2_STATUS) & 2) {io_wait();}
+        outb(PS2_DATA, ccb);
     } else
         secondPortAvailable = false;
 
     sendPS2ConCommand(PS2_CMD_TEST_FIR_PORT);
-    if (!inb(PS2_DATA))
-        firstPortAvailable = true;
-    else
-        firstPortAvailable = false;
+    firstPortAvailable = !inb(PS2_DATA);
     io_wait();
     
     sendPS2ConCommand(PS2_CMD_TEST_SEC_PORT);
-    if (!inb(PS2_DATA))
-        secondPortAvailable = true;
-    else
-        secondPortAvailable = false;
+    secondPortAvailable = !inb(PS2_DATA);
     io_wait();
 
-    if (!firstPortAvailable && !secondPortAvailable)
+    if (!firstPortAvailable && !secondPortAvailable) {
+        enableInts();
         return false;
+    }
 
     if (firstPortAvailable) {
         sendPS2ConCommand(PS2_CMD_ENABLE_FIR_PORT);
         sendPS2ConCommand(PS2_CMD_READFROMRAM);
         while (!(inb(PS2_STATUS) & 1)) {io_wait();}
         ccb = inb(PS2_DATA);
-        ccb |= 1;
+        ccb |= PS2_CCB_FIRSTPORT_INT;
         sendPS2ConCommand(PS2_CMD_WRITETORAM);
         while (inb(PS2_STATUS) & 2) {io_wait();}
         outb(PS2_DATA, ccb);
@@ -76,14 +77,15 @@ bool initPS2() {
         sendPS2ConCommand(PS2_CMD_ENABLE_SEC_PORT);
         sendPS2ConCommand(PS2_CMD_READFROMRAM);
         ccb = inb(PS2_DATA);
-        ccb |= 2;
+        ccb |= PS2_CCB_SECONDPORT_INT;
         sendPS2ConCommand(PS2_CMD_WRITETORAM);
-        while (inb(PS2_STATUS) & 2);
+        while (inb(PS2_STATUS) & 2) {io_wait();}
         outb(PS2_DATA, ccb);
         io_wait();
     }
 
-    return firstPortAvailable | secondPortAvailable;
+    enableInts();
+    return firstPortAvailable || secondPortAvailable;
 }
 
 bool sendPS2ConCommand(byte cmd) {
