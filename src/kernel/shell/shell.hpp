@@ -1,3 +1,4 @@
+#include "../util/nums.hpp"
 //
 //  Оболочка
 //
@@ -5,7 +6,7 @@
 //
 
 /// @brief Основная функция оболочки.
-void shellMain();
+void shellMain(byte drive);
 
 /// @brief Отвечает за логику команды `shutdown`.
 void cmdShutdown();
@@ -15,3 +16,6 @@ void cmdReboot();
 void cmdTime();
 /// @brief Отвечает за логику команды `ls`.
 void cmdLs();
+/// @brief Отвечает за логику команды `cd`.
+/// @param path Новый путь
+void cmdCd(char *path);

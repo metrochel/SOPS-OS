@@ -91,7 +91,7 @@ bool initFAT(byte driveNo) {
     return true;
 }
 
-void extractLFNName(FAT_LFNEntry *lfn, byte *&out) {
+void extractLFNName(FAT_LFNEntry *lfn, byte *out) {
     for (byte i = 0; i < 5; i++) {
         word symbol = lfn->name1[i];
         if (symbol > 0xFF)
@@ -117,6 +117,10 @@ void extractShortName(FAT_DirEntry entry, byte *&out) {
         if (entry.name[i] == 0x20)
             break;
         *out++ = entry.name[i];
+    }
+    if (entry.name[8] == ' ' && entry.name[9] == ' ' && entry.name[10] == ' ') {
+        *out++ = 0x00;
+        return;
     }
     *out++ = '.';
     for (byte i = 0; i < 3; i++) {
@@ -145,7 +149,7 @@ File::File(dword cluster, word offset, byte driveNo) {
     FAT_DirEntry *entries = clusterBuf + offset;
 
     byte lfnCount = 0;
-    while (is_lfn(entries)) {
+    while (is_lfn(*entries)) {
         lfnCount++;
         entries++;
     }
@@ -191,16 +195,20 @@ File::File(dword cluster, word offset, byte driveNo) {
     FAT_LFNEntry *lfn = (FAT_LFNEntry*)entries;
     while (~lfn->order & 0x40) {
         extractLFNName(lfn, name);
+        name += 13;
         lfn --;
     }
     extractLFNName(lfn, name);
+    name += 13;
 
     this->directoryCluster = cluster;
     this->dirEntryOffset = offset + lfnCount;
 }
 
 File::File(char *name, byte attr, byte drive, dword size, Time creationDate, dword directoryCluster) {
-    this->name = name;
+    char *fname = (char*)kmalloc(strlen(name) + 1);
+    strcpy(name, fname);
+    this->name = fname;
     this->attributes = attr;
     this->size = size;
     this->creationDate = creationDate;
@@ -209,6 +217,156 @@ File::File(char *name, byte attr, byte drive, dword size, Time creationDate, dwo
     this->directoryCluster = directoryCluster;
     this->drive = drive;
     this->dirEntryOffset  = maxword;
+}
+
+File::File(char *path, byte driveNo, bool force) {
+    kdebug("Начато создание File по пути ");
+    kdebug(path);
+    kdebug(".\n");
+    drive = driveNo;
+
+    char **pathComponents = strsplit(path, "/");
+    directoryCluster = root(drive);
+
+    FAT_DirEntry clusterBuf[clustersize(drive) / sizeof(FAT_DirEntry)];
+    byte *nameBuf = kmalloc(13*64);
+    memset((byte*)nameBuf, sizeof(nameBuf), 0);
+
+    char **_pathComponents = pathComponents;
+
+    while (*pathComponents) {
+        char *ipath = *pathComponents++;
+        kdebug("Поиск элемента \"");
+        kdebug(ipath);
+        kdebug("\".\n");
+
+        dword dirStart = directoryCluster;
+        dword _clus = getCluster(drive, directoryCluster);
+        bool found = false;
+        while (!is_eof(directoryCluster)) {
+            readCluster(drive, directoryCluster, (byte*)clusterBuf);
+            for (word i = 0; i < clustersize(drive) / sizeof(FAT_DirEntry); i++) {
+                if (clusterBuf[i].name[0] == 0)
+                    break;
+                if (clusterBuf[i].name[0] == 0xE5)
+                    continue;
+                if (!is_lfn(clusterBuf[i])) {
+                    kdebug("Найдена главная метка файла.\n");
+                    FAT_LFNEntry *ptr = (FAT_LFNEntry*)(clusterBuf + i - 1);
+                    byte *_nameBuf = nameBuf;
+                    if (!is_lfn(*ptr)) continue;
+                    while (~ptr->order & 0x40) {
+                        extractLFNName(ptr, _nameBuf);
+                        _nameBuf += 13;
+                        ptr --;
+                    }
+                    extractLFNName(ptr, _nameBuf);
+                    _nameBuf += 13;
+                    kdebug("Адрес первой LFN-метки: %x (%d).\n", ptr, i);
+                    kdebug("Извлечённое имя: \"");
+                    kdebug((char*)nameBuf);
+                    kdebug("\".\n");
+                    if (strcmp((char*)nameBuf, ipath)) {
+                        kdebug("Найдена нужная метка.\n");
+                        kdebug("Положение метки: кластер %d, сдвиг %d.\n", directoryCluster, i);
+                        dword clus = (clusterBuf[i].clusterHi << 16) | clusterBuf[i].clusterLo;
+                        if (!*pathComponents) startCluster = clus;
+                        else directoryCluster = clus;
+                        dirEntryOffset = i;
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            if (found) break;
+            directoryCluster = _clus;
+            _clus = getCluster(drive, _clus);
+        }
+
+        if (found)
+            continue;
+        
+        kdebug("ВНИМАНИЕ: Элемент \"");
+        kdebug(ipath);
+        kdebug("\" не найден\n");
+
+        if (!*pathComponents) {
+            directoryCluster = dirStart;
+            dirEntryOffset = maxword;
+            startCluster = maxdword;
+            dword namelen = strlen(*--pathComponents);
+            char *fname = (char*)kmalloc(namelen + 1);
+            attributes = 0;
+            strcpy(*pathComponents, fname);
+            name = fname;
+            kfree(_pathComponents);
+            kfree(nameBuf);
+            return;
+        }
+
+        if (!force) {
+            kdebug("ОШИБКА: Создание File провалено\n");
+            directoryCluster = 0;
+            dirEntryOffset = 0;
+            kfree(nameBuf);
+            kfree(_pathComponents);
+            return;
+        }
+
+        File folder(ipath, FAT_FILEATTR_DIRECTORY, driveNo, 0, kgettime(), dirStart);
+        folder.create();
+        directoryCluster = folder.startCluster;
+    }
+
+    kdebug("Извлекаются данные файла.\n");
+    FAT_DirEntry sfn = clusterBuf[dirEntryOffset];
+
+    attributes = sfn.attr;
+    size = sfn.fileSize;
+
+    creationDate.day = sfn.createDate & 0x1F;
+    creationDate.month = (sfn.createDate >> 5) & 0x0F;
+    creationDate.year = (sfn.createDate >> 9) + 1980;
+
+    creationDate.seconds = (sfn.createTime & 0x1F)*2 + sfn.createTimeMS / 100;
+    creationDate.minutes = (sfn.createTime >> 5) & 0x3F;
+    creationDate.hours = (sfn.createTime >> 11);
+
+    lastEditDate.day = sfn.lastWriteDate & 0x1F;
+    lastEditDate.month = (sfn.lastWriteDate >> 5) & 0x0F;
+    lastEditDate.year = (sfn.lastWriteDate >> 9) + 1980;
+
+    lastEditDate.seconds = (sfn.lastWriteTime & 0x1F)*2;
+    lastEditDate.minutes = (sfn.lastWriteTime >> 5) & 0x3F;
+    lastEditDate.hours = (sfn.lastWriteTime >> 11);
+
+    startCluster = (sfn.clusterHi << 16) | sfn.clusterLo;
+
+    dword namelen = strlen(*--pathComponents);
+    char *fname = (char*)kmalloc(namelen + 1);
+    strcpy(*pathComponents, fname);
+    name = fname;
+
+    kdebug("Имя файла: \"");
+    kdebug(fname);
+    kdebug("\".\n");
+    kdebug("Аттрибуты файла: %b.\n", attributes);
+    kdebug("Размер файла: %d Б.\n", size);
+    kdebug("Первый кластер файла: %d.\n", startCluster);
+    kdebug("Положение метки файла: кластер %d, сдвиг %d.\n", directoryCluster, dirEntryOffset);
+
+    char *tmp = (char*)nameBuf;
+    creationDate.asStringFull(tmp);
+    kdebug("Дата создания: ");
+    kdebug(tmp);
+    kdebug(".\n");
+    lastEditDate.asStringFull(tmp);
+    kdebug("Дата последнего редактирования: ");
+    kdebug(tmp);
+    kdebug(".\n");
+
+    kfree(_pathComponents);
+    kfree(nameBuf);
 }
 
 void File::read(byte *out) {
@@ -308,6 +466,7 @@ void File::write(byte *in, dword dataSize) {
     writeCluster(drive, clus, clusterBuf);
 
     size += dataSize;
+    lastEditDate = kgettime();
     updateDirEntry(this);
 
     kdebug("Запись успешно завершена.\n");
@@ -409,6 +568,9 @@ FAT_DirEntry craftSFN(File *f) {
     sfn.lastWriteTime = sfn.createTime;
     sfn.lastAccessDate = sfn.createDate;
 
+    if (f->attributes & FAT_FILEATTR_DIRECTORY)
+        sfn.fileSize = 0;
+
     return sfn;
 }
 
@@ -441,6 +603,8 @@ void updateDirEntry(File *f) {
 
 void File::create() {
     FAT_DirEntry clusterBuf[clustersize(this->drive) / sizeof(FAT_DirEntry)];
+
+    this->creationDate = kgettime();
 
     word entriesNeeded = computeDirEntries(this->name);
     kdebug("Нужно %d меток.\n", entriesNeeded);
@@ -484,10 +648,11 @@ void File::create() {
         dword clustersCount = (this->size + clustersize(this->drive) - 1) / (clustersize(this->drive));
         if (!clustersCount) clustersCount = 1;
         kdebug("Необходимо выделить %d кластеров под файл.\n");
-        kdebug("Выделяются кластеры ");
+        kdebug("Выделяются кластеры: ");
         dword firstClus = allocateCluster(drive);
         this->startCluster = firstClus;
         setCluster(drive, firstClus, 1);
+        kdebug("%d", firstClus);
         dword clus = firstClus;
         for (dword i = 0; i < clustersCount - 1; i++) {
             clus = allocateCluster(drive);
@@ -556,6 +721,54 @@ void File::create() {
 
     this->directoryCluster = clus;
     this->dirEntryOffset = index + entriesNeeded + 1;
+
+    if (attributes & FAT_FILEATTR_DIRECTORY) {
+        kdebug("Файл является папкой.\n");
+        kdebug("Первый кластер папки: %d.\n", startCluster);
+        kdebug("Создаётся метка \".\".\n");
+        FAT_DirEntry dotEntry;
+        for (byte i = 0; i < 11; i++)
+            dotEntry.name[i] = ' ';
+        dotEntry.name[0]        = '.';
+        dotEntry.attr           = FAT_FILEATTR_DIRECTORY;
+        dotEntry.createTimeMS   = sfn.createTimeMS;
+        dotEntry.createTime     = sfn.createTime;
+        dotEntry.createDate     = sfn.createDate;
+        dotEntry.lastAccessDate = sfn.lastAccessDate;
+        dotEntry.clusterHi      = sfn.clusterHi;
+        dotEntry.lastWriteTime  = sfn.lastWriteTime;
+        dotEntry.lastWriteDate  = sfn.lastWriteDate;
+        dotEntry.clusterLo      = sfn.clusterLo;
+        dotEntry.fileSize       = 0;
+        
+        kdebug("Создаётся метка \"..\".\n");
+        FAT_DirEntry dotdotEntry;
+        for (byte i = 0; i < 11; i++)
+            dotdotEntry.name[i] = ' ';
+        dotdotEntry.name[0]        = '.';
+        dotdotEntry.name[1]        = '.';
+        dotdotEntry.attr           = FAT_FILEATTR_DIRECTORY;
+        dotdotEntry.createTimeMS   = sfn.createTimeMS;
+        dotdotEntry.createTime     = sfn.createTime;
+        dotdotEntry.createDate     = sfn.createDate;
+        dotdotEntry.lastAccessDate = sfn.lastAccessDate;
+        dotdotEntry.clusterHi      = directoryCluster >> 16;
+        dotdotEntry.lastWriteTime  = sfn.lastWriteTime;
+        dotdotEntry.lastWriteDate  = sfn.lastWriteDate;
+        dotdotEntry.clusterLo      = directoryCluster & maxword;
+        dotdotEntry.fileSize       = 0;
+
+        if (directoryCluster == root(drive)) {
+            dotdotEntry.clusterHi = 0;
+            dotdotEntry.clusterLo = 0;
+        }
+
+        kdebug("Начинается запись \".\" и \"..\" в начало папки.\n");
+        memset((byte*)clusterBuf, clustersize(drive), 0);
+        clusterBuf[0] = dotEntry;
+        clusterBuf[1] = dotdotEntry;
+        writeCluster(drive, startCluster, (byte*)clusterBuf);
+    }
     kdebug("Создание файла завершено.\n");
 }
 
@@ -630,6 +843,9 @@ dword allocateCluster(byte driveNo) {
 }
 
 dword getCluster(byte driveNo, dword clusterNo) {
+    if (is_eof(clusterNo))
+        return 0;
+
     clusterNo &= 0x0FFFFFFF;
     dword startFatSect = bpbs[driveNo].reservedSectors;
     dword fatSize = ebpbs[driveNo].fatSize;

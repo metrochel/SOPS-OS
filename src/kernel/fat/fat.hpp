@@ -21,7 +21,7 @@
 #define FAT_CLUSTER_BAD         0xFFFFFF7
 #define FAT_CLUSTER_FREE        0x0000000
 
-#define is_lfn(x) x->attr == FAT_FILEATTR_LFN
+#define is_lfn(x) ((x).attr == FAT_FILEATTR_LFN)
 #define clustersize(x) (bpbs[x].bytesPerSector * bpbs[x].sectorsPerCluster)
 #define is_eof(x) (x >= FAT_CLUSTER_EOF)
 #define root(x) (ebpbs[x].rootCluster)
@@ -71,7 +71,7 @@ class File {
         byte attributes;        // Атрибуты файла
         dword startCluster;     // Первый кластер файла
         dword directoryCluster; // Кластер, содержащий папку, в которой лежит файл
-        word dirEntryOffset;    // Сдвиг по кластеру папки, на котором метка для данного файла
+        word dirEntryOffset;    // Сдвиг по кластеру папки, на котором находится главная метка для данного файла
         byte drive;             // Номер диска с файлом
         dword size;             // Размер файла в байтах
         Time creationDate;      // Дата создания файла
@@ -93,6 +93,12 @@ class File {
         /// @param creationDate Время создания
         /// @note Очень полезно для создания виртуальных файлов, то есть таких, которых нет сейчас на диске.
         File(char *name, byte attr, byte drive, dword size, Time creationDate, dword directoryCluster);
+
+        /// @brief Конструктор по пути к файлу.
+        /// @param path Абсолютный путь к файлу
+        /// @param driveNo Номер диска 
+        /// @param force Флаг; если `true`, то все отсутствующие по пути папки создаются автоматически
+        File(char *path, byte driveNo, bool force);
 
         /// @brief Деструктор файла.
         ~File();
@@ -173,6 +179,16 @@ void updateDirEntry(File *f);
 /// @param out Указатель на буфер выхода
 /// @return Флаг; `true`, если у файла есть расширение
 bool createSFNName(char *name, char *out);
+
+/// @brief Извлекает имя файла из LFN-меток.
+/// @param lfn Указатель на метки
+/// @param out Указатель на имя файла
+void extractLFNName(FAT_LFNEntry *lfn, byte *out);
+
+/// @brief Извлекает имя файла из главной метки файла.
+/// @param entry Метка
+/// @param out Указатель на имя файла
+void extractShortName(FAT_DirEntry entry, byte *&out);
 
 /// @brief Инициализирует FAT. (Ну надо же!)
 /// @param driveNo Номер диска, на котором читать FAT

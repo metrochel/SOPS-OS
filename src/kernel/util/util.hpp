@@ -8,7 +8,7 @@
 
 #include "nums.hpp"
 
-#define directconv(target, type) (*((type*)&target))
+#define directconv(target, type) (*((type*)&(target)))
 
 class CPUContext {
     public:
@@ -151,6 +151,13 @@ inline byte memcmpS(byte *a, byte* b, dword n) {
     return 0x80;
 }
 
+inline void memshiftleft(byte *ptr, dword dataSize, dword shift) {
+    memset(ptr, shift, 0);
+    for (dword i = shift; i < dataSize; i++) {
+        ptr[i-shift] = ptr[i];
+    }
+}
+
 /// @brief Переводит символ из UTF-8 в UTF-16LE.
 inline word toUTF16(byte *&utf8) {
     word utf16 = 0;
@@ -182,6 +189,14 @@ inline byte digitsLength(qword n) {
         n /= 10;
     }
     return len;
+}
+
+inline qword max(qword a, qword b) {
+    return a > b ? a : b;
+}
+
+inline qword min(qword a, qword b) {
+    return a < b ? a : b;
 }
 
 inline void disableInts() {

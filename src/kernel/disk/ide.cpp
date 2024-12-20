@@ -4,6 +4,7 @@
 #include "../memmgr/paging.hpp"
 #include "../io/com.hpp"
 #include "../dbg/dbg.hpp"
+#include "../util/util.hpp"
 
 const dword prdt1start = 0x9500;
 const dword prdt2start = 0x9700;
@@ -127,6 +128,7 @@ void readSectorsATA(dword startLBA, byte sectorsCount, byte driveNo, byte *out) 
     // kdebug("Начата подготовка к исполнению команды.\n");
     bool secondary = driveNo & 2;
     bool slave = driveNo & 1;
+    disableInts();
     if (!secondary && dma) {
         while (!prdt1read && prdt1 > (PRD*)prdt1start) {io_wait();}
         prdt1read = true;
@@ -240,6 +242,7 @@ void readSectorsATA(dword startLBA, byte sectorsCount, byte driveNo, byte *out) 
         // else
             // kdebug("ВНИМАНИЕ: Режим DMA не был активирован или передача уже завершилась\n");
     }
+    enableInts();
     while (transferring) {io_wait();}
     // kdebug("Чтение с диска успешно завершено.\n");
 }
@@ -250,6 +253,7 @@ void writeSectorsATA(dword startLBA, byte sectorsCount, byte driveNo, byte *out)
     // kdebug("Начинается подготовка к записи на диск.\n");
     bool slave = driveNo & 1;
     bool secondary = driveNo & 2;
+    disableInts();
     if (!secondary && dma) {
         while (prdt1read && prdt1 > (PRD*)prdt1start) {if (!prdt1read) break;}
         prdt1read = false;
@@ -358,6 +362,7 @@ void writeSectorsATA(dword startLBA, byte sectorsCount, byte driveNo, byte *out)
         // else
             // kdebug("ВНИМАНИЕ: Режим DMA не активирован\nОжидалось значение 1, получено %d\n", inb(IDE_COMMAND_SECONDARY));
     }
+    enableInts();
     while (transferring) {io_wait();}
     // kdebug("Запись на диск успешно завершена.\n");
 }

@@ -10,6 +10,7 @@
 
 bool strcmp(char* str1, char* str2);
 byte strcmpS(char* str1, char* str2);
+byte strcmpS(char* str1, char* str2, bool caseInsensitive);
 
 bool strstartswith(char* str, char* substr);
 

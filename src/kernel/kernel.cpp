@@ -174,7 +174,5 @@ int main() {
     else
         kerror("ОШИБКА: FAT32 не инициализирована\n");
 
-    
-
-    shellMain();
+    shellMain(driveNo);
 }

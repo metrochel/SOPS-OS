@@ -2,14 +2,23 @@
 #include "../io/com.hpp"
 #include "../util/util.hpp"
 #include "../graphics/glyphs.hpp"
+#include "../memmgr/memmgr.hpp"
 
 bool strcmp(char* str1, char* str2) {
     return strcmpS(str1, str2) == 0x80;
 }
 
 byte strcmpS(char* str1, char* str2) {
+    return strcmpS(str1, str2, false);
+}
+
+byte strcmpS(char* str1, char* str2, bool caseInsensitive) {
     byte s1 = *str1;
     byte s2 = *str2;
+    if (s1 >= 0x61 && s1 < 0x7B && caseInsensitive)
+        s1 -= 0x20;
+    if (s2 >= 0x61 && s2 < 0x7B && caseInsensitive)
+        s2 -= 0x20;
     if (s1 > s2)
         return 0xFF;
     if (s1 < s2)
@@ -17,11 +26,21 @@ byte strcmpS(char* str1, char* str2) {
     while (*str1 != 0 && *str2 != 0) {
         s1 = *str1++;
         s2 = *str2++;
+        if (s1 >= 0x61 && s1 < 0x7B && caseInsensitive)
+            s1 -= 0x20;
+        if (s2 >= 0x61 && s2 < 0x7B && caseInsensitive)
+            s2 -= 0x20;
         if (s1 > s2)
             return 0xFF;
         if (s1 < s2)
             return 0x00;
     }
+    s1 = *str1;
+    s2 = *str2;
+    if (s1 >= 0x61 && s1 < 0x7B && caseInsensitive)
+        s1 -= 0x20;
+    if (s2 >= 0x61 && s2 < 0x7B && caseInsensitive)
+        s2 -= 0x20;
     if (s1 > s2)
         return 0xFF;
     if (s1 < s2)
@@ -36,7 +55,7 @@ bool strstartswith(char* str, char* substr) {
         str ++;
         substr ++;
     }
-    return *substr == *str;
+    return true;
 }
 
 dword strcpy(char* str1, char* str2) {
@@ -84,9 +103,10 @@ char** strsplit(char *str, char *pattern) {
     dword plen = strlen(pattern);
     dword possibleFits = stlen / plen;
 
-    char** result = (char**)0x2000000;
-    char *ptr = (char*)result + possibleFits * sizeof(char**);
-    word i = 0;
+    char** result = (char**)kmalloc(possibleFits * sizeof(char**));
+    char *ptr = (char*)kmalloc(stlen * 2 + 2);
+    result[0] = ptr;
+    word i = 1;
     while (*str) {
         if (memcmp((byte*)str, (byte*)pattern, plen)) {
             *ptr++ = 0;
