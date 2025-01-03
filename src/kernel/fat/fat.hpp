@@ -22,8 +22,10 @@
 #define FAT_CLUSTER_FREE        0x0000000
 
 #define is_lfn(x) ((x).attr == FAT_FILEATTR_LFN)
-#define clustersize(x) (bpbs[x].bytesPerSector * bpbs[x].sectorsPerCluster)
 #define is_eof(x) (x >= FAT_CLUSTER_EOF)
+#define is_last(x) ((x).name[0] == 0x00)
+
+#define clustersize(x) (bpbs[x].bytesPerSector * bpbs[x].sectorsPerCluster)
 #define root(x) (ebpbs[x].rootCluster)
 #define freeEntry(x) x.name[0] = 0xE5
 
@@ -126,30 +128,34 @@ class File {
         File();
 };
 
+// ### FAT_DirEntry
+// Эта структура описывает одну метку файла внутри папки.
 struct FAT_DirEntry {
-    byte name[11];
-    byte attr;
-    byte _ntRes;
-    byte createTimeMS;
-    word createTime;
-    word createDate;
-    word lastAccessDate;
-    word clusterHi;
-    word lastWriteTime;
-    word lastWriteDate;
-    word clusterLo;
-    dword fileSize;
+    byte name[11];          // "Короткое" имя
+    byte attr;              // Аттрибуты файла
+    byte _ntRes;            // (резервировано)
+    byte createTimeMS;      // Миллисекунды создания файла / 10, 0-199
+    word createTime;        // Время создания файла
+    word createDate;        // Дата создания файла
+    word lastAccessDate;    // Дата последнего доступа к файлу
+    word clusterHi;         // Высшие 16 бит первого кластера файла
+    word lastWriteTime;     // Время последней записи
+    word lastWriteDate;     // Дата последней записи
+    word clusterLo;         // Низшие 16 бит первого кластера файла
+    dword fileSize;         // Размер файла, Б
 } __attribute__((packed));
 
+// ### FAT_LFNEntry
+// Эта структура описывает одну LFN-метку внутри файла
 struct FAT_LFNEntry {
-    byte order;
-    word name1[5];
-    byte attr;
-    byte type;
-    byte chksum;
-    word name2[6];
-    word _reserved;
-    word name3[2];
+    byte order;         // Номер (если установлен бит 6, то метка последняя)
+    word name1[5];      // 5 символов
+    byte attr;          // Аттрибуты (0x0F)
+    byte type;          // Тип (резервировано на 0)
+    byte chksum;        // Контрольная сумма
+    word name2[6];      // 6 символов
+    word _reserved;     // (резервировано)
+    word name3[2];      // 2 символа
 } __attribute__((packed));
 
 /// ### FSInfo

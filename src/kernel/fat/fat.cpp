@@ -375,24 +375,13 @@ void File::read(byte *out) {
     kdebug((const char*)this->name);
     kdebug(".\n");
     kdebug("Первый кластер файла: %d.\n", this->startCluster);
-    dword fatFirstSect = bpbs[this->drive].reservedSectors;
-    word clustsPerFatSect = (bpbs[this->drive].bytesPerSector / 4);
-    dword fatSect = fatFirstSect + this->startCluster / clustsPerFatSect;
-    kdebug("Сектор FAT с кластером %d: %d.\n", this->startCluster, fatSect);
-    dword *fat = (dword*)kmalloc(bpbs[this->drive].bytesPerSector);
-    readSector((byte*)fat, fatSect, this->drive);
-    dword curClus = this->startCluster;
-    while(curClus < 0xFFFFFF8) {
-        dword nextFatMin = (fatSect - fatFirstSect + 1) * clustsPerFatSect;
-        if (curClus > nextFatMin) {
-            kdebug("Считывается новый сектор FAT.\n");
-            fatSect++;
-            readSector((byte*)fat, fatSect, this->drive);
-        }
-        kdebug("Считывается кластер %d.\n", curClus);
-        readCluster(this->drive, curClus, out);
-        out += clustersize(this->drive);
-        curClus = fat[curClus % clustsPerFatSect];
+    dword clus = startCluster;
+    dword _clus = getCluster(drive, clus);
+    while (!is_eof(clus)) {
+        readCluster(drive, clus, out);
+        out += clustersize(drive);
+        clus = _clus;
+        _clus = getCluster(drive, _clus);
     }
     kdebug("Считывание файла завершено.\n");
 }

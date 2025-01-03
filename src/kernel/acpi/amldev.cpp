@@ -22,8 +22,9 @@ qword evaluateDeviceObj(dword *path, byte len, const char *objName, ...) {
         value = callMethod((AMLName*)varPathBase, varPathLen, argv);
     } else {    
         FuncFrame _frame = {};
-        _frame.addr = (byte*)0x2000000;
+        _frame.addr = kmalloc(0x1000);
         value = getTermArg(addr, &_frame).value;
+        kfree(_frame.addr);
     }
     return value;
 }

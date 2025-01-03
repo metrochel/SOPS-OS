@@ -1,4 +1,5 @@
 #include "graphics.hpp"
+#include "../kernel.hpp"
 
 byte *frameBufferPtr;
 word pitch;
@@ -12,6 +13,20 @@ byte bluemask;
 byte blueshift;
 byte reservedmask;
 byte reservedshift;
+
+void initGraphics() {
+    pitch = bld->VBEInfo.Pitch;
+    frameBufferPtr = (byte*)(0xFC000000 + (bld->VBEInfo.FrameBuffer & 0xFFF));
+    bpp = bld->VBEInfo.BPP;
+    redmask = bld->VBEInfo.RedMaskSize;
+    redshift = bld->VBEInfo.RedPos;
+    greenmask = bld->VBEInfo.GreenMaskSize;
+    greenshift = bld->VBEInfo.GreenPos;
+    bluemask = bld->VBEInfo.BlueMaskSize;
+    blueshift = bld->VBEInfo.BluePos;
+    screenWidth = bld->VBEInfo.Width;
+    screenHeight = bld->VBEInfo.Height;
+}
 
 /// @brief Кодирует цвет RGB в воспринимаемое видеокартой число.
 /// @param r Красный канал

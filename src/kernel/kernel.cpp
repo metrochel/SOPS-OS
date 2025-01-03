@@ -7,6 +7,7 @@
 *
 */
 
+#include "kernel.hpp"
 #include "acpi/acpi.hpp"
 #include "graphics/graphics.hpp"
 #include "graphics/glyphs.hpp"
@@ -26,22 +27,10 @@
 #include "dbg/dbg.hpp"
 #include "shell/shell.hpp"
 #include "fat/fat.hpp"
-
-// Структура с данными из загрузчика
-struct BootLoaderData {
-    byte DiskNo;                // Номер диска, с которого загрузилась СОпС
-    char CPUID_Vendor[12];      // Имя производителя процессора
-    dword CPUID_Flags1;         // Флаги ЦП-1
-    dword CPUID_Flags2;         // Флаги ЦП-2
-    VBEModeInfo VBEInfo;        // Информация о графическом режиме
-    dword MaxAddr1;
-    dword MaxAddr2;
-} __attribute__((packed));
+#include "cpu/gdt.hpp"
 
 // Указатель на данные загрузчика
 BootLoaderData* bld;
-
-byte *stdin = (byte*)0x9300;
 
 /// @brief Инициализирует данные, добытые в загрузчике.
 void initBLD() {
@@ -49,45 +38,16 @@ void initBLD() {
     bld->DiskNo &= 0x7F;
 }
 
-/// @brief Инициализирует графический драйвер.
-void initGraphics() {
-    pitch = bld->VBEInfo.Pitch;
-    frameBufferPtr = (byte*)(0xFC000000 + (bld->VBEInfo.FrameBuffer & 0xFFF));
-    bpp = bld->VBEInfo.BPP;
-    redmask = bld->VBEInfo.RedMaskSize;
-    redshift = bld->VBEInfo.RedPos;
-    greenmask = bld->VBEInfo.GreenMaskSize;
-    greenshift = bld->VBEInfo.GreenPos;
-    bluemask = bld->VBEInfo.BlueMaskSize;
-    blueshift = bld->VBEInfo.BluePos;
-    screenWidth = bld->VBEInfo.Width;
-    screenHeight = bld->VBEInfo.Height;
-
-    defaultTextCol = encodeRGB(1,1,1);
-    defaultBGCol = encodeRGB(0,0,0);
-    warnTextCol = encodeRGB(1,1,0);
-    warnBGCol = encodeRGB(0.5,0.5,0);
-    errorTextCol = encodeRGB(1,0,0);
-    errorBGCol = encodeRGB(0.5,0,0);
-}
-
-/// @brief Создаёт немного временного пространства.
-void initTempSpace() {
-    createPages(0x2000000, 0x7000000, 8);
-    dword *tmpPtr = (dword*)0x2000000;
-    for (dword i = 0; i < 8*1024/4; i++) {
-        tmpPtr[i] = 0;
-    }
-}
-
 /// @brief Точка входа в ядро.
 int main() {
     disableInts();
     initBLD();
-    initTempSpace();
     initGraphics();
+    initText();
     setPICOffsets(0x20, 0x28);
+    initMemMgr();
     initInts();
+    initGDT();
     unmaskIRQ(1);
     unmaskIRQ(2);
     unmaskIRQ(3);
@@ -158,7 +118,7 @@ int main() {
     while (kgettime() == Time()) {tinyWait();}
     kprint("Сейчас ");
     Time time = kgettime();
-    char* timestr = (char*)0x11000;
+    char* timestr = (char*)kmalloc(256);
     timestr += time.asStringWeekday(timestr);
     *timestr++ = ',';
     *timestr++ = ' ';
@@ -166,6 +126,7 @@ int main() {
     timestr -= 6;
     kprint(timestr);
     kprint(".\n");
+    kfree(timestr);
 
     byte driveNo = bld->DiskNo;
 

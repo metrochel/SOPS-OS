@@ -496,11 +496,7 @@ getvideomodes:
 
     ; Выходим
     popa
-    add bp, 0x100
-    mov di, bp
-    mov eax, dword [MAXSCREENSURFACE]
-    stosd
-    mov bp, di
+    add bp, 258
     clc
     ret
 
@@ -510,10 +506,10 @@ getvideomodes:
     add al, 0x40
     mov bx, 0
     int 0x10
-    ; mov dx, cx
-    ; cmp al, 0x42
-    ; jne ._notprint
-    ; call printhexnum
+    mov dx, cx
+    cmp al, 0x42
+    jne ._notprint
+    call printhexnum
 ._notprint:
     popa
     stc
@@ -530,90 +526,115 @@ getvideomodes:
 ;   что можно использовать, а что - нет.
 ;
 BLOCKS_AMOUNT dw 0
-MAXBLOCKADDR  dq 0
-MAXBLOCKLEN   dq 0
 getram:
     pusha
     mov eax, 0xE820
-    mov di, bp
+    mov di, 0xA000              ; 0xA000 - место временного буфера
     xor ebx, ebx
     mov edx, 0x534D4150
     mov ecx, 24
-    int 0x15
-    xor si, si
+    int 0x15                    ; Первый сегмент карты памяти
     jc .ramerror
 .ramloop:
-    inc word [BLOCKS_AMOUNT]
     or ebx, ebx
     je .ramend
+    inc word [BLOCKS_AMOUNT]    ; Увеличиваем число блоков
     add di, cx
+    cmp cx, 20                  ; Если возможность, что размер блока - не 20 Б, а 24. (Это говорит спецификация.)   
+    jne ._dontadd               ; Чтобы было проще работать с блоками, если размер блока 20 Б,
+    xor eax, eax                ; добавим в конец блока двойное слово с значением 0,
+    stosd                       ; чтобы добить размер блока до 24 Б.
 ._dontadd:
     mov eax, 0xE820
     mov ecx, 24
-    int 0x15
+    int 0x15                    ; Извлекаем оставшиеся блоки
     jc .ramerror
     jmp .ramloop
 
 ; Вся память прочитана
 .ramend:
-    mov cx, word [BLOCKS_AMOUNT]
-    mov si, bp
-.seekmaxaddr:
-    lodsd
-    mov ebx, eax
-    lodsd
-    push eax
-    add si, 8
-    lodsd
-    mov edx, eax
-    pop eax
-    cmp edx, 1
-    je  ._check
-    jmp ._notfound
-._check:
-    cmp eax, dword [MAXBLOCKADDR]
-    jl  ._notfound
-    cmp ebx, dword [MAXBLOCKADDR + 4]
-    jl  ._notfound
-._foundnewmax:
-    push edx
-    mov dword [MAXBLOCKADDR], eax
-    mov dword [MAXBLOCKADDR + 4], ebx
-    mov edx, dword [ds:si - 12]
-    mov dword [MAXBLOCKLEN], edx
-    mov edx, dword [ds:si - 8]
-    mov dword [MAXBLOCKLEN + 4], edx
-    pop edx
-._notfound:
-    dec cx
-    cmp dl, 3
-    jne ._cont
-._24byte:
-    add si, 4
-    jmp ._cont
-._cont:
-    jcxz .maxaddrfound
-    jmp .seekmaxaddr
+    mov si, 0xA000              ; Начинаем сортировать
+    mov di, 0xA018
+    mov bx, 0                   ; В обычном цикле "for i... for j..." регистр BX - это i,
+    mov cx, 1                   ; а регистр CX - это j.
 
-.maxaddrfound:
-    ; Поиск закончен, теперь кладём адрес в нашу область
-    mov si, bp
-    mov ebx, dword [MAXBLOCKADDR + 4]
-    add ebx, dword [MAXBLOCKLEN  + 4]
-    mov eax, dword [MAXBLOCKADDR]
-    adc eax, dword [MAXBLOCKLEN]
-    stosd
-    mov eax, ebx
-    stosd
-    mov bp, si
+    ; Сортировка выполнена обычным методом пузырька.
+.ramsort1:
+    lea di, byte [si + 24]
+.ramsort2:
+    mov eax, dword [ds:si + 4]      ; Так как основания 8-байтные, то сначала
+    mov edx, dword [es:di + 4]      ; сверяем верхние 4 байта.
+    cmp eax, edx
+    jbe ._swap1                     ; Если основание 1-го блока больше, чем 2-го,
+    call .swap                      ; то меняем их местами.
+._swap1:
+    mov eax, dword [ds:si]          ; Аналогично сверяем
+    mov edx, dword [es:di]          ; нижние 4 байта.
+    cmp eax, edx
+    jbe ._swap2                     ; Если основание 1-го блока больше, чем 2-го,
+    call .swap                      ; то меняем их местами.
+._swap2:
+    add di, 24
+    inc cx
+    cmp cx, word [BLOCKS_AMOUNT]
+    jae .endreached                 ; Если внутренний цикл дошёл до конца, то сбрасываем его.
+    jmp .ramsort2
+
+.endreached:
+    add si, 24                      ; Дошли до конца внутреннего цикла,
+    inc bx                          ; увеличиваем BX (i)
+    lea cx, [bx + 1]                ; <=> CX = BX + 1
+    cmp bx, word [BLOCKS_AMOUNT]    ; Если и внешний цикл дошёл до конца,
+    je .ramsorted                   ; то сортировка закончена.
+    jmp .ramsort1
+
+    ; Функция смены блоков местами
+.swap:
+    pusha
+    xor cx, cx
+    ; Размер одного блока - 24 Б, поэтому достаточно
+    ; поменять местами 6 двойных слов (dword).
+.swaploop:
+    mov eax, dword [si]             ; Берём первое слово
+    mov edx, dword [di]             ; Берём второе слово
+    xchg eax, edx                   ; Меняем местами
+    mov dword [si], eax             ; Кладём на место первое слово
+    mov dword [di], edx             ; Кладём на место второе слово
+    inc cx
+    add si, 4
+    add di, 4
+    cmp cx, 6                       ; Если сделали это 6 раз,
+    jne .swaploop                   ; то выходим
+.swapend:
     popa
     ret
 
-; Ошибка при чтении памяти
+    ; После того как мы закончили сортировать блоки,
+    ; надо записать их в Данные загрузчика.
+.ramsorted:
+    mov si, 0xA000                  ; 0xA000 - наш буфер
+    mov di, bp                      ; Цель - Данные загрузчика, то есть BP
+    xor eax, eax
+    mov ax, word [BLOCKS_AMOUNT]
+    stosw                           ; Сначала сохраним, сколько блоков мы насчитали
+    mov cx, 24 
+    mul cx                          ; Число блоков * Размер одного блока = Суммарная длина списка в байтах
+    xchg dx, ax                     ; В x86 умножение 16-битного регистра на 16-битный регистр
+    shl eax, 16                     ; сохранит результат в DX:AX, поэтому переносим его в
+    mov ax, dx                      ; EAX.
+    mov ecx, eax                    ; Переносим EAX в ECX
+    rep movsb                       ; Копируем байт с SI на DI ECX раз
+    mov word [0xA000], di
+    popa                            ; Восстанавливаем все регистры
+    mov bp, word [0xA000]           ; Сохраняем новое значение BP
+    clc
+    ret                             ; И всё!
+
+    ; Если что-то пойдёт не так,
 .ramerror:
     popa
-    stc
-    ret
+    stc                             ; устанавливаем флаг CF
+    ret                             ; и выходим
 
 ;====================================
 ;
@@ -687,7 +708,7 @@ enable_prot_mode:
     ; Сегмент данных уровня 3
     mov eax, 0xFFFFF
     mov ebx, 0x00000000
-    mov cl,  0b11110111
+    mov cl,  0b11110011
     mov ch,  0b1100
     mov edi, 0x1040
     call .encode_gdt
@@ -809,7 +830,7 @@ main:
 ; Виртуальный адрес, на котором будет находиться ядро
 %define KERNEL_VIRTADDR 0xC0000000
 ; Длина ядра в секторах диска
-%define KERNEL_LEN      512
+%define KERNEL_LEN      1024
 ; ELF-подпись файла
 %define ELF_SIGNATURE   0x464C457F
 
@@ -1145,7 +1166,7 @@ paging_time:
     mov eax, ebx
     add eax, ecx
     and eax, 0xFFFFF000
-    or  eax, 3
+    or  eax, 5
     stosd
     add ecx, 0x1000
     cmp ecx, 0x400000
@@ -1181,7 +1202,7 @@ paging_time:
     
     mov edi, PAGING_BASE + ((KERNEL_VIRTADDR & 0xFFC00000) >> 22) * 4
     mov eax, PAGING_BASE + ((KERNEL_VIRTADDR & 0xFFC00000) >> 12) * 4 + 0x1000
-    or  eax, 3
+    or  eax, 5
     stosd
 
     mov edi, PAGING_BASE + (0x3F0 * 4)

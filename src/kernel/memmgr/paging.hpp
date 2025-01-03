@@ -10,6 +10,7 @@
 #include "../util/nums.hpp"
 
 #define PAGING_BASE 0x101000
+#define PAGE_SIZE   0x1000
 
 /// @brief Создаёт страницу по данному адресу.
 /// @param vaddr Виртуальный адрес страницы
@@ -20,7 +21,7 @@ void createPage(dword vaddr, dword paddr);
 /// @param vaddr Виртуальный адрес первой страницы
 /// @param paddr Физический адрес первого блока
 /// @param count Число страниц
-void createPages(dword vaddr, dword paddr, word count);
+void createPages(dword vaddr, dword paddr, dword count);
 
 /// @brief Создаёт таблицу страниц по данному адресу.
 /// @param vaddr Виртуальный адрес
@@ -29,5 +30,15 @@ void createPageTable(dword vaddr);
 /// @brief Определяет физический адрес для данного виртуального адреса.
 /// @param vaddr Виртуальный адрес
 dword getPhysAddr(dword vaddr);
+
+/// @brief Устанавливает минимальный уровень полномочий для доступа к таблице.
+/// @param vaddr Виртуальный адрес, содержимый в странице
+/// @param cpl Уровень полномочий
+void setPagePermsLevel(dword vaddr, byte cpl);
+
+/// @brief Устанавливает возможность записи в страницу.
+/// @param vaddr Виртуальный адрес, содержимый в странице
+/// @param rw Допустимость записи
+void setPageReadWrite(dword vaddr, bool rw);
 
 #endif

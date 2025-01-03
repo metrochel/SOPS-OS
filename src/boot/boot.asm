@@ -16,7 +16,7 @@ start:
 BPB_OEM_IDENTIFIER 			db "SOPS..OS"		; OEM-идентификатор (необязателен)
 BPB_BYTES_PER_SECTOR 		dw 512				; Количество байтов на сектор
 BPB_SECTORS_PER_CLUSTER		db 8				; Количество секторов на кластер
-BPB_RESERVED_SECTORS 		dw 1024				; Количество зарезервированных секторов (+MBR)
+BPB_RESERVED_SECTORS 		dw 2048				; Количество зарезервированных секторов (+MBR)
 BPB_FAT_TABLES				db 2				; Количество FAT-таблиц на диске
 BPB_ROOT_DIR_ENTRIES		dw 0				; Количество входов в корневой каталог (для FAT32 - ноль)
 BPB_SECTOR_COUNT			dw 0				; Количество секторов на носителе

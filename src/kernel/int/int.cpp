@@ -2,7 +2,7 @@
 #include "pic.hpp"
 #include "../graphics/glyphs.hpp"
 #include "../io/com.hpp"
-#include "../memmgr/paging.hpp"
+#include "../memmgr/memmgr.hpp"
 #include "../keyboard/keyboard.hpp"
 #include "../disk/ide.hpp"
 #include "../pci/pci.hpp"
@@ -21,19 +21,19 @@ void initInts() {
     for (int i = 0; i < idtr->size; i++)
         *(idtr->base + i) = 0;
 
-    encode_idt_entry(zero_divide_err, 0);
-    encode_idt_entry(overflow_err, 1);
-    encode_idt_entry(bound_err, 5);
-    encode_idt_entry(invalid_opcode_err, 6);
-    encode_idt_entry(dev_unavailable_err, 7);
-    encode_idt_entry(double_fault, 8);
-    encode_idt_entry(invalid_task_switch_err, 0xA);
-    encode_idt_entry(seg_not_present_err, 0x0B);
-    encode_idt_entry(stack_seg_fault, 0x0C);
-    encode_idt_entry(general_prot_fault, 0x0D);
-    encode_idt_entry(page_fault, 0x0E);
-    encode_idt_entry(float_exception, 0x10);
-    encode_idt_entry(align_check, 0x11);
+    encode_idt_entry(zero_divide_err,           0x00);
+    encode_idt_entry(overflow_err,              0x01);
+    encode_idt_entry(bound_err,                 0x05);
+    encode_idt_entry(invalid_opcode_err,        0x06);
+    encode_idt_entry(dev_unavailable_err,       0x07);
+    encode_idt_entry(double_fault,              0x08);
+    encode_idt_entry(invalid_task_switch_err,   0x0A);
+    encode_idt_entry(seg_not_present_err,       0x0B);
+    encode_idt_entry(stack_seg_fault,           0x0C);
+    encode_idt_entry(general_prot_fault,        0x0D);
+    encode_idt_entry(page_fault,                0x0E);
+    encode_idt_entry(float_exception,           0x10);
+    encode_idt_entry(align_check,               0x11);
 
     encode_idt_entry(irq0,  irqOffset + 0x0);
     encode_idt_entry(irq1,  irqOffset + 0x1);
@@ -61,32 +61,52 @@ void encode_idt_entry(void (*handlePtr)(IntFrame*), byte intNum) {
     *entryPtr = offset2;
 }
 
+word ds;
+word es;
+word fs;
+word gs;
+
+inline void resetSegmentRegs() {
+    __asm__ (
+        "movw $0x10, %ax;"
+        "movw %ax, %ds;"
+        "movw %ax, %es;"
+        "movw %ax, %fs;"
+        "movw %ax, %gs;"
+    );
+}
+
 __attribute__((interrupt)) void zero_divide_err(IntFrame* frame) {
     kerror("\nОШИБКА: Деление на ноль\n");
     traceStack();
 }
 
 __attribute__((interrupt)) void overflow_err(IntFrame* frame) {
+    resetSegmentRegs();
     kerror("\nОШИБКА: Переполнение\n");
     traceStack();
 }
 
 __attribute__((interrupt)) void bound_err(IntFrame* frame) {
+    resetSegmentRegs();
     kerror("\nОШИБКА: Индекс превышает длину массива\n");
     traceStack();
 }
 
 __attribute__((interrupt)) void invalid_opcode_err(IntFrame* frame) {
+    resetSegmentRegs();
     kerror("\nОШИБКА: Невозможная инструкция\n");
     traceStack();
 }
 
 __attribute__((interrupt)) void dev_unavailable_err(IntFrame* frame) {
+    resetSegmentRegs();
     kerror("\nОШИБКА: Устройство недоступно\n");
     traceStack();
 }
 
 __attribute__((interrupt)) void double_fault(IntFrame* frame) {
+    resetSegmentRegs();
     kerror("\nОШИБКА: Двойной сбой\n");
     kwarn("Возврат невозможен!\n");
     traceStack();
@@ -94,21 +114,25 @@ __attribute__((interrupt)) void double_fault(IntFrame* frame) {
 }
 
 __attribute__((interrupt)) void invalid_task_switch_err(IntFrame* frame) {
+    resetSegmentRegs();
     kerror("\nОШИБКА: Неправильный переход на процесс\n");
     traceStack();
 }
 
 __attribute__((interrupt)) void seg_not_present_err(IntFrame* frame) {
+    resetSegmentRegs();
     kerror("\nОШИБКА: Сегмент ненастоящий\n");
     traceStack();
 }
 
 __attribute__((interrupt)) void stack_seg_fault(IntFrame* frame) {
+    resetSegmentRegs();
     kerror("\nОШИБКА: Сбой сегмента стека\n");
     traceStack();
 }
 
 __attribute__((interrupt)) void general_prot_fault(IntFrame* frame) {
+    resetSegmentRegs();
     dword errcode = (dword)frame;
     kerror("\nОШИБКА: Общий сбой защиты\n");
     kerror("Код ошибки: %b\n", errcode);
@@ -137,6 +161,7 @@ __attribute__((interrupt)) void general_prot_fault(IntFrame* frame) {
 }
 
 __attribute__((interrupt)) void page_fault(IntFrame* frame) {
+    resetSegmentRegs();
     dword faultAddr;
     __asm__ ("mov %%cr2, %%eax; mov %%eax, %d0" : "=m"(faultAddr) : );
     kerror("ОШИБКА: Страничный сбой\n");
@@ -146,17 +171,20 @@ __attribute__((interrupt)) void page_fault(IntFrame* frame) {
 }
 
 __attribute__((interrupt)) void float_exception(IntFrame* frame) {
+    resetSegmentRegs();
     kerror("\nОШИБКА: Сбой математического сопроцессора\n");
     traceStack();
 }
 
 __attribute__((interrupt)) void align_check(IntFrame* frame) {
+    resetSegmentRegs();
     kerror("\nОШИБКА: Сбой ровнения\n");
     traceStack();
 }
 
 __attribute__((interrupt)) void irq0(IntFrame* frame) {
     updateCursor();
+    refreshBlocks();
     int_exit_master();
 }
 

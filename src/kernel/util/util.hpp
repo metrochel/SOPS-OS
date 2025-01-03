@@ -207,6 +207,10 @@ inline void enableInts() {
     __asm__ ("sti");
 }
 
+inline void halt() {
+    __asm__("hlt");
+}
+
 inline void setCarry() {
     __asm__ ("stc");
 }

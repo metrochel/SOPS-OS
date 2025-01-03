@@ -1201,16 +1201,19 @@ dword nameACPIObj(byte* aml) {
     aml += nameSegs >> 8;
     kdebug("Первый байт объекта: %x.\n", *aml);
     FuncFrame _frame = {};
-    _frame.tmpSpace = (byte*)0x2000000;
+    byte *tmp = kmalloc(0x8000);
+    _frame.tmpSpace = tmp;
     TermArg arg = getTermArg(aml, &_frame);
     if (arg.type == maxqword) {
         if (!reEvaluating) {
             kdebug("Объект потребует дополнительного вычисления.\n");
             *acpiReEval++ = (dword)'NAME';
             *acpiReEval++ = addr;
+            kfree(tmp);
             return (dword)aml - addr;
         } else {
             kdebug("ОШИБКА: Не удаётся вычислить объект\n");
+            kfree(tmp);
             return (dword)aml - addr;
         }
     }
@@ -1259,6 +1262,7 @@ dword nameACPIObj(byte* aml) {
     else if (arg.type == maxqword) {
         kdebug("Объект потребует дополнительного вычисления.\n");
     }
+    kfree(tmp);
     return (dword)aml - addr;
 }
 
@@ -1629,8 +1633,10 @@ qword callMethod(AMLName *path, byte len, va_list argv) {
     frame.syncLevel = syncLevel;
     dword addr = (dword)code;
     frame.addr = (byte*)addr;
-    frame.tmpSpace = (byte*)0x801000;
+    byte *tmp = kmalloc(0x4000);
+    frame.tmpSpace = tmp;
     TermArg retVal = runMethod(code, length, syncLevel, &frame);
+    kfree(tmp);
     restoreParsingPath();
     if (retVal.type == 0xAAAAAAAA)
         return 0;

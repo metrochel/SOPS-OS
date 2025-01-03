@@ -5,10 +5,12 @@
 #include "../str/str.hpp"
 #include "../acpi/acpi.hpp"
 #include "../fat/fat.hpp"
+#include "../run/run.hpp"
 
 char path[1000];
 dword directoryCluster;
 byte drive;
+char nameBuf[13*64];
 
 void shellMain(byte driveNo) {
     byte *stdin = (byte*)0x9300;
@@ -25,24 +27,127 @@ void shellMain(byte driveNo) {
         stdin = (byte*)0x9300;
         if (strcmp((char*)stdin, (char*)"time")) {
             cmdTime();
+            continue;
         } 
-        else if (strcmp((char*)stdin, (char*)"shutdown")) {
+        if (strcmp((char*)stdin, (char*)"shutdown")) {
             cmdShutdown();
+            continue;
         } 
-        else if (strcmp((char*)stdin, (char*)"reboot")) {
+        if (strcmp((char*)stdin, (char*)"reboot")) {
             cmdReboot();
+            continue;
         } 
-        else if (strcmp((char*)stdin, (char*)"ls")) {
+        if (strcmp((char*)stdin, (char*)"ls")) {
             cmdLs();
+            continue;
         }
-        else if (strstartswith((char*)stdin, (char*)"cd ")) {
+        if (strstartswith((char*)stdin, (char*)"cd ")) {
             cmdCd((char*)(stdin + 3));
+            continue;
         }
-        else {
+
+        struct {
+            dword cluster;
+            word offset;
+        } fileEntryPos;
+        fileEntryPos.cluster = maxdword;
+
+        dword clus = directoryCluster;
+        dword _clus = getCluster(drive, directoryCluster);
+        FAT_DirEntry clusterBuf[clustersize(drive)];
+        bool abort = false;
+        while (!is_eof(clus)) {
+            readCluster(drive, clus, (byte*)clusterBuf);
+            bool stop = false;
+            for (word i = 0; i < clustersize(drive) / sizeof(FAT_DirEntry); i++) {
+                if (is_lfn(clusterBuf[i]))
+                    continue;
+                if (is_last(clusterBuf[i]))
+                    break;
+
+                FAT_DirEntry entry = clusterBuf[i];
+
+                FAT_LFNEntry *lfn = (FAT_LFNEntry*)(clusterBuf + i - 1);
+                byte *ptr = (byte*)nameBuf;
+                while (lfn->order < 0x40) {
+                    extractLFNName(lfn--, ptr);
+                    ptr += 13;
+                }
+                extractLFNName(lfn, ptr);
+                ptr += 13;
+
+                if (strcmp(nameBuf, (char*)stdin)) {
+                    if (entry.attr & FAT_FILEATTR_DIRECTORY) {
+                        kerror("ОШИБКА: ");
+                        kerror((char*)stdin);
+                        kerror(" - это папка.\n");
+                        abort = true;
+                    }
+                    stop = true;
+                    fileEntryPos.cluster = clus;
+                    fileEntryPos.offset  = i;
+                    break;
+                }
+            }
+            if (stop || abort)
+                break;
+
+            clus = _clus;
+            _clus = getCluster(drive, _clus);
+        }
+
+        if (abort)
+            continue;
+
+        if (fileEntryPos.cluster == maxdword) {
             kerror("ОШИБКА: Команды или исполняемого файла \"");
             kerror((const char*)stdin);
             kerror("\" не существует.\nПроверьте правильность написания команды.");
+            continue;
         }
+
+        File executable(fileEntryPos.cluster, fileEntryPos.offset, drive);
+        dword exitCode = runExecutable(executable, 0, nullptr);
+        if (exitCode >= 0xFFFFFFF0) {
+            kerror("ОШИБКА: ");
+            kerror((char*)stdin);
+            kerror(" повреждён или не запускаем на данном компьютере.\n");
+            kerror("Обратитесь к разработчику приложения с проблемой.\n");
+            kerror("Код выхода: %x (", exitCode);
+            switch (exitCode) {
+                case RUN_ERR_NO_PROGRAM_TABLE:
+                    kerror("НЕТ_ТАБЛИЦЫ_ПРОГ");
+                    break;
+                case RUN_ERR_NO_SECTION_TABLE:
+                    kerror("НЕТ_ТАБЛИЦЫ_СЕКЦИЙ");
+                    break;
+                case RUN_ERR_INVALID_ENCODING:
+                    kerror("НЕВЕРНОЕ_ПРЕДСТ_ДАННЫХ");
+                    break;
+                case RUN_ERR_BIG_ENDIAN:
+                    kerror("BIG_ENDIAN_НЕ_ПОДДЕРЖ");
+                    break;
+                case RUN_ERR_BAD_RELOC_TYPE:
+                    kerror("ПЛОХОЙ_ТИП_ПЕРЕМЕЩ");
+                    break;
+                case RUN_ERR_BAD_FILE_TYPE:
+                    kerror("НЕРАСП_ТИП_ФАЙЛА");
+                    break;
+                case RUN_ERR_BAD_RELOC_SECTION:
+                    kerror("ПЛОХАЯ_СЕКЦ_ПЕРЕМЕЩ");
+                    break;
+                case RUN_ERR_BAD_ENTRY_POINT:
+                    kerror("ПЛОХАЯ_ТОЧКА_ВХОДА");
+                    break;
+                default:
+                    kerror("<неизвестная ошибка>");
+                    break;
+            }
+            kerror(")\n");
+            continue;
+        }
+
+        kprint("Программа завершилась с кодом %x.\n", exitCode);
     }
 }
 

@@ -21,6 +21,15 @@ word screenHeight;
 
 dword ticks = 0;
 
+void initText() {
+    defaultTextCol = encodeRGB(1,1,1);
+    defaultBGCol = encodeRGB(0,0,0);
+    warnTextCol = encodeRGB(1,1,0);
+    warnBGCol = encodeRGB(0.5,0.5,0);
+    errorTextCol = encodeRGB(1,0,0);
+    errorBGCol = encodeRGB(0.5,0,0);
+}
+
 Glyph getglyph(byte code) {
     switch (code)
     {
@@ -410,22 +419,6 @@ bool isnullglyph(Glyph g) {
             return false;
     }
     return true;
-}
-
-inline void putglyph(Glyph glyph, word x, word y, dword letter_col, dword back_col) {
-    dword offset = y * pitch + x * (bpp/8);
-    for (byte i = 0; i < 24; i++) {
-        dword line = glyph.lines[i];
-        word mask = 1 << 15;
-        for (int j = 0; j < 16; j++) {
-            dword pixcol = (line & mask) ? letter_col : back_col;
-            putpixel(offset, pixcol);
-            mask >>= 1;
-            offset += bpp/8;
-        }
-        offset -= 16*(bpp/8);
-        offset += pitch;
-    }
 }
 
 inline void printchar(Glyph glyph, dword charCol, dword bgCol) {

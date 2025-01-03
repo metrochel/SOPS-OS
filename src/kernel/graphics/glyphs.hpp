@@ -30,6 +30,9 @@ struct Glyph {
     word lines[24];      // Бит-поля, отмечающие пикселы символа
 } __attribute__((packed));
 
+/// @brief Инициализирует работу с текстом.
+void initText();
+
 /// @brief Выдаёт разметку символа, воспринимаемую системой.
 /// @param code Код символа в Юникоде
 /// @param unicode Флаг Юникода
@@ -41,13 +44,28 @@ Glyph getglyph(word code);
 /// @return Разметка
 Glyph getglyph(byte code);
 
+
 /// @brief Размещает символ на координатах.
 /// @param glyph Символ
 /// @param x Абсцисса символа (отн. левого верхнего угла)
 /// @param y Ордината символа (отн. левого верхнего угла)
 /// @param letter_col Цвет самого символа
 /// @param back_col Цвет заднего фона символа
-void putglyph(Glyph glyph, word x, word y, dword letter_col, dword back_col);
+inline void putglyph(Glyph glyph, word x, word y, dword letter_col, dword back_col) {
+    dword offset = y * pitch + x * (bpp/8);
+    for (byte i = 0; i < 24; i++) {
+        dword line = glyph.lines[i];
+        word mask = 1 << 15;
+        for (int j = 0; j < 16; j++) {
+            dword pixcol = (line & mask) ? letter_col : back_col;
+            putpixel(offset, pixcol);
+            mask >>= 1;
+            offset += bpp/8;
+        }
+        offset -= 16*(bpp/8);
+        offset += pitch;
+    }
+}
 
 /// @brief Выводит на экран число в двоичном представлении.
 /// @param num Число
