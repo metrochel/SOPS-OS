@@ -123,6 +123,8 @@ class File {
 
         /// @brief Удаляет файл с диска.
         void remove();
+
+        bool operator!();
     protected:
         /// @brief Пустой конструктор.
         File();

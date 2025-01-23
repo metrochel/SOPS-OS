@@ -9,8 +9,10 @@
 
 #include "../util/nums.hpp"
 
-#define PAGING_BASE 0x101000
-#define PAGE_SIZE   0x1000
+#define PAGING_BASE         0x101000
+#define PAGE_SIZE           0x1000
+#define PAGE_TABLE_SIZE     (0x1000*1024)
+#define PAGE_TABLE_COUNT    (PAGE_TABLE_SIZE / PAGE_SIZE)
 
 /// @brief Создаёт страницу по данному адресу.
 /// @param vaddr Виртуальный адрес страницы

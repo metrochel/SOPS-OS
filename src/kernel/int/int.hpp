@@ -116,6 +116,9 @@ void irq14(IntFrame* frame);
 /// @brief Запрос-прерывание 15 - Событие побочного диска ATA
 void irq15(IntFrame* frame);
 
+/// @brief Обработчик системных вызовов (прерывание 0xC0)
+void syscallHandle(IntFrame *frame);
+
 /// @brief Выход из прерывания, вызванного главным PIC
 inline void int_exit_master() {
     outb(0x20, 0x20);
@@ -127,6 +130,7 @@ inline void int_exit_slave() {
     outb(0x20, 0x20);
 }
 
+void encode_idt_entry(void (*handlePtr)(IntFrame*), byte intNum, byte perms);
 void encode_idt_entry(void (*handlePtr)(IntFrame*), byte intNum);
 
 #endif

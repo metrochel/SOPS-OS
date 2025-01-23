@@ -131,6 +131,10 @@ void extractShortName(FAT_DirEntry entry, byte *&out) {
     *out++ = 0x00;
 }
 
+bool File::operator!() {
+    return name == nullptr;
+}
+
 File::File() {
 
 }
@@ -140,7 +144,10 @@ File::~File() {
 }
 
 File::File(dword cluster, word offset, byte driveNo) {
-    if (!fatInit) return;
+    if (!fatInit) {
+        name = nullptr;
+        return;
+    };
 
     FAT_DirEntry clusterBuf[clustersize(driveNo) / sizeof(FAT_DirEntry)];
     this->drive = driveNo;
@@ -310,6 +317,7 @@ File::File(char *path, byte driveNo, bool force) {
             dirEntryOffset = 0;
             kfree(nameBuf);
             kfree(_pathComponents);
+            name = nullptr;
             return;
         }
 

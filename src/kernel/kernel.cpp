@@ -45,7 +45,6 @@ int main() {
     initGraphics();
     initText();
     setPICOffsets(0x20, 0x28);
-    initMemMgr();
     initInts();
     initGDT();
     unmaskIRQ(1);
@@ -82,6 +81,21 @@ int main() {
         kprint("COM4 успешно инициализирован!\n");
         kwarn("ВНИМАНИЕ: COM4 на данный момент не работает.\nИзвините, пока не доделали.\n");
     }
+
+    initMemMgr();
+
+    // byte *test = kmallocPhys(0xC0102000, 169);
+    // byte *test1 = kmalloc(0x1800);
+    // byte *test2 = kmalloc(0x700);
+    // byte *test3 = kmalloc(0x500);
+
+    // kprint("%x\n", test);
+    // kprint("%x\n", test1);
+    // kprint("%x\n", test2);
+    // kprint("%x\n", test3);
+
+    // magicBreakpoint();
+    // halt();
 
     if (!initACPI()) {
         kerror("ОШИБКА: ACPI не инициализирован\n");
@@ -130,8 +144,10 @@ int main() {
 
     byte driveNo = bld->DiskNo;
 
-    if (initFAT(driveNo))
+    if (initFAT(driveNo)) {
         kprint("FAT32 успешно инициализирована!\n");
+        initKernelMap(driveNo);
+    }
     else
         kerror("ОШИБКА: FAT32 не инициализирована\n");
 

@@ -16,10 +16,10 @@ const byte irqOffset = 0x20;
 
 void initInts() {
     idtr = (IDT_Register*)0x1510;
-    idtr->size = 399;
+    idtr->size = 8*256 - 1;
     idtr->base = (byte*)0x10000;
-    for (int i = 0; i < idtr->size; i++)
-        *(idtr->base + i) = 0;
+
+    memset(idtr->base, idtr->size, 0);
 
     encode_idt_entry(zero_divide_err,           0x00);
     encode_idt_entry(overflow_err,              0x01);
@@ -45,17 +45,23 @@ void initInts() {
     encode_idt_entry(irq14, irqOffset + 0xE);
     encode_idt_entry(irq15, irqOffset + 0xF);
 
+    encode_idt_entry(syscallHandle,             0xC0, 3);
+
     lidt(*idtr);
     enableInts();
 }
 
 void encode_idt_entry(void (*handlePtr)(IntFrame*), byte intNum) {
+    encode_idt_entry(handlePtr, intNum, 0);
+}
+
+void encode_idt_entry(void (*handlePtr)(IntFrame*), byte intNum, byte perms) {
     word *entryPtr = (word*)(idtr->base) + 4 * intNum;
     word offset1 = (dword)handlePtr & 0xFFFF;
     *entryPtr++ = offset1;
     word selector = 0x8;
     *entryPtr++ = selector;
-    word flags = 0x8E00;
+    word flags = 0x8E00 | ((word)perms << 13);
     *entryPtr++ = flags;
     word offset2 = (dword)handlePtr >> 16;
     *entryPtr = offset2;
@@ -97,6 +103,8 @@ __attribute__((interrupt)) void invalid_opcode_err(IntFrame* frame) {
     resetSegmentRegs();
     kerror("\nОШИБКА: Невозможная инструкция\n");
     traceStack();
+    kdebugwait();
+    magicBreakpoint();
 }
 
 __attribute__((interrupt)) void dev_unavailable_err(IntFrame* frame) {
@@ -168,6 +176,7 @@ __attribute__((interrupt)) void page_fault(IntFrame* frame) {
     kerror("Адрес сбоя: %x\n", faultAddr);
     kerror("Код ошибки: %b\n", (dword)frame);
     traceStack();
+    magicBreakpoint();
 }
 
 __attribute__((interrupt)) void float_exception(IntFrame* frame) {
@@ -184,7 +193,6 @@ __attribute__((interrupt)) void align_check(IntFrame* frame) {
 
 __attribute__((interrupt)) void irq0(IntFrame* frame) {
     updateCursor();
-    refreshBlocks();
     int_exit_master();
 }
 
@@ -437,4 +445,40 @@ __attribute__((interrupt)) void irq7(IntFrame* frame) {
         return;
 
     int_exit_master();
+}
+
+__attribute__((interrupt)) void syscallHandle(IntFrame *frame) {
+    dword syscall, arg1, arg2, arg3, arg4, arg5;
+    __asm__ (
+        "movl %%eax, %d0;"
+        "movl %%esi, %d1;"
+        "movl %%edi, %d2;"
+        "movl %%edx, %d3;"
+        "movl %%ecx, %d4;"
+        "movl %%ebx, %d5"
+        : "=m"(syscall), "=m"(arg1), "=m"(arg2), "=m"(arg3), "=m"(arg4), "=m"(arg5)
+        :
+        :
+    );
+
+    switch (syscall)
+    {
+    case 0:
+        __asm__ (
+            "movl %d0, %%eax;"
+            "add $0x20, %%esp;"
+            "pop %%ebp;"
+            "add $0x14, %%esp;"
+            "ret"
+            :
+            : "m"(arg1)
+            :
+        );
+        break;
+    
+    default:
+        break;
+    }
+
+    
 }

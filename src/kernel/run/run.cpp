@@ -59,11 +59,12 @@ dword runExecutable(File executable, dword argc, char **argv) {
     }
 
     word pid = 1234;
-
+    dword code = 0;
     switch (hdr.type) {
         case 1:
             kdebug("Тип файла - перемещаемый.\n");
-            return runRelocatableELF(file, pid, argc, argv);
+            code = runRelocatableELF(file, pid, argc, argv);
+            break;
         case 2:
             kdebug("Тип файла - загружаемый.\n");
             if (!hdr.programHeaderOff) {
@@ -72,10 +73,12 @@ dword runExecutable(File executable, dword argc, char **argv) {
                 kfree(file);
                 return RUN_ERR_NO_PROGRAM_TABLE;
             }
-            return runLoadableELF(file, pid, argc, argv);
+            code = runLoadableELF(file, pid, argc, argv);
+            break;
         case 3:
             kdebug("Тип файла - динамично компонуемый.\n");
-            return runDynamicELF(file, pid, argc, argv);
+            code = runDynamicELF(file, pid, argc, argv);
+            break;
         default:
             kdebug("ОШИБКА: Нераспознанный тип файла %d\n", hdr.type);
             kdebug("Исполнение файла отменено.\n");
@@ -83,7 +86,8 @@ dword runExecutable(File executable, dword argc, char **argv) {
             return RUN_ERR_BAD_FILE_TYPE;
     }
 
-    return 0;
+    kfree(file);
+    return code;
 }
 
 dword runRelocatableELF(byte *file, word pid, dword argc, char **argv) {
@@ -325,6 +329,8 @@ dword runLoadableELF(byte *file, word pid, dword argc, char **argv) {
         }
     }
 
+    logBlocks(0x8049094 >> 22);
+
     EntryPoint entryPoint = (EntryPoint)hdr.entryPoint;
     kdebug("Адрес точки входа: %x.\n", entryPoint);
 
@@ -332,59 +338,69 @@ dword runLoadableELF(byte *file, word pid, dword argc, char **argv) {
         kdebug("ОШИБКА: Нет точки входа\n");
         kdebug("Исполнение файла отменено.\n");
         for (dword i = 0; i < hdr.phEntryCount; i++) {
-            kfree(frags[i]);
+            if (frags[i]) kfree(frags[i]);
         }
         kfree(frags);
         return RUN_ERR_BAD_ENTRY_POINT;
     }
 
     byte *stack = kmalloc(RUN_STACK_SIZE + sizeof(byte*), pid);
+    byte *_stack = stack;
     for (word i = 0; i <= (RUN_STACK_SIZE + sizeof(byte*) + PAGE_SIZE - 1) / PAGE_SIZE; i++) {
         setPagePermsLevel((dword)stack + i * PAGE_SIZE, 3);
     }
     stack += RUN_STACK_SIZE;
 
+    byte func[] = { 0x89, 0xC6, 0x31, 0xC0, 0xCD, 0xC0 };   // mov esi, eax; xor eax, eax; int 0xC0
+    byte *exitFunc = kmalloc(sizeof(func), pid);
+    setPagePermsLevel((dword)exitFunc, 3);
+    memcpy(func, exitFunc, sizeof(func));
 
-
-    dword esp;
-    word ss;
-    __asm__ (
-        "movl %%esp, %d0;"
-        "movw %%ss, %w1;"
-        : "=m"(esp), "=m"(ss)
-        :
-        :
-    );
-    setESP0(esp);
-    setSS0(ss);
-
+    dword exitCode;
     disableInts();
     __asm__ (
+        "push $exit;"
+        "movl %%esp, %d1;"
+        "movw %%ss, %w2;"
         "movw $0x43, %%ax;"
         "movw %%ax, %%ds;"
         "movw %%ax, %%es;"
         "movw %%ax, %%fs;"
         "movw %%ax, %%gs;"
 
-        "movl %d1, %%esp;"
+        "movl %d4, %%esp;"
+
+        "push %d5;"
+        "push %d6;"
+        "push %d7;"
 
         "movl %%esp, %%eax;"
         "push $0x43;"
         "push %%eax;"
         "pushf;"
         "push $0x3B;"
-        "push %d0;"
+        "push %d3;"
+        "xor %%eax, %%eax;"
+        "xor %%edx, %%edx;"
         "sti;"
-        "xchgw %%bx, %%bx;"
         "iret;"
-        :
-        : "m"(entryPoint), "m"(stack)
+        "exit:"
+        "movl %%eax, %d0"
+        : "=m"(exitCode), "=m"(tss.esp0), "=m"(tss.ss0)
+        : "m"(entryPoint), "m"(stack), "m"(argv), "m"(argc), "m"(exitFunc)
         :
     );
 
-    kfree(stack);
+    kdebug("Программа завершила исполнение с кодом выхода %x (%d).\n", exitCode, exitCode);
 
-    return 0;
+    kfree(_stack);
+    kfree(exitFunc);
+    for (dword i = 0; i < hdr.phEntryCount; i++) {
+        if (frags[i]) kfree(frags[i]);
+    }
+    kfree(frags);
+
+    return exitCode;
 }
 
 dword runDynamicELF(byte *file, word pid, dword argc, char **argv) {

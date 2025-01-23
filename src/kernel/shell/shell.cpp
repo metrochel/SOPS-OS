@@ -108,6 +108,7 @@ void shellMain(byte driveNo) {
 
         File executable(fileEntryPos.cluster, fileEntryPos.offset, drive);
         dword exitCode = runExecutable(executable, 0, nullptr);
+
         if (exitCode >= 0xFFFFFFF0) {
             kerror("ОШИБКА: ");
             kerror((char*)stdin);

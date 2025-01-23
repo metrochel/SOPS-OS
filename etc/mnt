@@ -1,0 +1,5 @@
+#!/bin/bash
+
+sudo losetup /dev/loop0 $SOPS_PREFIX
+sudo mount -t vfat /dev/loop0 /mnt/sops
+sudo losetup -d /dev/loop0

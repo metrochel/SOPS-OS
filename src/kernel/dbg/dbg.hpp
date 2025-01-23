@@ -25,4 +25,6 @@ inline void magicBreakpoint() {
 /// @brief Пробегает по стеку вызовов.
 void traceStack();
 
+void initKernelMap(byte drive);
+
 #endif

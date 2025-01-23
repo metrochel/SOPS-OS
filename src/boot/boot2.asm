@@ -1166,7 +1166,7 @@ paging_time:
     mov eax, ebx
     add eax, ecx
     and eax, 0xFFFFF000
-    or  eax, 5
+    or  eax, 3
     stosd
     add ecx, 0x1000
     cmp ecx, 0x400000
@@ -1202,7 +1202,7 @@ paging_time:
     
     mov edi, PAGING_BASE + ((KERNEL_VIRTADDR & 0xFFC00000) >> 22) * 4
     mov eax, PAGING_BASE + ((KERNEL_VIRTADDR & 0xFFC00000) >> 12) * 4 + 0x1000
-    or  eax, 5
+    or  eax, 3
     stosd
 
     mov edi, PAGING_BASE + (0x3F0 * 4)

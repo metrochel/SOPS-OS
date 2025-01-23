@@ -17,6 +17,12 @@
 #define maxdword 0xFFFFFFFF
 #define maxqword 0xFFFFFFFFFFFFFFFF
 
-#define ptrsize sizeof(void*)
+#ifdef __x86_64__
+typedef unsigned long long ptrint;
+#else
+typedef unsigned int ptrint;
+#endif
+
+#define ptrsize sizeof(ptrint)
 
 #endif

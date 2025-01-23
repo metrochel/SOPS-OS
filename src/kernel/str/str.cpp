@@ -122,74 +122,52 @@ char** strsplit(char *str, char *pattern) {
     return result;
 }
 
-char chartranslit(word c) {
-    switch (c) {
-        case 'А': return 'A';
-        case 'Б': return 'B';
-        case 'В': return 'V';
-        case 'Г': return 'G';
-        case 'Д': return 'D';
-        case 'Е': return 'E';
-        case 'Ё': return 'E';
-        case 'Ж': return 'Z';
-        case 'З': return 'Z';
-        case 'И': return 'I';
-        case 'К': return 'K';
-        case 'Л': return 'L';
-        case 'М': return 'M';
-        case 'Н': return 'N';
-        case 'О': return 'O';
-        case 'П': return 'P';
-        case 'Р': return 'R';
-        case 'С': return 'S';
-        case 'Т': return 'T';
-        case 'У': return 'U';
-        case 'Ф': return 'F';
-        case 'Х': return 'H';
-        case 'Ц': return 'C';
-        case 'Ч': return 'C';
-        case 'Ш': return 'S';
-        case 'Щ': return 'S';
-        case 'Ъ': return '\'';
-        case 'Ы': return 'I';
-        case 'Ь': return '\'';
-        case 'Э': return 'E';
-        case 'Ю': return 'U';
-        case 'Я': return 'A';
-        
-        case 'а': return 'a';
-        case 'б': return 'b';
-        case 'в': return 'v';
-        case 'г': return 'g';
-        case 'д': return 'd';
-        case 'е': return 'e';
-        case 'ё': return 'e';
-        case 'ж': return 'z';
-        case 'з': return 'z';
-        case 'и': return 'i';
-        case 'к': return 'k';
-        case 'л': return 'l';
-        case 'м': return 'm';
-        case 'н': return 'n';
-        case 'о': return 'o';
-        case 'п': return 'p';
-        case 'р': return 'r';
-        case 'с': return 's';
-        case 'т': return 't';
-        case 'у': return 'u';
-        case 'ф': return 'f';
-        case 'х': return 'h';
-        case 'ц': return 'c';
-        case 'ч': return 'c';
-        case 'ш': return 's';
-        case 'щ': return 's';
-        case 'ъ': return '\'';
-        case 'ы': return 'i';
-        case 'ь': return '\'';
-        case 'э': return 'e';
-        case 'ю': return 'u';
-        case 'я': return 'a';
-
-        default: return c;
+void strskiplines(char *&str, dword lines) {
+    dword count = 0;
+    while (*str && count < lines) {
+        if (*str == 0x0A)
+            count++;
+        *str++;
     }
+}
+
+inline bool isHexDigit(char d) {
+    return (d >= '0' && d <= '9') || (d >= 'A' && d <= 'F') || (d >= 'a' && d <= 'f');
+}
+
+qword strhextoint(char *str) {
+    qword ret = 0;
+    if (*str == '0' && *(str+1) == 'x')
+        str += 2;
+    
+    while (isHexDigit(*str)) {
+        byte digit;
+        if (*str >= 'a')
+            digit = *str - 0x61 + 10;
+        else if (*str >= 'A')
+            digit = *str - 0x41 + 10;
+        else
+            digit = *str - 0x30;
+
+        ret *= 16;
+        ret += digit;
+
+        str++;
+    }
+
+    return ret;
+}
+
+inline bool isDecimalDigit(char c) {
+    return (c >= '0') && (c <= '9');
+}
+
+qword strdectoint(char *str) {
+    qword ret = 0;
+    while (isDecimalDigit(*str)) {
+        byte digit = (*str++) - 0x30;
+        ret *= 10;
+        ret += digit;
+    }
+    return ret;
 }
