@@ -13,6 +13,7 @@
 #define PAGE_SIZE           0x1000
 #define PAGE_TABLE_SIZE     (0x1000*1024)
 #define PAGE_TABLE_COUNT    (PAGE_TABLE_SIZE / PAGE_SIZE)
+#define PAGE_TABLES_COUNT   ((maxdword + 1) / PAGE_TABLE_SIZE)
 
 /// @brief Создаёт страницу по данному адресу.
 /// @param vaddr Виртуальный адрес страницы
@@ -28,6 +29,10 @@ void createPages(dword vaddr, dword paddr, dword count);
 /// @brief Создаёт таблицу страниц по данному адресу.
 /// @param vaddr Виртуальный адрес
 void createPageTable(dword vaddr);
+
+/// @brief Удаляет страницу по данному адресу.
+/// @param vaddr Виртуальный адрес страницы
+void removePage(dword vaddr);
 
 /// @brief Определяет физический адрес для данного виртуального адреса.
 /// @param vaddr Виртуальный адрес

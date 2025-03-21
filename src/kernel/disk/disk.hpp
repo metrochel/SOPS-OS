@@ -5,6 +5,7 @@
 //
 #ifndef _DISK_INCL
 #define _DISK_INCL
+
 #include "ide.hpp"
 #include "../io/io.hpp"
 #include "../util/nums.hpp"
@@ -15,19 +16,50 @@
 #define DISK_TYPE_SATA   3
 #define DISK_TYPE_SATAPI 4
 
-/// @brief Данные о диске
-struct DiskData {
-    byte DiskType;               // Тип диска
-    dword TotalLBA28Sectors;     // Суммарное число секторов, доступных в режиме LBA28
-    bool LBA48Supported;            // Флаг доступности режима LBA48
-    qword TotalLBA48Sectors;     // Суммарное число секторов, доступных в режиме LBA48
-    byte MaxUDMAMode;            // Максимально доступный режим UDMA
-    byte ActUDMAMode;            // Активный режим UDMA
+enum DiskBus {
+    NotConnected = 0,
+    ATA = 1,
+    ATAPI = 2,
+    SATA = 3,
+    SATAPI = 4,
+    NVMe = 5,
+    USBFlash = 6,
+    Floppy = 7,
+    USBFloppy = 8
 };
 
-/// @brief Определяет вид диска.
-/// @return Соответствующий виду диска код
-DiskData identifyDisk();
+enum DiskFilesystem {
+    Unrecognized = 0,
+    FAT8 = 1,
+    FAT12 = 2,
+    FAT16 = 3,
+    FAT32 = 4,
+    exFAT = 5,
+    NTFS = 6,
+    ext = 7
+};
+
+// ### DiskData
+// Содержит данные о логическом диске.
+struct DiskData {
+    DiskBus diskBus;                // Тип шины диска
+    word diskOffset;                // Номер диска в шине
+    int diskIdentifier;             // Идентификатор диска (буква)
+    DiskFilesystem filesystem;      // Тип файловой системы диска
+    word diskUnitSize;              // Размер наименьшей единицы диска (сектора)
+    qword diskStartUnit;            // Первый сектор логического диска на физическом диске
+    qword diskEndUnit;              // Последний сектор логического диска на физическом диске
+};
+
+extern DiskData *disks;
+
+/// @brief Инициализирует все диски в системе.
+void initDisks();
+
+/// @brief Определяет номер логического диска по данному пути.
+/// @param path Путь
+/// @return Определённый номер диска
+byte determineDriveNo(char *path);
 
 /// @brief Считывает один блок данных.
 /// @param buf Буфер выхода данных

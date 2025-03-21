@@ -131,19 +131,19 @@ void extractShortName(FAT_DirEntry entry, byte *&out) {
     *out++ = 0x00;
 }
 
-bool File::operator!() {
+bool FAT32_File::operator!() {
     return name == nullptr;
 }
 
-File::File() {
+FAT32_File::FAT32_File() {
 
 }
 
-File::~File() {
-    kfree(this->name);
+FAT32_File::~FAT32_File() {
+    if (this->name) kfree(this->name);
 }
 
-File::File(dword cluster, word offset, byte driveNo) {
+FAT32_File::FAT32_File(dword cluster, word offset, byte driveNo) {
     if (!fatInit) {
         name = nullptr;
         return;
@@ -212,7 +212,7 @@ File::File(dword cluster, word offset, byte driveNo) {
     this->dirEntryOffset = offset + lfnCount;
 }
 
-File::File(char *name, byte attr, byte drive, dword size, Time creationDate, dword directoryCluster) {
+FAT32_File::FAT32_File(char *name, byte attr, byte drive, dword size, Time creationDate, dword directoryCluster) {
     char *fname = (char*)kmalloc(strlen(name) + 1);
     strcpy(name, fname);
     this->name = fname;
@@ -226,23 +226,27 @@ File::File(char *name, byte attr, byte drive, dword size, Time creationDate, dwo
     this->dirEntryOffset  = maxword;
 }
 
-File::File(char *path, byte driveNo, bool force) {
+FAT32_File::FAT32_File(char *path, byte driveNo, bool forceFile, bool forceFolders) {
     kdebug("Начато создание File по пути ");
     kdebug(path);
     kdebug(".\n");
     drive = driveNo;
 
     char **pathComponents = strsplit(path, "/");
+    char *strs = *pathComponents;
     directoryCluster = root(drive);
 
     FAT_DirEntry clusterBuf[clustersize(drive) / sizeof(FAT_DirEntry)];
     byte *nameBuf = kmalloc(13*64);
-    memset((byte*)nameBuf, sizeof(nameBuf), 0);
+    memset(nameBuf, sizeof(nameBuf), 0);
 
     char **_pathComponents = pathComponents;
+    bool created = false;
 
     while (*pathComponents) {
         char *ipath = *pathComponents++;
+        if (*ipath == 0) continue;
+
         kdebug("Поиск элемента \"");
         kdebug(ipath);
         kdebug("\".\n");
@@ -297,6 +301,35 @@ File::File(char *path, byte driveNo, bool force) {
         kdebug(ipath);
         kdebug("\" не найден\n");
 
+        if (!*pathComponents && !forceFile || *pathComponents && !forceFolders) {
+            kdebug("ОШИБКА: Создание File провалено\n");
+            directoryCluster = dirStart;
+            dirEntryOffset = maxword;
+            name = nullptr;
+            kfree(nameBuf);
+            kfree(_pathComponents);
+            return;
+        }
+
+        if (!*pathComponents && forceFile || *pathComponents && forceFolders) {
+            kdebug("Элемент ");
+            kdebug(ipath);
+            kdebug(" создаётся.\n");
+            FAT32_File element(ipath, !*pathComponents ? 0 : FAT_FILEATTR_DIRECTORY, driveNo, 0, kgettime(), dirStart);
+            element.create();
+            if (!*pathComponents) {
+                startCluster = element.startCluster;
+                directoryCluster = element.directoryCluster;
+                dirEntryOffset = element.dirEntryOffset;
+                creationDate = kgettime();
+                lastEditDate = kgettime();
+                size = 0;
+                attributes = 0;
+                created = true;
+                break;
+            }
+        }
+
         if (!*pathComponents) {
             directoryCluster = dirStart;
             dirEntryOffset = maxword;
@@ -310,45 +343,33 @@ File::File(char *path, byte driveNo, bool force) {
             kfree(nameBuf);
             return;
         }
-
-        if (!force) {
-            kdebug("ОШИБКА: Создание File провалено\n");
-            directoryCluster = 0;
-            dirEntryOffset = 0;
-            kfree(nameBuf);
-            kfree(_pathComponents);
-            name = nullptr;
-            return;
-        }
-
-        File folder(ipath, FAT_FILEATTR_DIRECTORY, driveNo, 0, kgettime(), dirStart);
-        folder.create();
-        directoryCluster = folder.startCluster;
     }
 
     kdebug("Извлекаются данные файла.\n");
     FAT_DirEntry sfn = clusterBuf[dirEntryOffset];
 
-    attributes = sfn.attr;
-    size = sfn.fileSize;
+    if (!created) {
+        attributes = sfn.attr;
+        size = sfn.fileSize;
 
-    creationDate.day = sfn.createDate & 0x1F;
-    creationDate.month = (sfn.createDate >> 5) & 0x0F;
-    creationDate.year = (sfn.createDate >> 9) + 1980;
+        creationDate.day = sfn.createDate & 0x1F;
+        creationDate.month = (sfn.createDate >> 5) & 0x0F;
+        creationDate.year = (sfn.createDate >> 9) + 1980;
 
-    creationDate.seconds = (sfn.createTime & 0x1F)*2 + sfn.createTimeMS / 100;
-    creationDate.minutes = (sfn.createTime >> 5) & 0x3F;
-    creationDate.hours = (sfn.createTime >> 11);
+        creationDate.seconds = (sfn.createTime & 0x1F)*2 + sfn.createTimeMS / 100;
+        creationDate.minutes = (sfn.createTime >> 5) & 0x3F;
+        creationDate.hours = (sfn.createTime >> 11);
 
-    lastEditDate.day = sfn.lastWriteDate & 0x1F;
-    lastEditDate.month = (sfn.lastWriteDate >> 5) & 0x0F;
-    lastEditDate.year = (sfn.lastWriteDate >> 9) + 1980;
+        lastEditDate.day = sfn.lastWriteDate & 0x1F;
+        lastEditDate.month = (sfn.lastWriteDate >> 5) & 0x0F;
+        lastEditDate.year = (sfn.lastWriteDate >> 9) + 1980;
 
-    lastEditDate.seconds = (sfn.lastWriteTime & 0x1F)*2;
-    lastEditDate.minutes = (sfn.lastWriteTime >> 5) & 0x3F;
-    lastEditDate.hours = (sfn.lastWriteTime >> 11);
+        lastEditDate.seconds = (sfn.lastWriteTime & 0x1F)*2;
+        lastEditDate.minutes = (sfn.lastWriteTime >> 5) & 0x3F;
+        lastEditDate.hours = (sfn.lastWriteTime >> 11);
 
-    startCluster = (sfn.clusterHi << 16) | sfn.clusterLo;
+        startCluster = (sfn.clusterHi << 16) | sfn.clusterLo;
+    }
 
     dword namelen = strlen(*--pathComponents);
     char *fname = (char*)kmalloc(namelen + 1);
@@ -374,11 +395,13 @@ File::File(char *path, byte driveNo, bool force) {
     kdebug(".\n");
 
     kfree(_pathComponents);
+    kfree(strs);
     kfree(nameBuf);
 }
 
-void File::read(byte *out) {
-    if (!fatInit) return;
+bool FAT32_File::read(byte *out) {
+    if (!fatInit) return false;
+    if (!*this) return false;
     kdebug("Начато считывание файла ");
     kdebug((const char*)this->name);
     kdebug(".\n");
@@ -392,9 +415,63 @@ void File::read(byte *out) {
         _clus = getCluster(drive, _clus);
     }
     kdebug("Считывание файла завершено.\n");
+    return true;
 }
 
-void File::write(byte *in, dword dataSize) {
+bool FAT32_File::read(dword start, dword size, byte *out) {
+    if (!fatInit) return false;
+    if (!*this) return false;
+    kdebug("Начато считывание куска из файла ");
+    kdebug(this->name);
+    kdebug(" с %d байта размером %d Б.\n", start, size);
+    if (start + size > this->size) {
+        kdebug("ОШИБКА: Считываемый фрагмент не полностью существует в файле\n");
+        return false;
+    }
+    dword skippedClusters = start / clustersize(this->drive);
+    dword clus = startCluster;
+    dword _clus = getCluster(drive, clus);
+    kdebug("Пропускается %d кластеров.\n", skippedClusters);
+    while (!is_eof(clus) && skippedClusters) {
+        clus = _clus;
+        _clus = getCluster(drive, _clus);
+        skippedClusters --;
+    }
+
+    if (skippedClusters) return false;
+
+    kdebug("Чтение начинается с кластера %d.\n", clus);
+    kdebug("%d\n", drive);
+    byte clusterBuf[clustersize(this->drive)];
+    memset(clusterBuf, clustersize(this->drive), 0);
+    readCluster(this->drive, clus, clusterBuf);
+    dword clusStartSize = clustersize(this->drive) - (start % clustersize(this->drive));
+    if (clusStartSize >= size) {
+        memcpy(clusterBuf + start % clustersize(this->drive), out, size);
+        return true;
+    }
+    memcpy(clusterBuf + (start % clustersize(this->drive)), out, clusStartSize);
+    out += clusStartSize;
+    dword _size = size - clusStartSize;
+    clus = _clus;
+    _clus = getCluster(this->drive, _clus);
+    while (!is_eof(clus) && _size > clustersize(drive)) {
+        kdebug("Считывается кластер %d.\n", clus);
+        readCluster(drive, clus, out);
+        out += clustersize(drive);
+        _size -= clustersize(drive);
+        clus = _clus;
+        _clus = getCluster(drive, _clus);
+    }
+    if (is_eof(clus)) return false;
+    readCluster(this->drive, clus, clusterBuf);
+    memcpy(clusterBuf, out, _size);
+    return true;
+}
+
+bool FAT32_File::write(byte *in, dword dataSize) {
+    if (!fatInit) return false;
+    if (!*this) return false;
     kdebug("Начата запись %d байтов данных в файл ", dataSize);
     kdebug(name);
     kdebug(".\n");
@@ -437,7 +514,7 @@ void File::write(byte *in, dword dataSize) {
         size += _size;
         _size = 0;
         updateDirEntry(this);
-        return;
+        return true;
     }
     kdebug("Прописывается %d Б.\n", fillSize);
     memcpy(in, clusterBuf + offset, fillSize);
@@ -467,6 +544,28 @@ void File::write(byte *in, dword dataSize) {
     updateDirEntry(this);
 
     kdebug("Запись успешно завершена.\n");
+    return true;
+}
+
+void FAT32_File::clear() {
+    if (!*this) return;
+    kdebug("Получен запрос на очистку файла ");
+    kdebug(name);
+    kdebug(".\n");
+    dword clus = startCluster;
+    dword _clus = getCluster(drive, clus);
+    setCluster(drive, clus, FAT_CLUSTER_EOF);
+    kdebug("Кластер %d теперь помечен как последний.\n");
+    clus = _clus;
+    _clus = getCluster(drive, _clus);
+    while (!is_eof(clus)) {
+        kdebug("Освобождается кластер %d.\n", clus);
+        setCluster(drive, clus, 0);
+        clus = _clus;
+        _clus = getCluster(drive, _clus);
+    }
+    size = 0;
+    updateDirEntry(this);
 }
 
 bool dirNameExists(byte *name, dword dirCluster, byte drive) {
@@ -537,7 +636,7 @@ bool createSFNName(char *name, char *out) {
     return hasExtension;
 }
 
-FAT_DirEntry craftSFN(File *f) {
+FAT_DirEntry craftSFN(FAT32_File *f) {
     FAT_DirEntry sfn;
 
     bool hasExtension = createSFNName(f->name, (char*)sfn.name);
@@ -584,7 +683,7 @@ byte computeChecksum(FAT_DirEntry sfn) {
     return sum;
 }
 
-void updateDirEntry(File *f) {
+void updateDirEntry(FAT32_File *f) {
     FAT_DirEntry clusterBuf[clustersize(f->drive) / sizeof(FAT_DirEntry)];
 
     readCluster(f->drive, f->directoryCluster, (byte*)clusterBuf);
@@ -598,7 +697,8 @@ void updateDirEntry(File *f) {
     (*f).create();
 }
 
-void File::create() {
+void FAT32_File::create() {
+    if (!*this) return;
     FAT_DirEntry clusterBuf[clustersize(this->drive) / sizeof(FAT_DirEntry)];
 
     this->creationDate = kgettime();
@@ -761,7 +861,7 @@ void File::create() {
         }
 
         kdebug("Начинается запись \".\" и \"..\" в начало папки.\n");
-        memset((byte*)clusterBuf, clustersize(drive), 0);
+        memset(clusterBuf, clustersize(drive), 0);
         clusterBuf[0] = dotEntry;
         clusterBuf[1] = dotdotEntry;
         writeCluster(drive, startCluster, (byte*)clusterBuf);
@@ -769,7 +869,7 @@ void File::create() {
     kdebug("Создание файла завершено.\n");
 }
 
-void File::remove() {
+void FAT32_File::remove() {
     FAT_DirEntry clusterBuf[clustersize(drive) / sizeof(FAT_DirEntry)];
 
     readCluster(drive, directoryCluster, (byte*)clusterBuf);
@@ -793,7 +893,7 @@ void File::remove() {
     setCluster(drive, clus, FAT_CLUSTER_FREE);
 }
 
-void File::rename(char *newname) {
+void FAT32_File::rename(char *newname) {
     this->name = newname;
     updateDirEntry(this);
 }
@@ -826,7 +926,8 @@ dword allocateCluster(byte driveNo) {
     dword startFatSect = bpbs[driveNo].reservedSectors;
     dword fatSize = ebpbs[driveNo].fatSize;
 
-    dword clus = (nextFreeClusters[driveNo] / 128) * 128;
+    // dword clus = (nextFreeClusters[driveNo] / 128) * 128;
+    dword clus = 0;
     for (dword fatSect = startFatSect + clus / 128; fatSect < startFatSect + fatSize; fatSect++) {
         dword clusters[128];
         readSector((byte*)clusters, fatSect, driveNo);
@@ -834,7 +935,7 @@ dword allocateCluster(byte driveNo) {
             if (clusters[i] == 0 && (clus + i >= 2))
                 return clus + i;
         }
-        clus = fatSect * 128;
+        clus += 128;
     }
     return maxdword;
 }

@@ -37,6 +37,8 @@
 #define KB_STATUS_CAPSLOCK      8
 #define KB_STATUS_NUMLOCK       16
 
+extern const dword maxInputSize;
+
 // Флаг; установлен, если команда воспринята
 extern bool cmdACKd;
 // Флаг; установлен, если команду нужно отправить повторно
@@ -45,6 +47,8 @@ extern bool cmdNeedsResending;
 extern bool cmdAwaitingResponse;
 // Флаг; установлен, если клавиша была отпущена
 extern bool releaseScancode;
+// Флаг; установлен, если нужно выводить введённый текст на экран
+extern bool printInput;
 
 // Буфер сканкодов
 extern byte *kbBufPtr;
@@ -78,5 +82,10 @@ bool sendKBCommand(byte cmd, byte arg);
 /// @param in Буфер вводимых данных
 /// @attention Для буфера всегда должно быть отделено как минимум 0x200 (512) байтов!
 void kread(byte* in);
+
+/// @brief Считывает одну клавишу с клавиатуры.
+/// @return - Низший байт - код нажатой клавиши
+/// @return - Высший байт - статус клавиатуры во время нажатия
+word kreadkey();
 
 #endif

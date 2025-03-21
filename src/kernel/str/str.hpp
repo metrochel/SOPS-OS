@@ -24,6 +24,8 @@ byte numasstr(dword num, char* str);
 
 char** strsplit(char* str, char* pattern);
 
+void strconcat(char *str1, char *str2, char *&str);
+
 void strskiplines(char *&str, dword lines);
 
 qword strhextoint(char *str);

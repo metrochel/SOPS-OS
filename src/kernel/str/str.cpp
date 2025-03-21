@@ -131,6 +131,17 @@ void strskiplines(char *&str, dword lines) {
     }
 }
 
+void strconcat(char *str1, char *str2, char*& outstr) {
+    dword len1 = strlen(str1);
+    dword len2 = strlen(str2);
+    outstr = (char*)kmalloc(len1 + len2 + 1);
+    outstr[len1 + len2] = 0;
+    strcpy(str1, outstr);
+    strcpy(str2, outstr + len1);
+    kfree(str1);
+    kfree(str2);
+}
+
 inline bool isHexDigit(char d) {
     return (d >= '0' && d <= '9') || (d >= 'A' && d <= 'F') || (d >= 'a' && d <= 'f');
 }

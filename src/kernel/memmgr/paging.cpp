@@ -27,6 +27,15 @@ void createPage(dword vaddr, dword paddr) {
     *pagePtr = paddr | 3;
 }
 
+void removePage(dword vaddr) {
+    word tableNo = (vaddr & 0xFFC00000) >> 22;
+    dword *dirEntryPtr = (dword*)(PAGING_BASE + tableNo * 4);
+    if (!(*dirEntryPtr & 0x1))
+        return;
+    dword *pagePtr = (dword*)(PAGING_BASE + (tableNo + 1) * 0x1000 + ((vaddr & 0x3FF000) >> 12) * 4);
+    *pagePtr = 2;
+}
+
 dword getPhysAddr(dword vaddr) {
     word tableNo = (vaddr & 0xFFC00000) >> 22;
     dword *dirEntryPtr = (dword*)(PAGING_BASE + tableNo * 4);

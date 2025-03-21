@@ -46,7 +46,7 @@ void initPMM(byte *&memMgrPtr) {
         kdebug("\tТип: %d\n", entry.type);
         kdebug("\tРасширенные аттрибуты: %b\n", entry.exAttributes);
         
-        if (entry.type != MemMapEntryType::Free) {
+        if (entry.type != MemMapEntryType::Unoccupied) {
             dword pagesCount = (entry.size + PAGE_SIZE - 1) / PAGE_SIZE;
             for (dword j = 0; j < pagesCount; j++) {
                 occupyPage(entry.base + j * PAGE_SIZE);

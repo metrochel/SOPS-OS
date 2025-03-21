@@ -27,6 +27,8 @@ struct TableInfo {
     word pagesCount;
 };
 
+extern TableInfo *tables;
+
 /// @brief Инициализирует виртуальный менеджер памяти.
 /// @param memMgrPtr Указатель на данные виртуального менеджера
 void initVMM(byte *&memMgrPtr);
@@ -42,6 +44,10 @@ dword allocatePageTable(word pid);
 /// @param pid PID процесса-получателя
 byte *virtAlloc(dword amt, word pid);
 
+/// @brief Освобождает ресурсы, занятые таблицей.
+/// @param table Номер таблицы
+void destroyPageTable(dword table);
+
 /// @brief Выделяет для процесса место в виртуальной памяти
 /// @param offset Адрес необходимого блока
 /// @param amt Длина блока, Б
@@ -51,8 +57,15 @@ byte *virtAlloc(ptrint offset, dword amt, word pid);
 /// @brief Освобождает место, занимаемое переменной в виртуальной памяти.
 /// @param var Указатель на переменную в памяти
 /// @param pid PID процесса-владельца
-void virtFree(void *var, word pid);
+/// @return Размер освобождённого блока, Б
+dword virtFree(void *var, word pid);
+
+/// @brief Определяет размер переменной.
+/// @param var Указатель на переменную
+/// @return Размер переменной в байтах
+dword getVarSz(void *var);
 
 void logBlocks(dword pageTable);
+
 
 #endif

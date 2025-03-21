@@ -20,7 +20,7 @@ struct MemMapEntry {
 // ### MemMapEntryType
 // Здесь описаны все допустимые типы меток разметки памяти.
 enum MemMapEntryType {
-    Free             = 1,   // Свободная память
+    Unoccupied             = 1,   // Свободная память
     Reserved         = 2,   // Резервированная память
     ACPIReclaimable  = 3,   // Восполняемая память ACPI
     ACPINonVolatile  = 4,   // Невосполняемая память ACPI

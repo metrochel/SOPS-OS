@@ -6,8 +6,7 @@
 //  - Предоставляет функционал, способный читать и записывать файлы в системе FAT32.
 //
 
-#include "../util/nums.hpp"
-#include "../timing/time.hpp"
+#include "filebase.hpp"
 
 #define FAT_FILEATTR_READONLY   0b1
 #define FAT_FILEATTR_HIDDEN     0b10
@@ -64,28 +63,21 @@ struct FAT32_EBPB {
     byte  flSysType[8];         // "Тип файловой системы" (на деле всегда "FAT32   ")
 } __attribute__((packed));
 
-/// ### File
-/// Этот класс описывает данные о файле и позволяет с ним взаимодействовать
+/// ### FAT32_File
+/// Этот класс описывает данные о файле в системе FAT32 и позволяет с ним взаимодействовать
 /// (читать, создавать, записывать и др.).
-class File {
+class FAT32_File : public File {
     public:
-        char *name;             // Имя файла
-        byte attributes;        // Атрибуты файла
         dword startCluster;     // Первый кластер файла
         dword directoryCluster; // Кластер, содержащий папку, в которой лежит файл
         word dirEntryOffset;    // Сдвиг по кластеру папки, на котором находится главная метка для данного файла
-        byte drive;             // Номер диска с файлом
-        dword size;             // Размер файла в байтах
-        Time creationDate;      // Дата создания файла
-        Time lastEditDate;      // Дата редактирования файла
-        bool text = true;       // Флаг; `true`, если файл открыт в текстовом режиме
 
         /// @brief Конструктор по метке директории.
         /// @param cluster Кластер с меткой
         /// @param offset Сдвиг метки
         /// @param driveNo Номер диска метки
         /// @attention Сдвиг указывать на первую LFN-метку файла!
-        File(dword cluster, word offset, byte driveNo);
+        FAT32_File(dword cluster, word offset, byte driveNo);
 
         /// @brief Конструктор по непосредственным данным файла.
         /// @param name Имя файла
@@ -94,40 +86,50 @@ class File {
         /// @param size Размер файла
         /// @param creationDate Время создания
         /// @note Очень полезно для создания виртуальных файлов, то есть таких, которых нет сейчас на диске.
-        File(char *name, byte attr, byte drive, dword size, Time creationDate, dword directoryCluster);
+        FAT32_File(char *name, byte attr, byte drive, dword size, Time creationDate, dword directoryCluster);
 
         /// @brief Конструктор по пути к файлу.
         /// @param path Абсолютный путь к файлу
         /// @param driveNo Номер диска 
-        /// @param force Флаг; если `true`, то все отсутствующие по пути папки создаются автоматически
-        File(char *path, byte driveNo, bool force);
+        /// @param forceFile Флаг; если `true` и файл отсутствует, то он создаётся
+        /// @param forceFolders Флаг; если `true`, то создаются все отсутствующие по пути папки
+        FAT32_File(char *path, byte driveNo, bool forceFile, bool forceFolders);
 
         /// @brief Деструктор файла.
-        ~File();
+        ~FAT32_File();
 
         /// @brief Создаёт файл на диске.
-        void create();
+        void create() override;
 
         /// @brief Считывает весь файл в память.
         /// @param out Указатель выхода данных
-        void read(byte *out);
+        bool read(byte *out) override;
+
+        /// @brief Считывает кусок файла в память.
+        /// @param start Сдвиг первого байта
+        /// @param size Размер считываемого куска, Б
+        /// @param out Указатель выхода данных
+        bool read(dword start, dword size, byte *out) override;
 
         /// @brief Записывает данные в файл.
         /// @param in Указатель входа данных
         /// @param dataSize Размер данных, Б
-        void write(byte *in, dword dataSize);
+        bool write(byte *in, dword dataSize) override;
 
         /// @brief Переименовывает файл.
         /// @param newname Новое имя файла
-        void rename(char *newname);
+        void rename(char *newname) override;
 
         /// @brief Удаляет файл с диска.
-        void remove();
+        void remove() override;
+
+        /// @brief Очищает содержимое файла, но не удаляет его.
+        void clear() override;
 
         bool operator!();
     protected:
         /// @brief Пустой конструктор.
-        File();
+        FAT32_File();
 };
 
 // ### FAT_DirEntry
@@ -180,7 +182,7 @@ extern FAT32_EBPB ebpbs[16];
 
 /// @brief Обновляет метку директории для файла.
 /// @param f Файл
-void updateDirEntry(File *f);
+void updateDirEntry(FAT32_File *f);
 
 /// @brief Создаёт SFN-имя для данного названия
 /// @param name Исходное название

@@ -1,6 +1,7 @@
 #ifndef _GLYPHS_INCL
 #define _GLYPHS_INCL
 
+#include <stdarg.h>
 #include "graphics.hpp"
 #include "../util/nums.hpp"
 // ======================================== Работа с текстом ============================================
@@ -12,6 +13,16 @@
 extern word textCurX;
 // Ордината курсора текста
 extern word textCurY;
+
+extern word auxTextCurX;
+extern word auxTextCurY;
+extern dword drawLine;
+
+extern word textLeftBoundX;
+extern word textLeftBoundY;
+extern word textRightBoundX;
+extern word textRightBoundY;
+
 // Стандартный цвет текста
 extern dword defaultTextCol;
 // Стандартный цвет заднего фона текста
@@ -44,6 +55,19 @@ Glyph getglyph(word code);
 /// @return Разметка
 Glyph getglyph(byte code);
 
+/// @brief Фиксирует один символ в буфере текстового вывода.
+/// @param x Абсцисса символа (текстовые координаты)
+/// @param y Ордината символа (текстовые координаты)
+/// @param c Символ в кодировке UTF-8
+/// @param textCol Цвет символа
+/// @param bgCol Цвет заднего фона символа
+inline void setchar(word x, word y, dword c, dword textCol, dword bgCol) {
+    dword write = y*textScreenWidth + x;
+    if (3*write + 2 > textBufferBankSize * 2)
+        return;
+
+    textBuffer[write] = {c,textCol,bgCol};
+}
 
 /// @brief Размещает символ на координатах.
 /// @param glyph Символ
@@ -66,6 +90,12 @@ inline void putglyph(Glyph glyph, word x, word y, dword letter_col, dword back_c
         offset += pitch;
     }
 }
+
+/// @brief Выключает курсор.
+void disableCursor();
+
+/// @brief Включает курсор.
+void enableCursor();
 
 /// @brief Выводит на экран число в двоичном представлении.
 /// @param num Число
@@ -103,7 +133,21 @@ void eraseChar();
 /// @brief Обновляет курсор.
 void updateCursor();
 
+/// @brief Заново отрисовывает экран по данным буфера.
+void refreshScreen();
+
+/// @brief Листает экран на одну строчку вниз.
+void scroll();
+
 // ========================================
+
+/// @brief Выводит строку на экран.
+/// @param text Строка
+/// @param args Аргументы для форматирования
+/// @param charCol Цвет текста строки
+/// @param bgCol Цвет заднего фона строки
+/// @param format Флаг; `true`, если строка должна форматироваться
+void printStr(const char* text, va_list args, dword charCol, dword bgCol, bool format);
 
 /// @brief Выводит на экран простой текст.
 /// @param text Форматированный текст

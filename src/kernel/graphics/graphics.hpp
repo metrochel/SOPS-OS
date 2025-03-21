@@ -31,6 +31,20 @@ extern byte reservedshift;
 extern word screenWidth;
 extern word screenHeight;
 
+struct Character {
+    dword character;
+    dword charCol;
+    dword bgCol;
+
+    bool operator!=(Character &c);
+} __attribute__((packed));
+
+extern Character* textBuffer;
+extern Character* auxTextBuffer;
+extern dword textBufferBankSize;
+extern word textScreenWidth;
+extern word textScreenHeight;
+
 // Структура режима VBE
 struct VBEModeInfo {
     // Основной блок данных

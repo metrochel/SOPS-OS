@@ -2,11 +2,16 @@
 #include "keycodes.hpp"
 #include <stdarg.h>
 #include "../graphics/glyphs.hpp"
+#include "../util/util.hpp"
+
+const dword maxInputSize = 0x200;
 
 bool cmdAwaitingResponse = false;
 bool releaseScancode = false;
+bool keyPunched = false;
 bool inputFinished = false;
 bool inputAllowed = false;
+bool printInput = true;
 
 byte *kbBufPtr = (byte*)KB_BUF_BASE;
 byte *kbCmdBufPtr = (byte*)KB_CMD_BUF_BASE;
@@ -14,6 +19,7 @@ byte *stdinPtr = (byte*)0x9100;
 dword stdinBase = 0x9100;
 
 byte kbStatus = 0;
+word keyBuffer = 0;
 
 void cleanKBBuf() {
     while ((dword)kbBufPtr > KB_BUF_BASE) {
@@ -295,11 +301,6 @@ void sendKBCmd() {
 }
 
 void updateKB() {
-    if (!inputAllowed) {
-        releaseScancode = false;
-        cleanKBBuf();
-        return;
-    }
     byte kbBufLen = (dword)kbBufPtr - KB_BUF_BASE;
     byte xchgBuf;
     kbBufPtr = (byte*)KB_BUF_BASE;
@@ -309,9 +310,7 @@ void updateKB() {
         *(kbBufPtr + kbBufLen - i - 1) = xchgBuf;
     }
     qword scancode = *(qword*)kbBufPtr;
-    for (byte i = 0; i < 8; i++) {
-        *(kbBufPtr + i) = 0;
-    }
+    memset(kbBufPtr, kbBufLen, 0);
     byte keycode = getKeyCode(scancode);
 
     if (keycode == KEYCODE_LEFT_SHIFT || keycode == KEYCODE_RIGHT_SHIFT) {
@@ -338,37 +337,20 @@ void updateKB() {
         else
             kbStatus |= KB_STATUS_CAPSLOCK;
     }
-    if (keycode == KEYCODE_BACKSPACE && !releaseScancode && ((dword)stdinPtr - stdinBase > 0)) {
-        stdinPtr --;
-        *stdinPtr = 0;
-        eraseChar();
+
+    if (!inputAllowed) {
         releaseScancode = false;
         cleanKBBuf();
         return;
     }
-    if (keycode == KEYCODE_ENTER && !releaseScancode) {
-        inputFinished = true;
+
+    if (releaseScancode) {
         releaseScancode = false;
-        cleanKBBuf();
         return;
     }
-    dword stdinLen = (dword)stdinPtr - stdinBase;
-    if (stdinLen + 1 > 0x200) {
-        releaseScancode = false;
-        cleanKBBuf();
-        return;
-    }
-    byte symbol = getSymbol(keycode);
-    if (!releaseScancode && symbol != 0) {
-        *stdinPtr = symbol;
-        if (symbol == '%')
-            kprint("%%");
-        else
-            kprint((const char*)stdinPtr);
-        stdinPtr ++;
-    }
-    releaseScancode = false;
-    cleanKBBuf();
+
+    keyBuffer = (word)((word)kbStatus << 8) | keycode;
+    keyPunched = true;
 }
 
 bool initKB() {
@@ -422,13 +404,55 @@ bool sendKBCommand(byte cmd, byte arg) {
 }
 
 void kread(byte *in) {
-    stdinBase = (dword)in;
-    stdinPtr = in;
-    for (word i = 0; i < 0x200; i++) {
-        *(stdinPtr + i) = 0;
-    }
+    memset(in, maxInputSize, 0);
+    word inputLen = 0;
     inputAllowed = true;
-    while (!inputFinished) {io_wait();}
+    keyBuffer = 0;
+    keyPunched = false;
+    while (!inputFinished) {
+        if (keyPunched && inputLen < maxInputSize) {
+            byte keycode = keyBuffer & 0xFF;
+            if (keycode == KEYCODE_ENTER)
+                inputFinished = true;
+            if (keycode == KEYCODE_BACKSPACE && inputLen) {
+                *(--in) = 0;
+                inputLen--;
+                if (printInput)
+                    eraseChar();
+                keyPunched = false;
+                continue;
+            }
+            word symbol = getSymbol(keycode);
+            if (symbol) {
+                if (symbol & 0xFF00) {
+                    inputLen ++;
+                    *in++ = symbol >> 8;
+                }
+                inputLen ++;
+                *in++ = symbol;
+                if (printInput) {
+                    dword _str = symbol & 0xFF;
+                    if (symbol & 0xFF00) {
+                        _str <<= 8;
+                        _str |= symbol >> 8;
+                    }
+                    printStr((char*)&_str, null, defaultTextCol, defaultBGCol, false);
+                }
+            }
+            keyPunched = false;
+        }
+        io_wait();
+    }
+    keyBuffer = 0;
     inputAllowed = false;
     inputFinished = false;
+}
+
+word kreadkey() {
+    keyBuffer = 0;
+    keyPunched = false;
+    inputAllowed = true;
+    while (!keyPunched) {io_wait();}
+    inputAllowed = false;
+    return keyBuffer;
 }

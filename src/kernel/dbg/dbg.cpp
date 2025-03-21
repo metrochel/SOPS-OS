@@ -1,6 +1,6 @@
 #include "dbg.hpp"
 #include "../graphics/glyphs.hpp"
-#include "../fat/fat.hpp"
+#include "../file/file.hpp"
 #include "../io/com.hpp"
 #include "../memmgr/memmgr.hpp"
 #include "../str/str.hpp"
@@ -22,18 +22,8 @@ void traceStack() {
     frame = frame->ebp;
     bool first = true;
     while (frame) {
-        ptrint lowAddr = *(ptrint*)kernelSymbolsBase;
-        char *funcName = nullptr;
         ptrint addr = (ptrint)frame->eip;
-        dword mapSize = (dword)(kernelMap - kernelMapSize) / (sizeof(byte*));
-        for (dword i = 0; i < mapSize - 2; i++) {
-            ptrint lowAddr = kernelMapBase[2*i];
-            ptrint highAddr = kernelMapBase[2*i+2];
-            if ((lowAddr <= addr) && (addr < highAddr)) {
-                funcName = (char*)kernelMapBase[2*i+1];
-                break;
-            }
-        }
+        char *funcName = findFunctionName(addr);
 
         if (!first)
             kprint(",\n");
@@ -48,6 +38,21 @@ void traceStack() {
         frame = frame->ebp;
     }
     kprint("\n");
+}
+
+char *findFunctionName(ptrint addr) {
+    ptrint lowAddr = *(ptrint*)kernelSymbolsBase;
+    char *funcName = nullptr;
+    dword mapSize = (dword)(kernelMap - kernelMapSize) / (sizeof(byte*));
+    for (dword i = 0; i < mapSize - 2; i++) {
+        ptrint lowAddr = kernelMapBase[2*i];
+        ptrint highAddr = kernelMapBase[2*i+2];
+        if ((lowAddr <= addr) && (addr < highAddr)) {
+            funcName = (char*)kernelMapBase[2*i+1];
+            break;
+        }
+    }
+    return funcName;
 }
 
 char *parseSymbol(char *symbol) {
@@ -71,6 +76,10 @@ char *parseSymbol(char *symbol) {
             *ptr++ = '.';
             if (strstartswith(symbol, "nt")) {
                 ptr += strcpy("!", ptr) + 1;
+                symbol += 2;
+            }
+            if (strstartswith(symbol, "ne")) {
+                ptr += strcpy("!=", ptr) + 1;
                 symbol += 2;
             }
             if (strstartswith(symbol, "eq")) {
@@ -103,7 +112,7 @@ char *parseSymbol(char *symbol) {
     byte ptrDepth = 0;
     byte refDepth = 0;
     while (*symbol) {
-        if (*symbol == 'v') {
+        if (*symbol == 'v' && !(ptrDepth || refDepth)) {
             ptr += 2;
             break;
         }
@@ -150,6 +159,8 @@ char *parseSymbol(char *symbol) {
             symbol += typenameLen;
             symbol--;
         }
+        else if (*symbol == 'b')
+            ptr += strcpy("bool", ptr);
         else if (*symbol == 'c')
             ptr += strcpy("char", ptr);
         else if (*symbol == 'h')
@@ -178,6 +189,8 @@ char *parseSymbol(char *symbol) {
             ptr += strcpy("long double", ptr);
         else if (*symbol == 'z')
             ptr += strcpy("va_list", ptr);
+        else if (*symbol == 'v')
+            ptr += strcpy("void", ptr);
         else
             *ptr++ = *symbol;
 
@@ -204,14 +217,14 @@ char *parseSymbol(char *symbol) {
 
 void initKernelMap(byte drive) {
     kdebug("Начата инициализация карты ядра.\n");
-    File map("kernel.map", drive, false);
+    FileHandle *map = openFile("/kernel.map", drive, FILE_MODE_READ);
     if (!map)
         return;
 
     kdebug("Файл готов. Начинается анализ.\n");
-    char *fileBuf = (char*)kmalloc(map.size);
+    char *fileBuf = (char*)kmalloc(map->file->size);
     char *_fileBuf = fileBuf;
-    map.read((byte*)fileBuf);
+    map->file->read((byte*)fileBuf);
 
     kernelSymbols = (char*)kmalloc(kernelSymbolsSize);
     kernelSymbolsBase = kernelSymbols;
@@ -267,5 +280,5 @@ void initKernelMap(byte drive) {
         strskiplines(fileBuf, 1);
     }
 
-    kfree(fileBuf);
+    kfree(_fileBuf);
 }

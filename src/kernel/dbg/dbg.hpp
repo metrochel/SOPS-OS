@@ -22,8 +22,24 @@ inline void magicBreakpoint() {
     __asm__ ("xchgw %bx, %bx");
 }
 
+inline ptrint getReturnAddress(byte depth) {
+    StackFrame *frame;
+    __asm__ ("movl %%ebp, %d0;" : "=r"(frame) : : );
+    for (byte i = 0; i < depth - 1; i++)
+        frame = frame->ebp;
+    return frame->eip;
+}
+
+inline ptrint getReturnAddress() {
+    StackFrame *frame;
+    __asm__ ("movl %%ebp, %d0;" : "=r"(frame) : : );
+    return frame->eip;
+}
+
 /// @brief Пробегает по стеку вызовов.
 void traceStack();
+
+char* findFunctionName(ptrint addr);
 
 void initKernelMap(byte drive);
 

@@ -1,4 +1,5 @@
 #include "run.hpp"
+#include "process.hpp"
 #include "../memmgr/memmgr.hpp"
 #include "../graphics/glyphs.hpp"
 #include "../io/com.hpp"
@@ -7,7 +8,7 @@
 #include "../dbg/dbg.hpp"
 #include "../cpu/gdt.hpp"
 
-dword runExecutable(File executable, dword argc, char **argv) {
+dword runExecutable(FAT32_File executable, char *args, char *path) {
     kdebug("Начат запуск программы ");
     kdebug(executable.name);
     kdebug(".\n");
@@ -58,12 +59,13 @@ dword runExecutable(File executable, dword argc, char **argv) {
         return RUN_ERR_BIG_ENDIAN;
     }
 
-    word pid = 1234;
+    Process proc = registerProcess();
+    word pid = proc.pid;
     dword code = 0;
     switch (hdr.type) {
         case 1:
             kdebug("Тип файла - перемещаемый.\n");
-            code = runRelocatableELF(file, pid, argc, argv);
+            code = runRelocatableELF(file, pid, args);
             break;
         case 2:
             kdebug("Тип файла - загружаемый.\n");
@@ -73,11 +75,11 @@ dword runExecutable(File executable, dword argc, char **argv) {
                 kfree(file);
                 return RUN_ERR_NO_PROGRAM_TABLE;
             }
-            code = runLoadableELF(file, pid, argc, argv);
+            code = runLoadableELF(file, pid, args);
             break;
         case 3:
             kdebug("Тип файла - динамично компонуемый.\n");
-            code = runDynamicELF(file, pid, argc, argv);
+            code = runDynamicELF(file, pid, args);
             break;
         default:
             kdebug("ОШИБКА: Нераспознанный тип файла %d\n", hdr.type);
@@ -90,7 +92,7 @@ dword runExecutable(File executable, dword argc, char **argv) {
     return code;
 }
 
-dword runRelocatableELF(byte *file, word pid, dword argc, char **argv) {
+dword runRelocatableELF(byte *file, word pid, char *args) {
     ELF_Header32 hdr = *(ELF_Header32*)file;
     ELF_SectionHeader32 *sections = (ELF_SectionHeader32*)(file + hdr.sectionHeaderOff);
     dword shSize = hdr.shEntryCount;
@@ -170,7 +172,7 @@ dword runRelocatableELF(byte *file, word pid, dword argc, char **argv) {
     }
 
     byte **sectionPtrs = (byte**)kmalloc(sizeof(byte**) * shSize);
-    memset((byte*)sectionPtrs, sizeof(byte**) * shSize, 0);
+    memset(sectionPtrs, sizeof(byte**) * shSize, 0);
 
     for (dword i = 0; i < shSize; i++) {
         ELF_SectionHeader32 section = sections[i];
@@ -302,7 +304,7 @@ dword runRelocatableELF(byte *file, word pid, dword argc, char **argv) {
     return 0;
 }
 
-dword runLoadableELF(byte *file, word pid, dword argc, char **argv) {
+dword runLoadableELF(byte *file, word pid, char *args) {
     ELF_Header32 hdr = *(ELF_Header32*)file;
     ELF_ProgramHeader32 *ph = (ELF_ProgramHeader32*)(file + hdr.programHeaderOff);
 
@@ -329,8 +331,6 @@ dword runLoadableELF(byte *file, word pid, dword argc, char **argv) {
         }
     }
 
-    logBlocks(0x8049094 >> 22);
-
     EntryPoint entryPoint = (EntryPoint)hdr.entryPoint;
     kdebug("Адрес точки входа: %x.\n", entryPoint);
 
@@ -338,9 +338,9 @@ dword runLoadableELF(byte *file, word pid, dword argc, char **argv) {
         kdebug("ОШИБКА: Нет точки входа\n");
         kdebug("Исполнение файла отменено.\n");
         for (dword i = 0; i < hdr.phEntryCount; i++) {
-            if (frags[i]) kfree(frags[i]);
+            if (frags[i]) kfree(frags[i], pid);
         }
-        kfree(frags);
+        kfree(frags, pid);
         return RUN_ERR_BAD_ENTRY_POINT;
     }
 
@@ -356,10 +356,54 @@ dword runLoadableELF(byte *file, word pid, dword argc, char **argv) {
     setPagePermsLevel((dword)exitFunc, 3);
     memcpy(func, exitFunc, sizeof(func));
 
+    char **argv = strsplit(args, " ");
+    dword argc = 0;
+    dword i = 0;
+    while (argv[i] != nullptr) {
+        char *element = argv[i];
+        if (element[0] == '"') {
+            char **write = argv + i;
+            dword len = strlen(element);
+            (*write)++;
+            len--;
+            char *arg = *write;
+            i++;
+            while (element && element[len-1] != '"') {
+                element = argv[i];
+                len = strlen(element);
+                argv[i] = (char*)1;
+                i++;
+                strconcat(arg, " ", arg);
+                strconcat(arg, element, arg);
+            }
+            if (!element) break;
+            len = strlen(arg);
+            arg[len-1] = 0;
+            *write = arg;
+            i--;
+        }
+        i++;
+        argc++;
+    }
+
+    kdebug("Программе передаётся %d аргументов: \"", argc);
+    kdebug(*argv);
+    kdebug("\"");
+    i = 1;
+    while (argv[i] != nullptr) {
+        if (argv[i] == (char*)1) continue;
+        kdebug(", \"");
+        kdebug(argv[i]);
+        kdebug("\"");
+        i++;
+    }
+    kdebug(".\n");
+
     dword exitCode;
     disableInts();
     __asm__ (
         "push $exit;"
+        "push %%ebp;"
         "movl %%esp, %d1;"
         "movw %%ss, %w2;"
         "movw $0x43, %%ax;"
@@ -382,7 +426,9 @@ dword runLoadableELF(byte *file, word pid, dword argc, char **argv) {
         "push %d3;"
         "xor %%eax, %%eax;"
         "xor %%edx, %%edx;"
+        "xor %%ebp, %%ebp;"
         "sti;"
+        "xchgw %%bx, %%bx;"
         "iret;"
         "exit:"
         "movl %%eax, %d0"
@@ -393,17 +439,12 @@ dword runLoadableELF(byte *file, word pid, dword argc, char **argv) {
 
     kdebug("Программа завершила исполнение с кодом выхода %x (%d).\n", exitCode, exitCode);
 
-    kfree(_stack);
-    kfree(exitFunc);
-    for (dword i = 0; i < hdr.phEntryCount; i++) {
-        if (frags[i]) kfree(frags[i]);
-    }
-    kfree(frags);
+    unregisterProcess(pid);
 
     return exitCode;
 }
 
-dword runDynamicELF(byte *file, word pid, dword argc, char **argv) {
+dword runDynamicELF(byte *file, word pid, char *args) {
 
     return 0;
 }

@@ -14,7 +14,15 @@ void initMemMgr() {
 }
 
 byte *kmalloc(dword amount, word pid) {
-    return virtAlloc(amount, pid);
+    byte *alloc = virtAlloc(amount, pid);
+    if (!alloc)
+        return nullptr;
+
+    if (!processData[pid].startAddress)
+        processData[pid].startAddress = (ptrint)alloc;
+
+    processData[pid].usedMemory += amount;
+    return alloc;
 }
 
 byte *kmalloc(dword amount) {
@@ -29,8 +37,17 @@ byte *kmallocPhys(ptrint vaddr, dword amount) {
     return virtAlloc(vaddr, amount, PID_KERNEL);
 }
 
+void krealloc(void *&ptr, dword newSize) {
+    void *_ptr = ptr;
+    ptr = kmalloc(newSize);
+    dword prevSz = getVarSz(ptr);
+    memcpy((byte*)_ptr, (byte*)ptr, prevSz >= newSize ? newSize : prevSz);
+    kfree(ptr);
+}
+
 void kfree(void *var, word pid) {
-    virtFree(var, pid);
+    dword freed = virtFree(var, pid);
+    processData[pid].usedMemory -= freed;
 }
 
 void kfree(void *var) {

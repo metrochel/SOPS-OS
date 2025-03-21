@@ -1,9 +1,17 @@
 #include <stdarg.h>
 #include "glyphs.hpp"
 #include "../io/com.hpp"
+#include "../memmgr/memmgr.hpp"
+#include "../util/util.hpp"
 
 word textCurX = 1;
 word textCurY = 1;
+word auxTextCurX = 1;
+word auxTextCurY = 1;
+word textLeftBoundX = 1;
+word textLeftBoundY = 1;
+word textRightBoundX = 1;
+word textRightBoundY = 1;
 bool textCurOnScreen = false;
 bool textCurAllowed = false;
 
@@ -21,6 +29,10 @@ word screenHeight;
 
 dword ticks = 0;
 
+dword drawLine = 0;
+word textScreenWidth;
+word textScreenHeight;
+
 void initText() {
     defaultTextCol = encodeRGB(1,1,1);
     defaultBGCol = encodeRGB(0,0,0);
@@ -28,6 +40,20 @@ void initText() {
     warnBGCol = encodeRGB(0.5,0.5,0);
     errorTextCol = encodeRGB(1,0,0);
     errorBGCol = encodeRGB(0.5,0,0);
+
+    textScreenWidth = screenWidth  / 16;
+    textScreenHeight = screenHeight / 24;
+
+    textRightBoundX = textScreenWidth - 1;
+    textRightBoundY = textScreenHeight - 1;
+
+    textBufferBankSize = (textScreenWidth * textScreenHeight) * 12;
+    textBuffer = (Character*)kmalloc(2*textBufferBankSize);
+    memset(textBuffer, 2*textBufferBankSize, 0);
+}
+
+bool Character::operator!=(Character &c) {
+    return this->character != c.character || this->charCol != c.charCol || this->bgCol != c.bgCol;
 }
 
 Glyph getglyph(byte code) {
@@ -221,6 +247,8 @@ Glyph getglyph(byte code) {
         return ACUTE;
     case '_':
         return UNDERSCORE;
+    case ' ':
+        return NULLGLYPH;
     default:
         return INVALIDCHAR;
     }
@@ -371,45 +399,45 @@ Glyph getglyph(word unicode) {
     }
 }
 
-Glyph getOctDigit(qword dig) {
+char getOctDigit(qword dig) {
     while (dig >= 8) {
         dig >>= 3;
     }
     switch (dig) {
-        case 0: return NUMBER_0;
-        case 1: return NUMBER_1;
-        case 2: return NUMBER_2;
-        case 3: return NUMBER_3;
-        case 4: return NUMBER_4;
-        case 5: return NUMBER_5;
-        case 6: return NUMBER_6;
-        case 7: return NUMBER_7;
-        default: return LATIN_UPPERCASE_O;
+        case 0: return '0';
+        case 1: return '1';
+        case 2: return '2';
+        case 3: return '3';
+        case 4: return '4';
+        case 5: return '5';
+        case 6: return '6';
+        case 7: return '7';
+        default: return 'O';
     }
 }
 
-Glyph getHexDigit(qword dig) {
+char getHexDigit(qword dig) {
     while (dig >= 16) {
         dig >>= 4;
     }
     switch (dig) {
-        case 0: return NUMBER_0;
-        case 1: return NUMBER_1;
-        case 2: return NUMBER_2;
-        case 3: return NUMBER_3;
-        case 4: return NUMBER_4;
-        case 5: return NUMBER_5;
-        case 6: return NUMBER_6;
-        case 7: return NUMBER_7;
-        case 8: return NUMBER_8;
-        case 9: return NUMBER_9;
-        case 10: return LATIN_UPPERCASE_A;
-        case 11: return LATIN_UPPERCASE_B;
-        case 12: return LATIN_UPPERCASE_C;
-        case 13: return LATIN_UPPERCASE_D;
-        case 14: return LATIN_UPPERCASE_E;
-        case 15: return LATIN_UPPERCASE_F;
-        default: return LATIN_UPPERCASE_X;
+        case 0: return '0';
+        case 1: return '1';
+        case 2: return '2';
+        case 3: return '3';
+        case 4: return '4';
+        case 5: return '5';
+        case 6: return '6';
+        case 7: return '7';
+        case 8: return '8';
+        case 9: return '9';
+        case 10: return 'A';
+        case 11: return 'B';
+        case 12: return 'C';
+        case 13: return 'D';
+        case 14: return 'E';
+        case 15: return 'F';
+        default: return 'X';
     }
 }
 
@@ -424,15 +452,52 @@ bool isnullglyph(Glyph g) {
 inline void printchar(Glyph glyph, dword charCol, dword bgCol) {
     putglyph(glyph, textCurX * 16, textCurY * 24, charCol, bgCol);
     textCurX++;
-    if (textCurX >= (screenWidth / 16 - 1)) {
-        textCurX = 1;
+    if (textCurX > textRightBoundX) {
+        textCurX = textLeftBoundX;
         textCurY ++;
+        if (textCurY > textRightBoundY) {
+            scroll();
+            textCurY --;
+        }
     }
 }
 
 inline void printchar(byte c, dword charCol, dword bgCol) {
     Glyph g = getglyph(c);
+    setchar(textCurX, textCurY, c, charCol, bgCol);
     printchar(g, charCol, bgCol);
+}
+
+void scroll() {
+    dword offset = textLeftBoundY * textScreenWidth;
+    for (dword y = textLeftBoundY; y < textRightBoundY; y++) {
+        for (dword x = textLeftBoundX; x <= textRightBoundX; x++) {
+            if (textBuffer[offset + x] != textBuffer[offset + x + textScreenWidth]) {
+                Glyph g = getglyph((word)textBuffer[offset + x + textScreenWidth].character);
+                dword textCol = textBuffer[offset + x + textScreenWidth].charCol;
+                dword bgCol = textBuffer[offset + x + textScreenWidth].bgCol;
+                putglyph(g, x*16, y*24, textCol, bgCol);
+            }
+            textBuffer[offset + x] = textBuffer[offset + x + textScreenWidth];
+        }
+        offset += textScreenWidth;
+    }
+    for (dword x = textLeftBoundX; x <= textRightBoundX; x++) {
+        setchar(x, textRightBoundY, ' ', defaultTextCol, defaultBGCol);
+        putglyph(NULLGLYPH, x*16, textRightBoundY*24, defaultTextCol, defaultBGCol);
+    }
+}
+
+void refreshScreen() {
+    dword offset = drawLine * textScreenWidth;
+    for (dword y = 0; y < textScreenHeight * 24; y += 24) {
+        for (dword x = 0; x < textScreenWidth * 16; x += 16) {
+            word c = (word)textBuffer[offset].character;
+            Glyph g = getglyph(c);
+            putglyph(g, x, y, textBuffer[offset].charCol, textBuffer[offset].bgCol);
+            offset ++;
+        }
+    }
 }
 
 void hideCursor() {
@@ -508,7 +573,7 @@ void printBinUInt(qword num, dword charCol, dword bgCol) {
     }
     mask >>= 1;
     digits --;
-    if (textCurX + digits >= (screenWidth / 16 - 1)) {
+    if (textCurX + digits >= (textScreenWidth - 1)) {
         textCurX = 1;
         textCurY ++;
     }
@@ -520,6 +585,7 @@ void printBinUInt(qword num, dword charCol, dword bgCol) {
             g = NUMBER_1;
         else
             g = NUMBER_0;
+        setchar(textCurX, textCurY, 0x30 + ((num & mask) ? 1 : 0), charCol, bgCol);
         printchar(g, charCol, bgCol);
         mask >>= 1;
     }
@@ -538,7 +604,7 @@ void printOctUInt(qword num, dword charCol, dword bgCol) {
         mask <<= 3;
         digits ++;
     }
-    if (textCurX + digits >= (screenWidth / 16 - 1)) {
+    if (textCurX + digits >= (textScreenWidth - 1)) {
         textCurX = 1;
         textCurY ++;
     }
@@ -547,7 +613,9 @@ void printOctUInt(qword num, dword charCol, dword bgCol) {
     printchar('0', charCol, bgCol);
     printchar('o', charCol, bgCol);
     while (mask > 0) {
-        Glyph g = getOctDigit(num & mask);
+        char c = getOctDigit(num & mask);
+        Glyph g = getglyph(c);
+        setchar(textCurX, textCurY, c, charCol, bgCol);
         printchar(g, charCol, bgCol);
         mask >>= 3;
     }
@@ -567,7 +635,7 @@ void printHexUInt(qword num, dword charCol, dword bgCol) {
         mask <<= 4;
         digits ++;
     }
-    if (textCurX + digits >= (screenWidth / 16 - 1)) {
+    if (textCurX + digits >= (textScreenWidth - 1)) {
         textCurX = 1;
         textCurY ++;
     }
@@ -578,7 +646,9 @@ void printHexUInt(qword num, dword charCol, dword bgCol) {
     if (mask == 0xF)
         printchar('0', charCol, bgCol);
     while (mask > 0) {
-        Glyph g = getHexDigit(num & mask);
+        char c = getHexDigit(num & mask);
+        Glyph g = getglyph(c);
+        setchar(textCurX, textCurY, c, charCol, bgCol);
         printchar(g, charCol, bgCol);
         mask >>= 4;
     }
@@ -595,14 +665,16 @@ void printDecUInt(qword num, dword charCol, dword bgCol) {
         digits ++;
         numclone /= 10;
     }
-    if (textCurX + digits >= (screenWidth / 16 - 1)) {
+    if (textCurX + digits >= (textScreenWidth - 1)) {
         textCurX = 1;
         textCurY ++;
     }
     textCurX += digits - 1;
     while (num > 0) {
         byte digit = num % 10;
-        Glyph g = getglyph((byte)(0x30 + digit));
+        char c = (char)(0x30 + digit);
+        Glyph g = getglyph(c);
+        setchar(textCurX, textCurY, c, charCol, bgCol);
         printchar(g, charCol, bgCol);
         num /= 10;
         textCurX -= 2;
@@ -625,7 +697,9 @@ void printFloat(double num, dword charCol, dword bgCol) {
         num *= 10;
         byte digit = (byte)num;
         num -= digit;
-        Glyph g = getglyph((byte)(0x30 + digit));
+        char d = (char)(0x30 + digit);
+        Glyph g = getglyph(d);
+        setchar(textCurX, textCurY, d, charCol, bgCol);
         printchar(g, charCol, bgCol);
         if (num == 0)
             break;
@@ -636,7 +710,9 @@ void printFloat(double num, dword charCol, dword bgCol) {
     num *= 10;
     if ((byte)num >= 5 && digit < 9)
         digit ++;
-    Glyph g = getglyph((byte)(0x30 + digit));
+    char d = (byte)(0x30 + digit);
+    Glyph g = getglyph(d);
+    setchar(textCurX, textCurY, d, charCol, bgCol);
     printchar(g, charCol, bgCol);
 }
 
@@ -644,15 +720,16 @@ void eraseChar() {
     disableCursor();
     if (textCurX == 1) {
         textCurY --;
-        textCurX = screenWidth / 16 - 2;
+        textCurX = textScreenWidth - 2;
     } else {
         textCurX --;
     }
+    setchar(textCurX, textCurY, 0, defaultTextCol, defaultBGCol);
     putglyph(NULLGLYPH, textCurX * 16, textCurY * 24, defaultTextCol, defaultBGCol);
     enableCursor();
 }
 
-void printStr(const char* text, va_list args, dword charCol, dword bgCol) {
+void printStr(const char* text, va_list args, dword charCol, dword bgCol, bool format) {
     disableCursor();
     byte state = 0;
     unsigned char symb = *text;
@@ -665,7 +742,7 @@ void printStr(const char* text, va_list args, dword charCol, dword bgCol) {
             state = 3;
         else if (symb == ' ')
             state = 4;
-        else if (symb == '%') {
+        else if (symb == '%' && format) {
             text ++;
             symb = *text;
             if (symb == '%')
@@ -697,6 +774,7 @@ void printStr(const char* text, va_list args, dword charCol, dword bgCol) {
         switch (Glyph g; state) {
             case 0:
                 g = getglyph(symb);
+                setchar(textCurX, textCurY, symb, charCol, bgCol);
                 printchar(g, charCol, bgCol);
                 break;
             case 1:
@@ -705,16 +783,22 @@ void printStr(const char* text, va_list args, dword charCol, dword bgCol) {
                 symb = *text;
                 unicode += symb;
                 g = getglyph(unicode);
+                setchar(textCurX, textCurY, unicode, charCol, bgCol);
                 printchar(g, charCol, bgCol);
                 break;
             case 2:
-                textCurX = 1;
+                textCurX = textLeftBoundX;
                 break;
             case 3:
                 textCurY ++;
-                textCurX = 1;
+                textCurX = textLeftBoundX;
+                if (textCurY > textRightBoundY) {
+                    scroll();
+                    textCurY --;
+                }
                 break;
             case 4:
+                setchar(textCurX, textCurY, ' ', charCol, bgCol);
                 printchar(NULLGLYPH, charCol, bgCol);  
                 break;
             case 22:
@@ -768,17 +852,17 @@ void printStr(const char* text, va_list args, dword charCol, dword bgCol) {
 void kprint(const char* text, ...) {
     va_list l;
     va_start(l, text);
-    printStr(text, l, defaultTextCol, defaultBGCol);
+    printStr(text, l, defaultTextCol, defaultBGCol, true);
 }
 
 void kwarn(const char* text, ...) {
     va_list l;
     va_start(l, text);
-    printStr(text, l, warnTextCol, warnBGCol);
+    printStr(text, l, warnTextCol, warnBGCol, true);
 }
 
 void kerror(const char* text, ...) {
     va_list l;
     va_start(l, text);
-    printStr(text, l, errorTextCol, errorBGCol);
+    printStr(text, l, errorTextCol, errorBGCol, true);
 }

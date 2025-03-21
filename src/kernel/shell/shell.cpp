@@ -4,7 +4,7 @@
 #include "../timing/time.hpp"
 #include "../str/str.hpp"
 #include "../acpi/acpi.hpp"
-#include "../fat/fat.hpp"
+#include "../file/file.hpp"
 #include "../run/run.hpp"
 
 char path[1000];
@@ -14,7 +14,7 @@ char nameBuf[13*64];
 
 void shellMain(byte driveNo) {
     byte *stdin = (byte*)0x9300;
-    memset((byte*)path, 1000, 0);
+    memset(path, 1000, 0);
     path[0] = '/';
     drive = driveNo;
     directoryCluster = root(drive);
@@ -45,6 +45,23 @@ void shellMain(byte driveNo) {
             cmdCd((char*)(stdin + 3));
             continue;
         }
+        if (strstartswith((char*)stdin, (char*)"md ")) {
+            cmdMakeDirectory((char*)(stdin + 3));
+            continue;
+        }
+        if (strstartswith((char*)stdin, (char*)"mkdir ")) {
+            cmdMakeDirectory((char*)(stdin + 6));
+            continue;
+        }
+
+        char *fileName = nullptr;
+        char *_fileName = (char*)stdin;
+        while (*_fileName && *_fileName != ' ')
+            _fileName++;
+        dword fileNameLen = _fileName - (char*)stdin + 1;
+        fileName = (char*)kmalloc(fileNameLen);
+        memcpy(stdin, (byte*)fileName, fileNameLen);
+        fileName[fileNameLen-1] = 0;
 
         struct {
             dword cluster;
@@ -76,7 +93,7 @@ void shellMain(byte driveNo) {
                 extractLFNName(lfn, ptr);
                 ptr += 13;
 
-                if (strcmp(nameBuf, (char*)stdin)) {
+                if (strcmp(nameBuf, fileName)) {
                     if (entry.attr & FAT_FILEATTR_DIRECTORY) {
                         kerror("ОШИБКА: ");
                         kerror((char*)stdin);
@@ -101,13 +118,13 @@ void shellMain(byte driveNo) {
 
         if (fileEntryPos.cluster == maxdword) {
             kerror("ОШИБКА: Команды или исполняемого файла \"");
-            kerror((const char*)stdin);
+            kerror(fileName);
             kerror("\" не существует.\nПроверьте правильность написания команды.");
             continue;
         }
 
-        File executable(fileEntryPos.cluster, fileEntryPos.offset, drive);
-        dword exitCode = runExecutable(executable, 0, nullptr);
+        FAT32_File executable(fileEntryPos.cluster, fileEntryPos.offset, drive);
+        dword exitCode = runExecutable(executable, (char*)stdin, path);
 
         if (exitCode >= 0xFFFFFFF0) {
             kerror("ОШИБКА: ");
@@ -139,6 +156,9 @@ void shellMain(byte driveNo) {
                     break;
                 case RUN_ERR_BAD_ENTRY_POINT:
                     kerror("ПЛОХАЯ_ТОЧКА_ВХОДА");
+                    break;
+                case RUN_ERR_PID_ALLOC_FAILURE:
+                    kerror("PID_НЕ_ВЫДЕЛЕН");
                     break;
                 default:
                     kerror("<неизвестная ошибка>");
@@ -410,4 +430,36 @@ void cmdCd(char *newPath) {
         path[strlen(path)] = 0x00;
     kfree(_pathComponents);
     kfree(++pathComponents);
+}
+
+void cmdMakeDirectory(char *args) {
+    bool pFlag = false;
+    if (*args == '-' && *(args+1) == 'p') {
+        pFlag = true;
+        args += 3;
+    }
+
+    char dirpath[1000];
+    char *pathPtr = dirpath;
+    if (*args != '/') {
+        memcpy((byte*)path, (byte*)pathPtr, strlen(path));
+        pathPtr += strlen(path);
+        *pathPtr++ = '/';
+    }
+    while (*args && *args != ' ') {
+        if (*args == '\\') {
+            args++;
+            *pathPtr++ = *args++;
+            continue;
+        }
+        *pathPtr++ = *args++;
+    }
+    *pathPtr++ = 0;
+
+    if (*args == '-' && *(args+1) == 'p') {
+        pFlag = true;
+        args += 3;
+    }
+
+    bool result = createFolder(dirpath, drive, pFlag);
 }

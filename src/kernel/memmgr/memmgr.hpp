@@ -46,6 +46,11 @@ byte *kmallocPhys(ptrint virtAddr, dword amount, word pid);
 /// @note Без параметра `pid` функция выделяет память ядру.
 byte *kmallocPhys(ptrint virtAddr, dword amount);
 
+/// @brief Перевыделяет место для переменной.
+/// @param ptr Адрес переменной
+/// @param newSize Новый размер переменной
+void krealloc(void *&ptr, dword newSize);
+
 /// @brief Освобождает место в куче.
 /// @param Указатель высвобождаемой переменной
 /// @param pid PID владельца переменной

@@ -6,7 +6,7 @@
 //  - Библиотека для запуска пользовательских программ.
 //
 
-#include "../fat/fat.hpp"
+#include "../file/fat.hpp"
 
 #define ELF_MAGIC                   0x464C457F
 
@@ -22,6 +22,7 @@
 #define RUN_ERR_BAD_RELOC_TYPE      0xFFFFFFF5
 #define RUN_ERR_BAD_RELOC_SECTION   0xFFFFFFF6
 #define RUN_ERR_BAD_ENTRY_POINT     0xFFFFFFF7
+#define RUN_ERR_PID_ALLOC_FAILURE   0xFFFFFFF8
 
 #define RUN_STACK_SIZE              4096
 
@@ -101,30 +102,30 @@ struct ELF_RelocateData32 {
 
 /// @brief Запускает исполняемый файл.
 /// @param file Файл
-/// @param argc Количество аргументов командной строки
-/// @param argv Аргументы командной строки
+/// @param args Строка запуска файла
+/// @param path Рабочая папка
 /// @return Код выхода программы
-dword runExecutable(File file, dword argc, char **argv);
+dword runExecutable(FAT32_File file, char *args, char *path);
 
 /// @brief Запускает перемещаемый ELF-файл.
 /// @param file Указатель на данные файла
-/// @param argc Количество аргументов командной строки
-/// @param argv Аргументы командной строки
+/// @param pid PID запускаемого файла
+/// @param args Строка запуска файла
 /// @return Код выхода программы
-dword runRelocatableELF(byte *file, word pid, dword argc, char **argv);
+dword runRelocatableELF(byte *file, word pid, char *args);
 
 /// @brief Запускает загружаемый ELF-файл.
 /// @param file Указатель на данные файла
-/// @param argc Количество аргументов командной строки
-/// @param argv Аргументы командной строки
+/// @param pid PID запускаемого файла
+/// @param args Строка запуска файла
 /// @return Код выхода программы
-dword runLoadableELF(byte *file, word pid, dword argc, char **argv);
+dword runLoadableELF(byte *file, word pid, char *args);
 
 /// @brief Запускает динамично компонуемый ELF-файл.
 /// @param file Указатель на данные файла
-/// @param argc Количество аргументов командной строки
-/// @param argv Аргументы командной строки
+/// @param pid PID запускаемого файла
+/// @param args Строка запуска файла
 /// @return Код выхода программы
-dword runDynamicELF(byte *file, word pid, dword argc, char **argv);
+dword runDynamicELF(byte *file, word pid, char *args);
 
 #endif

@@ -117,7 +117,7 @@ void irq14(IntFrame* frame);
 void irq15(IntFrame* frame);
 
 /// @brief Обработчик системных вызовов (прерывание 0xC0)
-void syscallHandle(IntFrame *frame);
+void syscallInt(IntFrame *frame);
 
 /// @brief Выход из прерывания, вызванного главным PIC
 inline void int_exit_master() {

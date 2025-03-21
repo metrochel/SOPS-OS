@@ -17,6 +17,8 @@
 #define maxdword 0xFFFFFFFF
 #define maxqword 0xFFFFFFFFFFFFFFFF
 
+#define null 0
+
 #ifdef __x86_64__
 typedef unsigned long long ptrint;
 #else

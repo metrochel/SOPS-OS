@@ -42,7 +42,7 @@ void initGDT() {
         :
     );
 
-    memset((byte*)&tss, sizeof(GDT_TSS), 0);
+    memset(&tss, sizeof(GDT_TSS), 0);
     word ss0;
     __asm__ (
         "movw %%ss, %w0;"

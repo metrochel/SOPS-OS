@@ -1,5 +1,7 @@
 #include "graphics.hpp"
 #include "../kernel.hpp"
+#include "../memmgr/memmgr.hpp"
+#include "../util/util.hpp"
 
 byte *frameBufferPtr;
 word pitch;
@@ -13,6 +15,10 @@ byte bluemask;
 byte blueshift;
 byte reservedmask;
 byte reservedshift;
+
+Character *textBuffer;
+Character *auxTextBuffer;
+dword textBufferBankSize;
 
 void initGraphics() {
     pitch = bld->VBEInfo.Pitch;

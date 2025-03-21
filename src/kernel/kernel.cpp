@@ -17,16 +17,18 @@
 #include "int/pic.hpp"
 #include "pci/pci.hpp"
 #include "disk/disk.hpp"
+#include "file/file.hpp"
 #include "memmgr/memmgr.hpp"
 #include "keyboard/keyboard.hpp"
+#include "run/process.hpp"
 #include "timing/pit.hpp"
 #include "timing/cmos.hpp"
 #include "str/str.hpp"
 #include "util/util.hpp"
 #include "util/nums.hpp"
+#include "util/math.hpp"
 #include "dbg/dbg.hpp"
 #include "shell/shell.hpp"
-#include "fat/fat.hpp"
 #include "cpu/gdt.hpp"
 
 // Указатель на данные загрузчика
@@ -42,6 +44,7 @@ void initBLD() {
 int main() {
     disableInts();
     initBLD();
+    initMemMgr();
     initGraphics();
     initText();
     setPICOffsets(0x20, 0x28);
@@ -52,6 +55,9 @@ int main() {
     unmaskIRQ(3);
     unmaskIRQ(4);
     identifyUART();
+    initProcessesLib();
+    initDisks();
+    initFiles();
 
     kprint("Добро пожаловать в СОПС вер. 1.0.0-АЛЬФА!\n\n");
 
@@ -82,20 +88,6 @@ int main() {
         kwarn("ВНИМАНИЕ: COM4 на данный момент не работает.\nИзвините, пока не доделали.\n");
     }
 
-    initMemMgr();
-
-    // byte *test = kmallocPhys(0xC0102000, 169);
-    // byte *test1 = kmalloc(0x1800);
-    // byte *test2 = kmalloc(0x700);
-    // byte *test3 = kmalloc(0x500);
-
-    // kprint("%x\n", test);
-    // kprint("%x\n", test1);
-    // kprint("%x\n", test2);
-    // kprint("%x\n", test3);
-
-    // magicBreakpoint();
-    // halt();
 
     if (!initACPI()) {
         kerror("ОШИБКА: ACPI не инициализирован\n");
@@ -147,9 +139,9 @@ int main() {
     if (initFAT(driveNo)) {
         kprint("FAT32 успешно инициализирована!\n");
         initKernelMap(driveNo);
-    }
-    else
+    } else
         kerror("ОШИБКА: FAT32 не инициализирована\n");
 
+    kdebugwait();
     shellMain(driveNo);
 }

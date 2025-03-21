@@ -1,5 +1,9 @@
 #!/bin/bash
 
+if [ $SOPS_PREFIX -v ]; then
+    export SOPS_PREFIX=/home/metrochel/SOPS/build/sops.img
+fi
+
 sudo losetup /dev/loop0 $SOPS_PREFIX
 sudo mount -t vfat /dev/loop0 /mnt/sops
 sudo losetup -d /dev/loop0

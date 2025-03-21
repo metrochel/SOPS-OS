@@ -114,10 +114,11 @@ inline void swap(char* a, char* b) {
 }
 
 /// @brief Устанавливает всю память на одно значение.
-/// @param ptr Указатель на обрабатываемый участок
+/// @param mem Указатель на обрабатываемый участок
 /// @param count Число изменяемых байтов
 /// @param val Новое значение
-inline void memset(byte *ptr, dword count, byte val) {
+inline void memset(void *mem, dword count, byte val) {
+    byte *ptr = (byte*)mem;
     for (dword i = 0; i < count; i++) {
         ptr[i] = val;
     }
@@ -158,6 +159,20 @@ inline void memshiftleft(byte *ptr, dword dataSize, dword shift) {
     }
 }
 
+/// @brief Разворачивает байты числа `n`.
+inline dword byteswap(dword n) {
+    dword out_n;
+    __asm__ (
+        "movl %d1, %%eax;"
+        "bswap %%eax;"
+        "movl %%eax, %d0;"
+        : "=m"(out_n)
+        : "m"(n)
+        :
+    );
+    return out_n;
+}
+
 /// @brief Переводит символ из UTF-8 в UTF-16LE.
 inline word toUTF16(byte *&utf8) {
     word utf16 = 0;
@@ -180,6 +195,14 @@ inline word toUTF16(byte *&utf8) {
         utf16 |= (b & 0b111111);
         return utf16;
     }
+    return 0;
+}
+
+inline word toUTF16(dword utf8) {
+    utf8 = byteswap(utf8);
+    byte *ptr = (byte*)&utf8;
+    while (!*ptr) ptr++;
+    return toUTF16(ptr);
 }
 
 inline byte digitsLength(qword n) {

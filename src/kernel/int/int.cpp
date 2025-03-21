@@ -10,9 +10,27 @@
 #include "../timing/time.hpp"
 #include "../dbg/dbg.hpp"
 #include "../util/util.hpp"
+#include "../run/syscalls.hpp"
+#include "../run/process.hpp"
 
 IDT_Register *idtr;
 const byte irqOffset = 0x20;
+
+void encode_idt_entry(void (*handlePtr)(IntFrame*), byte intNum) {
+    encode_idt_entry(handlePtr, intNum, 0);
+}
+
+void encode_idt_entry(void (*handlePtr)(IntFrame*), byte intNum, byte perms) {
+    word *entryPtr = (word*)(idtr->base) + 4 * intNum;
+    word offset1 = (dword)handlePtr & 0xFFFF;
+    *entryPtr++ = offset1;
+    word selector = 0x8;
+    *entryPtr++ = selector;
+    word flags = 0x8E00 | ((word)perms << 13);
+    *entryPtr++ = flags;
+    word offset2 = (dword)handlePtr >> 16;
+    *entryPtr = offset2;
+}
 
 void initInts() {
     idtr = (IDT_Register*)0x1510;
@@ -45,26 +63,10 @@ void initInts() {
     encode_idt_entry(irq14, irqOffset + 0xE);
     encode_idt_entry(irq15, irqOffset + 0xF);
 
-    encode_idt_entry(syscallHandle,             0xC0, 3);
+    encode_idt_entry(syscallInt, 0xC0, 3);
 
     lidt(*idtr);
     enableInts();
-}
-
-void encode_idt_entry(void (*handlePtr)(IntFrame*), byte intNum) {
-    encode_idt_entry(handlePtr, intNum, 0);
-}
-
-void encode_idt_entry(void (*handlePtr)(IntFrame*), byte intNum, byte perms) {
-    word *entryPtr = (word*)(idtr->base) + 4 * intNum;
-    word offset1 = (dword)handlePtr & 0xFFFF;
-    *entryPtr++ = offset1;
-    word selector = 0x8;
-    *entryPtr++ = selector;
-    word flags = 0x8E00 | ((word)perms << 13);
-    *entryPtr++ = flags;
-    word offset2 = (dword)handlePtr >> 16;
-    *entryPtr = offset2;
 }
 
 word ds;
@@ -171,12 +173,21 @@ __attribute__((interrupt)) void general_prot_fault(IntFrame* frame) {
 __attribute__((interrupt)) void page_fault(IntFrame* frame) {
     resetSegmentRegs();
     dword faultAddr;
+    dword errorCode = (dword)frame;
     __asm__ ("mov %%cr2, %%eax; mov %%eax, %d0" : "=m"(faultAddr) : );
     kerror("ОШИБКА: Страничный сбой\n");
     kerror("Адрес сбоя: %x\n", faultAddr);
-    kerror("Код ошибки: %b\n", (dword)frame);
-    traceStack();
+    kerror("Код ошибки: %b\n", errorCode);
+
+    kerror("Сбой вызван попыткой ");
+    kerror((errorCode & 2) ? "записи\n" : "чтения\n");
+    if ((errorCode & 1) == 0)
+        kerror("Сбой вызван несуществующей страницей\n");
+
     magicBreakpoint();
+    traceStack();
+    enableInts();
+    while (true) {__asm__("nop");}
 }
 
 __attribute__((interrupt)) void float_exception(IntFrame* frame) {
@@ -447,38 +458,61 @@ __attribute__((interrupt)) void irq7(IntFrame* frame) {
     int_exit_master();
 }
 
-__attribute__((interrupt)) void syscallHandle(IntFrame *frame) {
-    dword syscall, arg1, arg2, arg3, arg4, arg5;
+__attribute__((interrupt)) void syscallInt(IntFrame *frame) {
+    __asm__ (
+        "test %eax, %eax;"
+        "jnz not_exit;"
+        "movw $0x10, %ax;"
+        "movw %ax, %ds;"
+        "movw %ax, %es;"
+        "movw %ax, %fs;"
+        "movw %ax, %gs;"
+        "movl %esi, %eax;"
+        "movl %ebp, %esp;"
+        "pop %ebp;"
+        "add $0x14, %esp;"
+        "pop %ebp;"
+        "sti;"
+        "ret;"
+        "not_exit:"
+        "sti;"
+    );
+
+    Syscall syscall;
+    dword arg1, arg2, arg3, arg4, arg5;
+    dword retAddr;
+
     __asm__ (
         "movl %%eax, %d0;"
         "movl %%esi, %d1;"
         "movl %%edi, %d2;"
-        "movl %%edx, %d3;"
-        "movl %%ecx, %d4;"
-        "movl %%ebx, %d5"
-        : "=m"(syscall), "=m"(arg1), "=m"(arg2), "=m"(arg3), "=m"(arg4), "=m"(arg5)
+        "movl %%ecx, %d3;"
+        "movl %%edx, %d4;"
+        "movl %%ebx, %d5;"
+        "push %%edx;"
+        "movl %%esp, %%edx;"
+        "movl %%ebp, %%esp;"
+        "add  $0x4, %%esp;"
+        "pop %d6;"
+        "movl %%edx, %%esp;"
+        "pop %%edx;"
+        : "=m"(syscall), "=m"(arg1), "=m"(arg2), "=m"(arg3), "=m"(arg4), "=m"(arg5), "=r"(retAddr)
         :
         :
     );
 
-    switch (syscall)
-    {
-    case 0:
-        __asm__ (
-            "movl %d0, %%eax;"
-            "add $0x20, %%esp;"
-            "pop %%ebp;"
-            "add $0x14, %%esp;"
-            "ret"
-            :
-            : "m"(arg1)
-            :
-        );
-        break;
-    
-    default:
-        break;
-    }
+    word pid = determinePID(retAddr);
+    dword ret = processSyscall(syscall, pid, arg1, arg2, arg3, arg4, arg5);
 
-    
+    __asm__ (
+        "movl %%ebp, %%esp;"
+        "sub $0x8, %%esp;"
+        "pop %%edx;"
+        "pop %%ecx;"
+        "pop %%ebp;"
+        "iret;"
+        :
+        : "m"(ret)
+        :
+    );
 }
