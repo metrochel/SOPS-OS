@@ -7,6 +7,7 @@
 #include "../memmgr/memmgr.hpp"
 #include "../util/util.hpp"
 #include "../io/com.hpp"
+#include "../dbg/dbg.hpp"
 
 dword processSyscall(Syscall call, word pid, dword arg1, dword arg2, dword arg3, dword arg4, dword arg5) {
     if (call == Exit) {
@@ -22,20 +23,23 @@ dword processSyscall(Syscall call, word pid, dword arg1, dword arg2, dword arg3,
     
     if (call == ClearScreen) {
         kdebug("Процесс %d очищает экран.\n", pid);
+        Process p = getProcessData(pid);
         Character *buf = textBuffer;
-        if (!processData[pid].clearedScreen) {
+        if (!p.clearedScreen) {
             buf = (Character*)kmalloc(textBufferBankSize * 2);
             auxTextCurX = textCurX;
             auxTextCurY = textCurY;
             auxTextBuffer = textBuffer;
             textBuffer = buf;
-            processData[pid].clearedScreen = 1;
+            magicBreakpoint();
+            p.clearedScreen = 1;
         }
         memset(textBuffer, textBufferBankSize*2, 0);
         textCurX = 1;
         textCurY = 1;
         drawLine = 0;
         refreshScreen();
+        setProcessData(pid, p);
         return 0;
     }
 
@@ -72,6 +76,7 @@ dword processSyscall(Syscall call, word pid, dword arg1, dword arg2, dword arg3,
     }
     
     if (call == SetScreenBounds) {
+        Process p = getProcessData(pid);
         kdebug("Процесс %d изменяет границы экрана.\n");
         kdebug("Левый верхний угол: (%d; %d).\n", arg1, arg2);
         kdebug("Правый нижний угол: (%d; %d).\n", arg3, arg4);
@@ -83,7 +88,8 @@ dword processSyscall(Syscall call, word pid, dword arg1, dword arg2, dword arg3,
         textCurX = textLeftBoundX;
         textCurY = textLeftBoundY;
         enableCursor();
-        processData[pid].changedBounds = 1;
+        p.changedBounds = 1;
+        setProcessData(pid, p);
         return 0;
     }
 
@@ -116,6 +122,19 @@ dword processSyscall(Syscall call, word pid, dword arg1, dword arg2, dword arg3,
     }
 
     if (call == OpenFile) {
+        Process p = getProcessData(pid);
+        word handleSlot = maxword;
+        for (byte i = 0; i < PROC_MAX_FILES; i++) {
+            if (!p.handles[i]) {
+                handleSlot = i;
+                break;
+            }
+        }
+        if (handleSlot >= PROC_MAX_FILES) {
+            kdebug("ВНИМАНИЕ: Процесс %d попытался открыть больше, чем %d файлов, одновременно", pid, PROC_MAX_FILES);
+            return RUNTIME_ERROR_FILE_MAX_REACHED;
+        }
+
         char *path = (char*)arg1;
         byte mode = arg2;
         byte drive = determineDriveNo(path);
@@ -126,6 +145,8 @@ dword processSyscall(Syscall call, word pid, dword arg1, dword arg2, dword arg3,
             kdebug("ВНИМАНИЕ: Открытие файла провалено\n");
             return RUNTIME_ERROR_FILE_OPEN_FAILURE;
         }
+        p.handles[handleSlot] = handle;
+        setProcessData(pid, p);
         return (dword)handle;
     }
 
@@ -231,7 +252,12 @@ dword processSyscall(Syscall call, word pid, dword arg1, dword arg2, dword arg3,
     }
 
     if (call == Malloc) {
-        return (ptrint)kmalloc(arg1, pid);
+        ptrint alloc = (ptrint)kmalloc(arg1, pid);
+        if (!alloc) {
+            kdebug("ВНИМАНИЕ: Выделение памяти для процесса %d провалено", pid);
+            return RUNTIME_ERROR_ALLOC_FAILURE;
+        }
+        return alloc;
     }
 
     if (call == Free) {

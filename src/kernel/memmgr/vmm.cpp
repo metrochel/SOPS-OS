@@ -211,7 +211,6 @@ byte *virtAlloc(dword amt, word pid) {
             return (byte*)newBlock.base;
         }
         block = _block;
-        maxPageAddr = (maxPageAddr + PAGE_SIZE - 1) / PAGE_SIZE;
 
         if (tables[i].pagesCount > PAGE_TABLE_COUNT) {
             dword skip = (tables[i].pagesCount + PAGE_TABLE_COUNT - 1) / PAGE_TABLE_COUNT;
@@ -228,15 +227,14 @@ byte *virtAlloc(dword amt, word pid) {
             return nullptr;
         }
 
-        ptrint nextPage = maxPageAddr;
+        ptrint nextPage = (maxPageAddr + PAGE_SIZE - 1) / PAGE_SIZE << 12;
         kdebug("Адрес новой страницы: %x.\n", nextPage);
         if (maxBase == tableBase) {
             maxBase = nextPage;
         }
 
         if (nextMax > tableBase + PAGE_TABLE_SIZE) {
-            kdebug("%d\n", (amt - (nextPage - maxBase) + PAGE_TABLE_SIZE - 1) / PAGE_TABLE_SIZE);
-            dword neededTables = (amt - (nextPage - maxBase) + PAGE_TABLE_SIZE - 1) / PAGE_TABLE_SIZE;
+            dword neededTables = (amt - (nextPage - maxPageAddr) + PAGE_TABLE_SIZE - 1) / PAGE_TABLE_SIZE;
             kdebug("Необходимо добавить %d таблиц страниц.\n", neededTables);
             dword newTables = allocatePageTables(i, neededTables, pid);
             if (!newTables) {
@@ -250,7 +248,7 @@ byte *virtAlloc(dword amt, word pid) {
             }
         }
 
-        dword neededPages = ((amt - (nextPage - maxBase)) + PAGE_SIZE - 1) / PAGE_SIZE;
+        dword neededPages = ((amt - (nextPage - maxPageAddr)) + PAGE_SIZE - 1) / PAGE_SIZE;
         kdebug("Потребуется выделить %d страниц.\n", neededPages);
         for (dword j = 0; j < neededPages; j++) {
             allocatePage(nextPage + j * PAGE_SIZE, pid);

@@ -8,7 +8,7 @@ const ptrint memMgrDataStart = 0xB0000000;
 
 void initMemMgr() {
     byte *memMgrData = (byte*)memMgrDataStart;
-    createPages(0xB0000000, 0x6000000, 8192);
+    createPages(memMgrDataStart, 0x6000000, 8192);
     initPMM(memMgrData);
     initVMM(memMgrData);
 }
@@ -18,10 +18,13 @@ byte *kmalloc(dword amount, word pid) {
     if (!alloc)
         return nullptr;
 
-    if (!processData[pid].startAddress)
-        processData[pid].startAddress = (ptrint)alloc;
+    Process p = getProcessData(pid);
+    if (!p.startAddress) {
+        p.startAddress = (ptrint)alloc;
+    }
 
-    processData[pid].usedMemory += amount;
+    p.usedMemory += amount;
+    setProcessData(pid, p);
     return alloc;
 }
 
@@ -47,7 +50,9 @@ void krealloc(void *&ptr, dword newSize) {
 
 void kfree(void *var, word pid) {
     dword freed = virtFree(var, pid);
-    processData[pid].usedMemory -= freed;
+    Process p = getProcessData(pid);
+    p.usedMemory -= freed;
+    setProcessData(pid, p);
 }
 
 void kfree(void *var) {

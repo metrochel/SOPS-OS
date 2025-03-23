@@ -77,6 +77,8 @@ void closeFile(FileHandle *handle) {
     kdebug(handle->file->name);
     kdebug(" закрывается.\n");
     kfree(handle->file);
+    if (handle->buffer)
+        kfree(handle->buffer);
     *handle = {};
 }
 

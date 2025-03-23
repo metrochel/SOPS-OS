@@ -11,6 +11,14 @@ void initProcessesLib() {
     memset(processData, sizeof(Process) * (maxword + 1), 0);
 }
 
+Process getProcessData(word pid) {
+    return processData[pid];
+}
+
+void setProcessData(word pid, Process p) {
+    processData[pid] = p;
+}
+
 Process registerProcess() {
     word pid;
     for (word i = 2; i < maxdword; i++) {
@@ -23,10 +31,8 @@ Process registerProcess() {
         return {};
 
     Process p = processData[pid];
+    memset(&p, sizeof(Process), 0);
     p.pid = pid;
-    p.clearedScreen = 0;
-    p.changedBounds = 0;
-    p.usedMemory = 0;
     processData[pid] = p;
     return p;
 }
@@ -59,6 +65,11 @@ void unregisterProcess(word pid) {
         textLeftBoundY = 1;
         textRightBoundX = textScreenWidth - 1;
         textRightBoundY = textScreenHeight - 1;
+    }
+
+    for (byte i = 0; i < PROC_MAX_FILES; i++) {
+        if (process.handles[i])
+            closeFile(process.handles[i]);
     }
 
     processData[pid] = {};

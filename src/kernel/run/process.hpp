@@ -6,9 +6,12 @@
 //  - Управляет процессами: создаёт и удаляет их, приостанавливает и возобновляет и так далее.
 //
 #include "../util/nums.hpp"
+#include "../file/file.hpp"
 
 // Резервированный PID для ядра
 #define PID_KERNEL          1
+
+#define PROC_MAX_FILES      8
 
 // ### Process
 // Отвечает за одну программную единицу, то есть процесс.
@@ -19,15 +22,23 @@ struct Process {
     word clearedScreen : 1;
     word changedBounds : 1;
     word _reserved : 14;
+    FileHandle *handles[PROC_MAX_FILES];
     dword usedMemory;
     ptrint startAddress;
 };
 
-// Таблица данных о всех активных процессах
-extern Process *processData;
-
 /// @brief Инициализирует библиотеку процессов для работы.
 void initProcessesLib();
+
+/// @brief Получает данные о процессе.
+/// @param pid PID процесса
+/// @return Данные о процессе
+Process getProcessData(word pid);
+
+/// @brief Записывает данные о процессе
+/// @param pid PID процесса
+/// @param data Новые данные
+void setProcessData(word pid, Process data);
 
 /// @brief Регистрирует процесс.
 /// @return Данные о процессе
