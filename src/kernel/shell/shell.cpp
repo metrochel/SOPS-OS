@@ -86,17 +86,22 @@ void shellMain(byte driveNo) {
 
                 FAT_LFNEntry *lfn = (FAT_LFNEntry*)(clusterBuf + i - 1);
                 byte *ptr = (byte*)nameBuf;
-                while (lfn->order < 0x40) {
-                    extractLFNName(lfn--, ptr);
+                memset(nameBuf, 256, 0);
+                if (lfn->attr != FAT_FILEATTR_LFN || (i == 0 && entry.attr != FAT_FILEATTR_LFN)) {
+                    extractShortName(entry, ptr);
+                } else {
+                    while (lfn->order < 0x40) {
+                        extractLFNName(lfn--, ptr);
+                        ptr += 13;
+                    }
+                    extractLFNName(lfn, ptr);
                     ptr += 13;
                 }
-                extractLFNName(lfn, ptr);
-                ptr += 13;
 
                 if (strcmp(nameBuf, fileName)) {
                     if (entry.attr & FAT_FILEATTR_DIRECTORY) {
                         kerror("ОШИБКА: ");
-                        kerror((char*)stdin);
+                        kerror(fileName);
                         kerror(" - это папка.\n");
                         abort = true;
                     }

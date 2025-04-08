@@ -1,30 +1,26 @@
-BUILDDIR		=build
-DISKFILE		=$(BUILDDIR)/sops.img
-BOOTSRC			=$(sort $(wildcard src/boot/*.asm))
-BOOTBINS		=$(patsubst src/boot/%.asm, build/bins/%.bin, $(BOOTSRC))
-BINSDIR			=$(BUILDDIR)/bins
-OBJSDIR			=$(BUILDDIR)/objs
-KERNELSRC   	=src/kernel/kernel.cpp $(wildcard src/kernel/*/*.cpp)
-KERNELOBJ       =$(foreach cpp, $(KERNELSRC), build/objs/$(patsubst %.cpp,%.o,$(notdir $(cpp))))
-KERNELBIN		=$(BINSDIR)/kernel.bin
-KERNELMAP		=$(BUILDDIR)/kernel.map
-CROSSCOMPILER	=i686-elf-g++
-LINKERSCRIPT    =linker.ld
+BUILDDIR		:=build
+DISKFILE		:=$(BUILDDIR)/sops.img
+BOOTSRC			:=$(sort $(wildcard src/boot/*.asm))
+BOOTBINS		:=$(patsubst src/boot/%.asm, build/bins/%.bin, $(BOOTSRC))
+BINSDIR			:=$(BUILDDIR)/bins
+OBJSDIR			:=$(BUILDDIR)/objs
+KERNELSRC   	:=src/kernel/kernel.cpp $(wildcard src/kernel/*/*.cpp)
+KERNELOBJ       :=$(foreach cpp, $(KERNELSRC), build/objs/$(patsubst %.cpp,%.o,$(notdir $(cpp))))
+KERNELBIN		:=$(BINSDIR)/kernel.bin
+KERNELMAP		:=$(BUILDDIR)/kernel.map
+SYSROOT			:=sysroot
+CROSSCOMPILER	:=i686-elf-g++
+LINKERSCRIPT    :=linker.ld
 
 #
 #	Полная сборка СОпС
 #
 all: $(BUILDDIR) $(DISKFILE) $(BINSDIR) $(BOOTBINS) $(KERNELBIN)
-	cat $(BOOTBINS) $(KERNELBIN) | mcat -i $(DISKFILE) -w;  \
-	# if [ $SOPS_INCLUDE_KRNL_MAP ]; then 			\
-	# 	export SOPS_PREFIX=$(DISKFILE); 			\
-	# 	sudo mkdir -p /mnt/sops;					\
-	# 	./etc/mnt;									\
-	# 	sudo cp $(KERNELMAP) /mnt/sops/kernel.map;	\
-	# 	./etc/umnt;									\
-	# 	unset SOPS_PREFIX;							\
-	# fi;
-
+	mkfs.vfat -F 32 -R 2048 -s 8 -n "SOPS" -v $(DISKFILE); \
+	dd if=$(BINSDIR)/boot.bin of=$(DISKFILE) bs=1 seek=90 conv=notrunc; \
+	dd if=$(BINSDIR)/boot2.bin of=$(DISKFILE) bs=512 seek=2 conv=notrunc; \
+	dd if=$(KERNELBIN) of=$(DISKFILE) bs=512 seek=10 conv=notrunc; \
+	mcopy -pms -i $(DISKFILE) $(SYSROOT)/* :: ;
 
 #
 #	Создание папки со сборкой

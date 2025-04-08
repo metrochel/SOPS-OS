@@ -1,10 +1,8 @@
 #include "fat.hpp"
 #include "../io/com.hpp"
 #include "../disk/disk.hpp"
-#include "../dbg/dbg.hpp"
 #include "../util/util.hpp"
 #include "../memmgr/memmgr.hpp"
-#include "../graphics/glyphs.hpp"
 #include "../str/str.hpp"
 
 bool fatInit = false;
@@ -116,17 +114,23 @@ void extractShortName(FAT_DirEntry entry, byte *&out) {
     for (byte i = 0; i < 8; i++) {
         if (entry.name[i] == 0x20)
             break;
-        *out++ = entry.name[i];
+        if (entry.name[i] >= 'A' && entry.name[i] <= 'Z')
+            *out++ = entry.name[i] + 0x20;
+        else
+            *out++ = entry.name[i];
     }
     if (entry.name[8] == ' ' && entry.name[9] == ' ' && entry.name[10] == ' ') {
         *out++ = 0x00;
         return;
     }
     *out++ = '.';
-    for (byte i = 0; i < 3; i++) {
-        if (entry.name[i+8] == 0x20)
+    for (byte i = 8; i < 11; i++) {
+        if (entry.name[i] == 0x20)
             break;
-        *out++ = entry.name[i+8];
+        if (entry.name[i] >= 'A' && entry.name[i] <= 'Z')
+            *out++ = entry.name[i] + 0x20;
+        else
+            *out++ = entry.name[i];
     }
     *out++ = 0x00;
 }
@@ -265,15 +269,18 @@ FAT32_File::FAT32_File(char *path, byte driveNo, bool forceFile, bool forceFolde
                     kdebug("Найдена главная метка файла.\n");
                     FAT_LFNEntry *ptr = (FAT_LFNEntry*)(clusterBuf + i - 1);
                     byte *_nameBuf = nameBuf;
-                    if (!is_lfn(*ptr)) continue;
-                    while (~ptr->order & 0x40) {
+                    if (!is_lfn(*ptr)) {
+                        extractShortName(clusterBuf[i], _nameBuf);
+                    } else {
+                        while (~ptr->order & 0x40) {
+                            extractLFNName(ptr, _nameBuf);
+                            _nameBuf += 13;
+                            ptr --;
+                        }
                         extractLFNName(ptr, _nameBuf);
                         _nameBuf += 13;
-                        ptr --;
+                        kdebug("Адрес первой LFN-метки: %x (%d).\n", ptr, i);
                     }
-                    extractLFNName(ptr, _nameBuf);
-                    _nameBuf += 13;
-                    kdebug("Адрес первой LFN-метки: %x (%d).\n", ptr, i);
                     kdebug("Извлечённое имя: \"");
                     kdebug((char*)nameBuf);
                     kdebug("\".\n");

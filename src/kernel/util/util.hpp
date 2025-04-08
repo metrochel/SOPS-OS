@@ -31,7 +31,7 @@ class CPUContext {
     public:
         static CPUContext store() {
             CPUContext ctx;
-            __asm__ (" \
+            __asm__ volatile (" \
                 movl %%eax, %d0; \
                 movl %%ebx, %d1; \
                 movl %%ecx, %d2; \
@@ -59,7 +59,7 @@ class CPUContext {
         }
 
         inline void restore() {
-            __asm__ (" \
+            __asm__ volatile (" \
                 movw %w9,  %%ax; \
                 movw %%ax, %%ds; \
                 movw %w10, %%ax; \
@@ -162,7 +162,7 @@ inline void memshiftleft(byte *ptr, dword dataSize, dword shift) {
 /// @brief Разворачивает байты числа `n`.
 inline dword byteswap(dword n) {
     dword out_n;
-    __asm__ (
+    __asm__ volatile (
         "movl %d1, %%eax;"
         "bswap %%eax;"
         "movl %%eax, %d0;"

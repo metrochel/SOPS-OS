@@ -2,9 +2,8 @@
 #include "paging.hpp"
 #include "pmm.hpp"
 #include "../io/com.hpp"
-#include "../util/util.hpp"
 #include "../run/process.hpp"
-#include "../dbg/dbg.hpp"
+#include "../util/util.hpp"
 
 const dword tablesCount = 1024;
 
@@ -51,7 +50,7 @@ void initVMM(byte *&memMgrPtr) {
 
     kdebug("Инициализация менеджера виртуальной памяти завершена.\n");
 
-    for (word i = 0; i < 8; i++) {
+    for (ptrint i = 0; i < 8; i++) {
         TableInfo idPageTable
         {maxword, true, blocks, blocks, PAGE_TABLE_COUNT};
         tables[i] = idPageTable;
@@ -147,16 +146,16 @@ dword allocatePageTables(dword start, dword len, word pid) {
 }
 
 byte *virtAlloc(dword amt, word pid) {
-    kdebug("Получен запрос на выделение %d Б для процесса %d.\n", amt, pid);
+    // kdebug("Получен запрос на выделение %d Б для процесса %d.\n", amt, pid);
     
     for (dword i = 0; i < tablesCount; i++) {
         if (tables[i].pid != pid)
             continue;
 
         ptrint tableBase = i << 22;
-        kdebug("Анализ таблицы %d (%x).\n", i, tableBase);
+        // kdebug("Анализ таблицы %d (%x).\n", i, tableBase);
 
-        kdebug("Адрес первого блока: %x.\n", tables[i].firstBlock);
+        // kdebug("Адрес первого блока: %x.\n", tables[i].firstBlock);
 
         MemBlock *block = tables[i].firstBlock;
         MemBlock *_block = block;
@@ -185,8 +184,8 @@ byte *virtAlloc(dword amt, word pid) {
             }
 
             if (block->size == amt) {
-                kdebug("Найден подходящий блок.\n");
-                kdebug("Адрес = %x.\n", block->base);
+                // kdebug("Найден подходящий блок.\n");
+                // kdebug("Адрес = %x.\n", block->base);
                 block->occupied = 1;
                 return (byte*)block->base;
             }
@@ -205,8 +204,8 @@ byte *virtAlloc(dword amt, word pid) {
             if (!curBlock.nextBlock)
                 tables[i].lastBlock = block->nextBlock;
 
-            kdebug("Найден подходящий блок.\n");
-            kdebug("Адрес = %x.\n", block->base);
+            // kdebug("Найден подходящий блок.\n");
+            // kdebug("Адрес = %x.\n", block->base);
 
             return (byte*)newBlock.base;
         }
@@ -218,27 +217,27 @@ byte *virtAlloc(dword amt, word pid) {
             continue;
         }
 
-        kdebug("Требуется расширить виртуальное пространство.\n");
+        // kdebug("Требуется расширить виртуальное пространство.\n");
         ptrint nextMax = maxBase + amt;
 
         if (nextMax < tableBase) {
-            kdebug("ОШИБКА: Произошло переполнение адресов\n");
-            kdebug("Возможно, память истощена или запрошено слишком много памяти.\n");
+            // kdebug("ОШИБКА: Произошло переполнение адресов\n");
+            // kdebug("Возможно, память истощена или запрошено слишком много памяти.\n");
             return nullptr;
         }
 
         ptrint nextPage = (maxPageAddr + PAGE_SIZE - 1) / PAGE_SIZE << 12;
-        kdebug("Адрес новой страницы: %x.\n", nextPage);
+        // kdebug("Адрес новой страницы: %x.\n", nextPage);
         if (maxBase == tableBase) {
             maxBase = nextPage;
         }
 
         if (nextMax > tableBase + PAGE_TABLE_SIZE) {
             dword neededTables = (amt - (nextPage - maxPageAddr) + PAGE_TABLE_SIZE - 1) / PAGE_TABLE_SIZE;
-            kdebug("Необходимо добавить %d таблиц страниц.\n", neededTables);
+            // kdebug("Необходимо добавить %d таблиц страниц.\n", neededTables);
             dword newTables = allocatePageTables(i, neededTables, pid);
             if (!newTables) {
-                kdebug("ОШИБКА: Не удалось выделить таблицы\n");
+                // kdebug("ОШИБКА: Не удалось выделить таблицы\n");
                 return nullptr;
             }
 
@@ -249,7 +248,7 @@ byte *virtAlloc(dword amt, word pid) {
         }
 
         dword neededPages = ((amt - (nextPage - maxPageAddr)) + PAGE_SIZE - 1) / PAGE_SIZE;
-        kdebug("Потребуется выделить %d страниц.\n", neededPages);
+        // kdebug("Потребуется выделить %d страниц.\n", neededPages);
         for (dword j = 0; j < neededPages; j++) {
             allocatePage(nextPage + j * PAGE_SIZE, pid);
         }
@@ -268,20 +267,20 @@ byte *virtAlloc(dword amt, word pid) {
         return (byte*)nextPage;
     }
 
-    kdebug("ВНИМАНИЕ: Подходящий блок не был найден\n");
+    // kdebug("ВНИМАНИЕ: Подходящий блок не был найден\n");
     return nullptr;
 }
 
 byte *virtAlloc(ptrint offset, dword amt, word pid) {
-    kdebug("Получен запрос на выделение %d Б памяти по адресу %x для процесса %d.\n", amt, offset, pid);
+    // kdebug("Получен запрос на выделение %d Б памяти по адресу %x для процесса %d.\n", amt, offset, pid);
 
     dword pageTableNo = (ptrint)offset >> 22;
     ptrint tableBase = offset & (~0x3FFFFF);
-    kdebug("Номер таблицы с переменной: %d.\n", pageTableNo);
+    // kdebug("Номер таблицы с переменной: %d.\n", pageTableNo);
 
     if (tables[pageTableNo].occupied && tables[pageTableNo].pid != pid && pid != PID_KERNEL) {
-        kdebug("ОШИБКА: Пространство не принадлежит процессу %d\n");
-        kdebug("Пространство принадлежит процессу %d.\n", tables[pageTableNo].pid);
+        // kdebug("ОШИБКА: Пространство не принадлежит процессу %d\n");
+        // kdebug("Пространство принадлежит процессу %d.\n", tables[pageTableNo].pid);
         return nullptr;
     }
 
@@ -293,7 +292,7 @@ byte *virtAlloc(ptrint offset, dword amt, word pid) {
     MemBlock *block = tables[pageTableNo].firstBlock;
     MemBlock *lastFree = nullptr;
     ptrint maxPagedAddr = tableBase;
-    kdebug("Анализ блоков.\n");
+    // kdebug("Анализ блоков.\n");
     while (block) {
         if (block->base + block->size > maxPagedAddr)
             maxPagedAddr = block->base + block->size;
@@ -311,8 +310,8 @@ byte *virtAlloc(ptrint offset, dword amt, word pid) {
         }
 
         if (block->size == amt) {
-            kdebug("Найден подходящий блок.\n");
-            kdebug("Адрес = %x.\n", offset);
+            // kdebug("Найден подходящий блок.\n");
+            // kdebug("Адрес = %x.\n", offset);
             block->occupied = 1;
             return (byte*)offset;
         }
@@ -338,28 +337,28 @@ byte *virtAlloc(ptrint offset, dword amt, word pid) {
             block = block->nextBlock;
         }
 
-        kdebug("Найден подходящий блок.\n");
-        kdebug("Адрес = %x.\n", offset);
+        // kdebug("Найден подходящий блок.\n");
+        // kdebug("Адрес = %x.\n", offset);
         return (byte*)offset;
     }
 
-    kdebug("Требуется расширить виртуальное пространство.\n");
+    // kdebug("Требуется расширить виртуальное пространство.\n");
     
     ptrint nextMax = ((maxPagedAddr + PAGE_SIZE - 1) / PAGE_SIZE) * PAGE_SIZE;
-    kdebug("Следующая страница: %x.\n", nextMax);
+    // kdebug("Следующая страница: %x.\n", nextMax);
 
     ptrint offsetPage = offset & (~0xFFF);
-    kdebug("Адрес первой страницы данных: %x.\n", offsetPage);
+    // kdebug("Адрес первой страницы данных: %x.\n", offsetPage);
     dword neededPages = ((offsetPage - nextMax) >> 12) + ((amt + PAGE_SIZE - 1) / PAGE_SIZE);
-    kdebug("Нужно выделить %d страниц.\n", neededPages);
+    // kdebug("Нужно выделить %d страниц.\n", neededPages);
 
     if (((nextMax >> 12) & 0x3FF) + neededPages > PAGE_TABLE_COUNT) {
         dword neededTables = ((nextMax >> 12) & 0x3FF + neededPages + PAGE_TABLE_COUNT - 1) / PAGE_TABLE_COUNT;
-        kdebug("Нужно выделить %d таблиц страниц.\n", neededTables);
+        // kdebug("Нужно выделить %d таблиц страниц.\n", neededTables);
         ptrint allocatedTables = allocatePageTables(offset, neededTables, pid);
         if (allocatedTables >> 22 != (offset >> 22) + 1) {
-            kdebug("ОШИБКА: Таблицы выделены по неверному адресу\n");
-            kdebug("Ожидался адрес %x, но получен %x.\n", (offset >> 22) + 1, allocatedTables >> 22);
+            // kdebug("ОШИБКА: Таблицы выделены по неверному адресу\n");
+            // kdebug("Ожидался адрес %x, но получен %x.\n", (offset >> 22) + 1, allocatedTables >> 22);
             *tables[allocatedTables].firstBlock = {};
             for (dword i = 0; i < neededTables; i++) {
                 tables[allocatedTables + i] = {};
@@ -381,7 +380,6 @@ byte *virtAlloc(ptrint offset, dword amt, word pid) {
     }
 
     if (lastFree == block) {
-        magicBreakpoint();
         lastFree->size = offset - (lastFree->base + lastFree->size);
     }
 
@@ -401,22 +399,22 @@ byte *virtAlloc(ptrint offset, dword amt, word pid) {
 }
 
 dword virtFree(void *var, word pid) {
-    kdebug("Получен запрос от процесса %d на освобождение переменной по адресу %x.\n", pid, var);
+    // kdebug("Получен запрос от процесса %d на освобождение переменной по адресу %x.\n", pid, var);
 
     dword pageTableNo = (ptrint)var >> 22;
-    kdebug("Номер таблицы с переменной: %d.\n", pageTableNo);
+    // kdebug("Номер таблицы с переменной: %d.\n", pageTableNo);
 
     if (tables[pageTableNo].occupied && tables[pageTableNo].pid != pid && pid != PID_KERNEL) {
-        kdebug("ОШИБКА: Переменная не принадлежит процессу %d\n", pid);
-        kdebug("Переменная принадлежит процессу %d.\n", tables[pageTableNo].pid);
+        // kdebug("ОШИБКА: Переменная не принадлежит процессу %d\n", pid);
+        // kdebug("Переменная принадлежит процессу %d.\n", tables[pageTableNo].pid);
         return 0;
     }
 
     MemBlock *block = tables[pageTableNo].firstBlock;
     while (block) {
         if (block->base == (ptrint)var) {
-            kdebug("Найден нужный блок.\n");
-            kdebug("Освобождается %d Б.\n", block->size);
+            // kdebug("Найден нужный блок.\n");
+            // kdebug("Освобождается %d Б.\n", block->size);
             dword freed = block->size;
             block->occupied = false;
             block = block->prevBlock;
@@ -436,7 +434,6 @@ dword virtFree(void *var, word pid) {
                     break;
             }
             nextBlock->prevBlock = block;
-            kdebugwait();
             return freed;
         }
         if (block->nextBlock == nullptr)
