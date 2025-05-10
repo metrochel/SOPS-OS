@@ -1,15 +1,18 @@
 BUILDDIR		:=build
+SRCDIR			:=src
 DISKFILE		:=$(BUILDDIR)/sops.img
-BOOTSRC			:=$(sort $(wildcard src/boot/*.asm))
-BOOTBINS		:=$(patsubst src/boot/%.asm, build/bins/%.bin, $(BOOTSRC))
+BOOTSRC			:=$(sort $(wildcard $(SRCDIR)/boot/*.asm))
+BOOTBINS		:=$(patsubst $(SRCDIR)/boot/%.asm, $(BUILDDIR)/bins/%.bin, $(BOOTSRC))
 BINSDIR			:=$(BUILDDIR)/bins
 OBJSDIR			:=$(BUILDDIR)/objs
-KERNELSRC   	:=src/kernel/kernel.cpp $(wildcard src/kernel/*/*.cpp)
-KERNELOBJ       :=$(foreach cpp, $(KERNELSRC), build/objs/$(patsubst %.cpp,%.o,$(notdir $(cpp))))
+KERNELSRC   	:=$(SRCDIR)/kernel/kernel.cpp $(wildcard $(SRCDIR)/kernel/*/*.cpp)
+KERNELOBJ       :=$(foreach cpp, $(KERNELSRC), $(BUILDDIR)/objs/$(patsubst %.cpp,%.o,$(notdir $(cpp))))
 KERNELBIN		:=$(BINSDIR)/kernel.bin
 KERNELMAP		:=$(BUILDDIR)/kernel.map
 SYSROOT			:=sysroot
-CROSSCOMPILER	:=i686-elf-g++
+SYSROOTINCLUDE	:=$(SYSROOT)/resources/include
+LIBCINCLUDE		:=$(SRCDIR)/libc/include
+CROSSCOMPILER	:=i686-sops-g++
 LINKERSCRIPT    :=linker.ld
 
 #
@@ -21,6 +24,12 @@ all: $(BUILDDIR) $(DISKFILE) $(BINSDIR) $(BOOTBINS) $(KERNELBIN)
 	dd if=$(BINSDIR)/boot2.bin of=$(DISKFILE) bs=512 seek=2 conv=notrunc; \
 	dd if=$(KERNELBIN) of=$(DISKFILE) bs=512 seek=10 conv=notrunc; \
 	mcopy -pms -i $(DISKFILE) $(SYSROOT)/* :: ;
+
+#
+#	Установка заголовков libc в системный корень
+#
+install-libc:
+	cp -r $(LIBCINCLUDE)/* $(SYSROOTINCLUDE)
 
 #
 #	Создание папки со сборкой

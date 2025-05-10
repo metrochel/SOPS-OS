@@ -22,3 +22,5 @@ void cmdCd(char *path);
 /// @brief Отвечает за логику команд `md` и `mkdir`
 /// @param args Аргументы команды
 void cmdMakeDirectory(char *args);
+
+void cmdCat(char *fname);

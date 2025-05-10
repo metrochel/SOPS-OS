@@ -3,3 +3,4 @@
 build
 debug
 .clangd
+sysroot/*

@@ -53,6 +53,10 @@ void shellMain(byte driveNo) {
             cmdMakeDirectory((char*)(stdin + 6));
             continue;
         }
+        if (strstartswith((char*)stdin, (char*)"cat ")) {
+        	cmdCat((char*)(stdin + 4));
+        	continue;
+        }
 
         char *fileName = nullptr;
         char *_fileName = (char*)stdin;
@@ -467,4 +471,29 @@ void cmdMakeDirectory(char *args) {
     }
 
     bool result = createFolder(dirpath, drive, pFlag);
+}
+
+void cmdCat(char *fname) {
+	bool fnameChanged = false;
+	if (fname[0] != '/') {
+		char *newFname = (char*)kmalloc(strlen(fname) + strlen(path));
+		strcpy(path, newFname);
+		strcpy(fname, newFname + strlen(path));
+		fname = newFname;
+		fnameChanged = true;
+	}
+	FileHandle *handle = openFile(fname, drive, FILE_MODE_READ);
+	if (!handle) {
+		kerror("ОШИБКА: Не удалось открыть файл ");
+		kerror(fname);
+		kerror(".\n");
+		if (fnameChanged) kfree(fname);
+		return;
+	}
+	dword fileSz = handle->file->size;
+	char *buf = (char*)kmalloc(fileSz + 1);
+	buf[fileSz] = 0;
+	readFile(handle, fileSz, (byte*)buf);
+	kprint(buf);
+	if (fnameChanged) kfree(fname);
 }
