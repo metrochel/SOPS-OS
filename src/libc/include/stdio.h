@@ -66,6 +66,9 @@ int fprintf(FILE *stream, const char *format, ...);
 // Форматирует строку `format` и копирует её в строку `s`.
 int sprintf(char *s, const char *format, ...);
 
+// Проверяет, достиг ли поток `stream` своего конца (то есть проверяет на EOF).
+int feof(FILE *stream);
+
 END_DECLS
 
 #endif

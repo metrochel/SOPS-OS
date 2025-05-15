@@ -9,7 +9,7 @@
 #if    !defined(_TYPES_INCL) && !defined(__need_pid_t)
 #define _TYPES_INCL 1
 #define __need_pid_t
-#include <../etc/decl.h>
+#include <etc/decl.h>
 
 BEGIN_DECLS
 

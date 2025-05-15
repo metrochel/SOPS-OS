@@ -28,7 +28,7 @@ char *strcat(char *dest, char *src);
 
 // Ищет первое вхождение символа `ch` в строку `src`.
 // Возвращает указатель на `ch` в `src`, если `ch` в ней есть, иначе возвращает нулевой указатель.
-int *strchr(char *src, int ch);
+char *strchr(char *src, int ch);
 
 // Вычисляет длину строки `str`.
 size_t strlen(const char *str);
