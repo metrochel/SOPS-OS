@@ -315,22 +315,25 @@ dword runLoadableELF(byte *file, word pid, char *args) {
         if (ph[i].type == 1) {
             dword vaddr = ph[i].vAddr;
             dword size = ph[i].memSize;
+            dword fileSz = ph[i].fileSize;
             dword offset = ph[i].offset;
 
             kdebug("Фрагмент № %d загружаем в память.\n", i+1);
+            kdebug("Сдвиг в файле: %x.\n", offset);
             kdebug("Адрес погрузки: %x.\n", vaddr);
-            kdebug("Размер погрузки: %d Б.\n", size);
+            kdebug("Размер погрузки в памяти: %d Б.\n", size);
+            kdebug("Размер погрузки в файле:  %d Б.\n", fileSz);
 
             byte *ptr = kmallocPhys(vaddr, size, pid);
             for (dword i = 0; i < (size + PAGE_SIZE - 1) / PAGE_SIZE; i++) {
                 setPagePermsLevel(vaddr + i * PAGE_SIZE, 3);
             }
             memset(ptr, size, 0);
-            memcpy(file + offset, ptr, ph[i].fileSize);
+            memcpy(file + offset, ptr, fileSz);
             frags[i] = ptr;
         }
     }
-
+    
     EntryPoint entryPoint = (EntryPoint)hdr.entryPoint;
     kdebug("Адрес точки входа: %x.\n", entryPoint);
 
@@ -414,8 +417,10 @@ dword runLoadableELF(byte *file, word pid, char *args) {
 
         "movl %d4, %%esp;"
 
-        "push %d5;"
-        "push %d6;"
+        "push %d5;"			// argc
+        "push %d6;"			// argv
+        "push $0;"			// envc
+        "push $0;"			// envp
         "push %d7;"
 
         "movl %%esp, %%eax;"

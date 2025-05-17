@@ -141,7 +141,7 @@ int main() {
         initKernelMap(driveNo);
     } else
         kerror("ОШИБКА: FAT32 не инициализирована\n");
-
+        
     kdebugwait();
     shellMain(driveNo);
 }

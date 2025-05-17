@@ -345,8 +345,9 @@ void cmdLs() {
 }
 
 void cmdCd(char *newPath) {
+	dword newDirectoryCluster = directoryCluster;
     if (newPath[0] == '/')
-        directoryCluster = root(drive);
+        newDirectoryCluster = root(drive);
     
     char _path[1000];
     memcpy((byte*)path, (byte*)_path, 1000);
@@ -360,7 +361,7 @@ void cmdCd(char *newPath) {
     while (*pathComponents) {
         char *ipath = *pathComponents++;
 
-        dword clus = directoryCluster;
+        dword clus = newDirectoryCluster;
         dword _clus = getCluster(drive, clus);
         char nameBuf[13*64];
         bool found = false;
@@ -398,7 +399,7 @@ void cmdCd(char *newPath) {
                     }
                     dword clus = (clusterBuf[i].clusterHi << 16) | clusterBuf[i].clusterLo;
                     if (clus == 0) clus = root(drive);
-                    directoryCluster = clus;
+                    newDirectoryCluster = clus;
                     found = true;
                     break;
                 }
@@ -439,6 +440,7 @@ void cmdCd(char *newPath) {
         path[strlen(path)] = 0x00;
     kfree(_pathComponents);
     kfree(++pathComponents);
+    directoryCluster = newDirectoryCluster;
 }
 
 void cmdMakeDirectory(char *args) {

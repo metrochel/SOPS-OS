@@ -327,8 +327,12 @@ byte *virtAlloc(ptrint offset, dword amt, word pid) {
 
         MemBlock varBlock
         {block, offset, amt, true, followAddr};
-        block->nextBlock = insertBlock(varBlock);
-        block = block->nextBlock;
+        if (freeBlock1.size) {
+		    block->nextBlock = insertBlock(varBlock);
+		    block = block->nextBlock;
+        } else {
+        	*block = varBlock;
+        }
 
         MemBlock freeBlock2
         {block, offset + amt, freeBlock0.size - freeBlock1.size - amt, false, followAddr};
@@ -379,10 +383,13 @@ byte *virtAlloc(ptrint offset, dword amt, word pid) {
         tables[pageTableNo].lastBlock = block;
     }
 
-    if (lastFree == block) {
-        lastFree->size = offset - (lastFree->base + lastFree->size);
+    if (lastFree && (offset & 0xFFF) != 0) {
+        lastFree->size = offset - lastFree->base;
     }
 
+    if (!block)
+        block = lastFree;
+    
     MemBlock varBlock
     {block, offset, amt, true, nullptr};
 
@@ -479,17 +486,17 @@ dword getVarSz(void *var) {
 }
 
 void logBlocks(dword pageTable) {
-    kdebug("Таблица %d (%x):\n", pageTable, pageTable << 22);
+    // kdebug("Таблица %d (%x):\n", pageTable, pageTable << 22);
     MemBlock *block = tables[pageTable].firstBlock;
     dword i = 1;
     while (block) {
-        kdebug("Блок %d:\n", i);
-        kdebug("\tПредыдущий блок: %x\n", block->prevBlock);
-        kdebug("\tОснование: %x\n", block->base);
-        kdebug("\tРазмер: %d Б (%x)\n", block->size, block->size);
-        kdebug("\tЗанят ли? ");
-        kdebug(block->occupied ? "Да\n" : "Нет\n");
-        kdebug("\tСледующий блок: %x\n", block->nextBlock);
+        // kdebug("Блок %d:\n", i);
+        // kdebug("\tПредыдущий блок: %x\n", block->prevBlock);
+        // kdebug("\tОснование: %x\n", block->base);
+        // kdebug("\tРазмер: %d Б (%x)\n", block->size, block->size);
+        // kdebug("\tЗанят ли? ");
+        // kdebug(block->occupied ? "Да\n" : "Нет\n");
+        // kdebug("\tСледующий блок: %x\n", block->nextBlock);
         i ++;
         block = block->nextBlock;
     }
