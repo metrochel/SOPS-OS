@@ -11,7 +11,7 @@
 #define BEGIN_DECLS extern "C" {
 #define END_DECLS }
 #else
-#define BEGIN_DECLS
-#define END_DECLS
+#define BEGIN_DECLS 
+#define END_DECLS 
 #endif
 
