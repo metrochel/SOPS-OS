@@ -643,6 +643,13 @@ decl
     return l;                                      \
 }
 
+decl
+
+#undef func_ret
+#undef func_name
+#undef func_args
+#undef func_code
+
 /* cbrt */
 
 #define func_ret(_FLT) _FLT
