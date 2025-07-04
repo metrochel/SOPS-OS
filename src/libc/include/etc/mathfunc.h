@@ -85,7 +85,7 @@
             cfunction((double complex)(arg1), (double complex)(arg2))                                     : \
         cfunction ## f((float complex)(arg1), (float complex)(arg2))                                        \
     ) : ( \
-        (sizeof((arg1)) == __SIZEOF_LONG_DOUBLE__ || sizeof((arg2)) == SIZEOF_LONG_DOUBLE__)              ? \
+        (sizeof((arg1)) == __SIZEOF_LONG_DOUBLE__ || sizeof((arg2)) == __SIZEOF_LONG_DOUBLE__)            ? \
             function ## l((long double)(arg1), (long double)(arg2))                                       : \
         (sizeof((arg1)) == __SIZEOF_DOUBLE__ || sizeof((arg1)) == __SIZEOF_DOUBLE__)                      ? \
             function((double)(arg1), (double)(arg2))                                                      : \
@@ -111,5 +111,6 @@
 
 #endif
 
-#define __MATH_FUNC_1C(function, arg1)       __MATH_FUNC1C_CFUNC(function, c ## function, (arg1))
-#define __MATH_FUNC_2C(function, arg1, arg2) __MATH_FUNC2C_CFUNC(function, c ## function, (arg1), (arg2))
+#define __MATH_FUNC1C(function, arg1)       __MATH_FUNC1C_CFUNC(function, c ## function, (arg1))
+
+#define __MATH_FUNC2C(function, arg1, arg2) __MATH_FUNC2C_CFUNC(function, c ## function, (arg1), (arg2))

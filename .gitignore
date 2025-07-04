@@ -3,4 +3,5 @@
 build
 debug
 .clangd
+compile_commands.json
 sysroot/*

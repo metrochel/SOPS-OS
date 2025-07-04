@@ -6,6 +6,9 @@
 #   в папку build.
 #
 #=============================================== Переменные ======================================================
+# Включение переменных окружения
+include .env
+
 BUILDDIR		:=build
 SRCDIR			:=src
 DISKFILE		:=$(BUILDDIR)/sops.img
@@ -24,6 +27,7 @@ KERNELMAP		:=$(BUILDDIR)/kernel.map
 LIBC_ASM32_SRC  :=$(wildcard $(SRCDIR)/libc/i386/*.asm)
 LIBC_C_SRC		:=$(wildcard $(SRCDIR)/libc/*/*.c) $(wildcard $(SRCDIR)/libc/*.c)
 LIBCINCLUDE		:=$(SRCDIR)/libc/include
+LIBC_HEADERS    :=$(wildcard $(LIBCINCLUDE)/*/*.h) $(wildcard $(LIBCINCLUDE)/*.h)
 OBJSDIR_LIBC	:=$(OBJSDIR)/libc
 LIBC_ASM32_OBJ	:=$(foreach asm32, $(LIBC_ASM32_SRC), $(OBJSDIR_LIBC)/$(patsubst %.asm,%.o,$(notdir $(asm32))))
 LIBC_C_OBJ		:=$(foreach src,$(LIBC_C_SRC),$(OBJSDIR_LIBC)/$(patsubst %.c,%.o,$(notdir $(src))))
@@ -34,10 +38,11 @@ SYSROOTINCLUDE	:=$(SYSROOT)/resources/include
 SYSROOTLIBS		:=$(SYSROOT)/resources/libs
 BUILDDIR_ETC	:=$(BUILDDIR)/etc
 
-CXXCROSSCOMPILER	:=i686-sops-g++
-CCROSSCOMPILER		:=i686-sops-gcc
+SOPSTOOLS			:=${SOPSTOOLS}
+CCROSSCOMPILER		:=$(SOPSTOOLS)/i686-sops-gcc
+CXXCROSSCOMPILER	:=$(SOPSTOOLS)/i686-sops-g++
 ASSEMBLER			:=nasm
-ARCHIVER			:=i686-sops-ar
+ARCHIVER			:=$(SOPSTOOLS)/i686-sops-ar
 LINKERSCRIPT    	:=linker.ld
 
 #========================================== Основные цели ===================================================
@@ -59,11 +64,13 @@ all-libc: $(LIBC_SHARED_FILE) ;
 #
 #	Установка libc в системный корень
 #
-install-libc: $(LIBCINCLUDE) $(LIBC_SHARED_FILE)
-	cp -r $(LIBCINCLUDE)/* $(SYSROOTINCLUDE)
+install-libc: $(LIBCINCLUDE) $(LIBC_SHARED_FILE) install-headers
 	cp $(LIBC_SHARED_FILE) $(SYSROOTLIBS)
 	cp $(LIBC_ASM32_OBJ) $(SYSROOTLIBS)
 
+install-headers: $(LIBC_HEADERS)
+	cp -r $(LIBCINCLUDE)/* $(SYSROOTINCLUDE)
+	
 #
 #	Установка системного корня
 #

@@ -64,14 +64,14 @@ char *strpbrk(char *str, char *seps);
 // так как нельзя перегружать функции в C, у меня её сделать не выходит.
 // При этом в glibc она работает без проблем.
 
-// Ищет первый символ в строке `str`, входящий в `seps`.
-const char *strpbrk(const char *str, const char *seps);
+// // Ищет первый символ в строке `str`, входящий в `seps`.
+// const char *strpbrk(const char *str, const char *seps);
 
 // Ищет первое вхождение строки `str2` в строку `str1`.
 char *strstr(char *str1, char *str2);
 
-// Ищет первое вхождение строки `str2` в строку `str1`.
-const char *strstr(const char *str1, const char *str2);
+// // Ищет первое вхождение строки `str2` в строку `str1`.
+// const char *strstr(const char *str1, const char *str2);
 
 // Токенизирует строку `str` в соответствии с токенами в `delim`.
 char *strtok(char *str, char *delim);

@@ -10,13 +10,9 @@
 #define __need_size_t
 #include <stddef.h>
 
-BEGIN_DECLS
+#include <etc/mbstate_t.h>
 
-// `mbstate_t` - это структура, описывающая состояние обработки многобайтового символа.
-typedef struct {
-    wint_t symbol;          // Символ
-    short shift;            // Сдвиг
-} mbstate_t;
+BEGIN_DECLS
 
 // `char16_t` - это тип, описывающий один 16-битный символ.
 typedef unsigned short char16_t;

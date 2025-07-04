@@ -11,9 +11,10 @@
 
 BEGIN_DECLS
 
-// Из stddef.h нам нужен size_t.
+// Из stddef.h нам нужен size_t, NULL и wchar_t.
 #define __need_size_t
 #define __need_NULL
+#define __need_wchar_t
 #include <stddef.h>
 
 // `div_t` - это тип-результат целочисленного деления для `int`.

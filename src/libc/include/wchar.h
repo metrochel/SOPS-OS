@@ -25,6 +25,7 @@ BEGIN_DECLS
 #define WCHAR_MAX __WCHAR_MAX__
 
 #include <etc/wint_t.h>
+#include <etc/mbstate_t.h>
 
 // Переводит широкосимвольную строку `str` в число по основанию `base`.
 // По окончании перевода устанавливает `strEnd` на последний символ.
@@ -105,6 +106,9 @@ wchar_t* wmemchr(const wchar_t *buf, wchar_t c, size_t count);
 
 // Заменяет `count` символов в буфере `dest` на `c`.
 wchar_t* wmemset(wchar_t *dest, wchar_t c, size_t count);
+
+// Переводит широкий символ в его многобайтовое представление.
+size_t wcrtomb(char *s, wchar_t wch, mbstate_t *state);
 
 END_DECLS
 

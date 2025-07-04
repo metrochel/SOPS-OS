@@ -8,6 +8,7 @@
 #define _MATH_INCL 1
 
 #include <etc/decl.h>
+#include <etc/mathfunc.h>
 
 // Здесь настолько много функций, что мне пришлось писать скрипт, который сгенерирует определения
 // для огромного их пласта.
@@ -26,7 +27,7 @@
 
 // Not a Number - постояннная, равнозначная тому, что
 // возвращённый результат не имеет смысла.
-#define NAN (0.0 / 0.0)
+#define NAN __builtin_nan()
 
 // Если функция fma работает быстрее, чем операции сложения и 
 // умножения, то эти макросы должны быть определены.
@@ -35,6 +36,11 @@
 // #define FP_FAST_FMAF 1
 // #define FP_FAST_FMA  1
 // #define FP_FAST_FMAL 1
+
+// Бесконечность - постоянная, означающая, что результат
+// либо слишком велик, чтобы записать его в `float`, либо
+// буквально бесконечен.
+#define INFINITY __builtin_inf()
 
 // Это значение возвращается функцией ilogb(x), если x = 0.
 #define FP_ILOGB0       −0xFFFFFFFF
@@ -409,7 +415,28 @@ long double modfl(long double x, long double *y);
 
 #if defined(__cplusplus) && __cplusplus >= 201100L \
     || defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199900L
-    
+
+// Вычисляет дробный остаток от деления числа x на число y.
+double remainder(double x, double y);
+
+// Вычисляет дробный остаток от деления числа x на число y.
+float remainderf(float x, float y);
+
+// Вычисляет дробный остаток от деления числа x на число y.
+long double remainderl(long double x, long double y);
+
+// Вычисляет дробный остаток от деления числа x на число y, а также последние три бита
+// целочисленного деления.
+double remquo(double x, double y, int *quot);
+
+// Вычисляет дробный остаток от деления числа x на число y, а также последние три бита
+// целочисленного деления.
+float remquof(float x, float y, int *quot)
+
+// Вычисляет дробный остаток от деления числа x на число y, а также последние три бита
+// целочисленного деления.
+long double remquol(long double x, long double y, int *quot)
+
 // Вычисляет кубический корень числа x.
 double cbrt(double x);
 
@@ -649,10 +676,10 @@ long double copysignl(long double x, long double y);
 
 // Классифицирует число.
 #define fpclassify(x) (\
-    __isinf(x)                      ? FP_INFINITY   : \
-    __isnan(x)                      ? FP_NAN        : \
-    x == 0                          ? FP_ZERO       : \
-    __is_subnormal(x)               ? FP_SUBNORMAL  : \
+    isinf(x)                        ? FP_INFINITY   : \
+    isnan(x)                        ? FP_NAN        : \
+    (x) == 0                        ? FP_ZERO       : \
+    _is_subnormal(x)                ? FP_SUBNORMAL  : \
     FP_NORMAL \
     )
 
@@ -660,31 +687,51 @@ long double copysignl(long double x, long double y);
 #define isfinite(x) (!isinf(x) && !isnan(x))
 
 // Проверяет, является ли число бесконечностью.
-#define isinf(x) __isinf(x)
+#define isinf(x) __MATH_FUNC1(__isinf, x)
+
+int __isinf(double x);
+int __isinff(float x);
+int __isinfl(long double x);
 
 // Проверяет, является ли число NaN (Not a Number).
-#define isnan(x) __isnan(x)
+#define isnan(x) __MATH_FUNC1(__isnan, x)
+
+int __isnan(double x);
+int __isnanf(float x);
+int __isnanl(long double x);
+
+#define isnormal(x) (isfinite(x) && !_issubnormal(x))
 
 // Проверяет знак числа.
-#define signbit(x) __signbit(x)
+#define signbit(x) __MATH_FUNC1(__signbit, x)
+
+int __signbit(double x);
+int __signbitf(float x);
+int __signbitl(long double x);
 
 // Проверяет для чисел x и y, что x > y.
-#define isgreater(x, y) __greater(x, y)
+#define isgreater(x, y) (isnan(x) || isnan(y) ? 0 : (x) > (y))
 
 // Проверяет для чисел x и y, что x >= y.
-#define isgreaterequal(x, y) __greatereq(x, y)
+#define isgreaterequal(x, y) (isnan(x) || isnan(y) ? 0 : (x) >= (y))
 
 // Проверяет для чисел x и y, что x < y.
-#define isless(x, y) __less(x, y)
+#define isless(x, y) (isnan(x) || isnan(y) ? 0 : (x) < (y))
 
 // Проверяет для чисел x и y, что x <= y.
-#define islessequal(x, y) __lesseq(x, y)
+#define islessequal(x, y) (isnan(x) || isnan(y) ? 0 : (x) <= (y))
 
 // Проверяет для чисел x и y, что x > y или x < y.
-#define islessgreater(x, y) __lessgreater(x, y)
+#define islessgreater(x, y) (isnan(x) || isnan(y) ? 0 : (x) != (y))
 
 // Проверяет для чисел x и y, что x и y невозможно сравнить (хотя бы одно из них NaN).
-#define isunordered(x, y) __unordered(x, y)
+#define isunordered(x, y) (isnan(x) || isnan(y))
+
+#define _issubnormal(x) __MATH_FUNC1(__issubnormal, x)
+
+int __issubnormalf(float x);
+int __issubnormal(double x);
+int __issubnormall(long double x);
 
 #endif
 
