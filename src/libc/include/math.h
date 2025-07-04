@@ -27,7 +27,7 @@
 
 // Not a Number - постояннная, равнозначная тому, что
 // возвращённый результат не имеет смысла.
-#define NAN __builtin_nan("")
+#define NAN (__builtin_nan(""))
 
 // Если функция fma работает быстрее, чем операции сложения и 
 // умножения, то эти макросы должны быть определены.
@@ -40,10 +40,10 @@
 // Бесконечность - постоянная, означающая, что результат
 // либо слишком велик, чтобы записать его в `float`, либо
 // буквально бесконечен.
-#define INFINITY __builtin_inf()
+#define INFINITY (__builtin_inf())
 
 // Это значение возвращается функцией ilogb(x), если x = 0.
-#define FP_ILOGB0       −0xFFFFFFFF
+#define FP_ILOGB0       -0xFFFFFFFF
 // Это значение возвращается функцией ilogb(x), если x - NaN.
 #define FP_ILOGBNAN     -0xFFFFFFFE
 
@@ -431,11 +431,11 @@ double remquo(double x, double y, int *quot);
 
 // Вычисляет дробный остаток от деления числа x на число y, а также последние три бита
 // целочисленного деления.
-float remquof(float x, float y, int *quot)
+float remquof(float x, float y, int *quot);
 
 // Вычисляет дробный остаток от деления числа x на число y, а также последние три бита
 // целочисленного деления.
-long double remquol(long double x, long double y, int *quot)
+long double remquol(long double x, long double y, int *quot);
 
 // Вычисляет кубический корень числа x.
 double cbrt(double x);
@@ -652,11 +652,11 @@ long double nextafterl(long double x, long double y);
 
 // Возвращает значение, следующее после числа x в направлении числа y,
 // которое можно записать в данном типе.
-double nexttoward(double x, double y);
+double nexttoward(double x, long double y);
 
 // Возвращает значение, следующее после числа x в направлении числа y,
 // которое можно записать в данном типе.
-float nexttowardf(float x, float y);
+float nexttowardf(float x, long double y);
 
 // Возвращает значение, следующее после числа x в направлении числа y,
 // которое можно записать в данном типе.

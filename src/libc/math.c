@@ -9,6 +9,8 @@
 #include "include/fenv.h"
 #include "include/stdio.h"
 #include "include/stdlib.h"
+#include "include/string.h"
+#include "include/errno.h"
 
 /* ============================================   Макросы   ======================================== */
 
@@ -120,7 +122,154 @@ const float PIf         = 3.1415926535897932384626433832795;
 const double PI         = 3.1415926535897932384626433832795;
 const long double PIl   = 3.1415926535897932384626433832795;
 
+const long double approx_sines[] = {
+        0.000000000000000000000000,
+        0.049067674327418012342645,
+        0.098017140329560598187438,
+        0.146730474455361745980339,
+        0.195090322016128260335273,
+        0.242980179903263880661292,
+        0.290284677254462356640191,
+        0.336889853392220038071731,
+        0.382683432365089757574419,
+        0.427555093430282078756930,
+        0.471396736825997631685579,
+        0.514102744193221660904628,
+        0.555570233019602205675348,
+        0.595699304492433368072961,
+        0.634393284163645477494349,
+        0.671558954847018338223628,
+        0.707106781186547502752061,
+        0.740951125354959106588965,
+        0.773010453362736938949865,
+        0.803207531480644855101120,
+        0.831469612302545215830503,
+        0.857728610000272077807607,
+        0.881921264348354957507241,
+        0.903989293123443289027386,
+        0.923879532511286738537346,
+        0.941544065183020780992768,
+        0.956940335732208882712005,
+        0.970031253194543966540848,
+        0.980785280403230438656548,
+        0.989176509964780973456142,
+        0.995184726672196869751152,
+        0.998795456205172387062919,
+        1.000000000000000000000000,
+        0.998795456205172393080241,
+        0.995184726672196881731586,
+        0.989176509964780991399688,
+        0.980785280403230462563206,
+        0.970031253194543996302198,
+        0.956940335732208918273836,
+        0.941544065183020822246661,
+        0.923879532511286785429090,
+        0.903989293123443436316251,
+        0.881921264348355015241007,
+        0.857728610000272140745543,
+        0.831469612302545407192186,
+        0.803207531480644928013717,
+        0.773010453362737087106091,
+        0.740951125354959039747901,
+        0.707106781186547589325604,
+        0.671558954847018593499030,
+        0.634393284163645486330597,
+        0.595699304492433466464308,
+        0.555570233019602122842302,
+        0.514102744193221765963819,
+        0.471396736825997837602676,
+        0.427555093430282038912500,
+        0.382683432365089870738021,
+        0.336889853392220310179372,
+        0.290284677254462367590633,
+        0.242980179903264053306935,
+        0.195090322016128598226880,
+        0.146730474455361812211539,
+        0.098017140329560830552293,
+        0.049067674327417968327424,
+        0.000000000000000000000000
+};
+
+const long double approx_cosines[] = {
+        1.000000000000000000000000,
+        0.998795456205172392809191,
+        0.995184726672196886610496,
+        0.989176509964780974269293,
+        0.980785280403230450636982,
+        0.970031253194543994946945,
+        0.956940335732208868292116,
+        0.941544065183020782944332,
+        0.923879532511286762010323,
+        0.903989293123443338954896,
+        0.881921264348355038713984,
+        0.857728610000272109249470,
+        0.831469612302545249820241,
+        0.803207531480644891530313,
+        0.773010453362736977818512,
+        0.740951125354959147734438,
+        0.707106781186547546065937,
+        0.671558954847018383597489,
+        0.634393284163645524819774,
+        0.595699304492433417241529,
+        0.555570233019602256578640,
+        0.514102744193221713434223,
+        0.471396736825997783582303,
+        0.427555093430282184276906,
+        0.382683432365089814169773,
+        0.336889853392220043465637,
+        0.290284677254462309016611,
+        0.242980179903263993906209,
+        0.195090322016128320400073,
+        0.146730474455361751631743,
+        0.098017140329560769606578,
+        0.049067674327418128948588,
+        0.000000000000000061232340,
+        -0.049067674327418006626866,
+        -0.098017140329560647735478,
+        -0.146730474455361630499255,
+        -0.195090322016128200284025,
+        -0.242980179903263875118308,
+        -0.290284677254462191814356,
+        -0.336889853392219928160736,
+        -0.382683432365089701006171,
+        -0.427555093430281872866937,
+        -0.471396736825997675595767,
+        -0.514102744193221608429243,
+        -0.555570233019601970132426,
+        -0.595699304492433318904392,
+        -0.634393284163645344354322,
+        -0.671558954847018457377447,
+        -0.707106781186547459438184,
+        -0.740951125354958916365694,
+        -0.773010453362736970554358,
+        -0.803207531480644818617717,
+        -0.831469612302545305168762,
+        -0.857728610000272046311534,
+        -0.881921264348354928667463,
+        -0.903989293123443357765804,
+        -0.923879532511286715118579,
+        -0.941544065183020685582977,
+        -0.956940335732208864931089,
+        -0.970031253194543951687279,
+        -0.980785280403230383416448,
+        -0.989176509964780964457264,
+        -0.995184726672196863733830,
+        -0.998795456205172394977595,
+        -1.000000000000000000000000
+};
+
 /* ============================================   Функции   ======================================== */
+
+/* __raise_domain_err */
+
+void __raise_domain_err() {
+    #if math_errhandling & MATH_ERRNO
+        errno = EDOM;
+    #endif
+    #if math_errhandling & MATH_ERREXCEPT
+        feraiseexcept(FE_INVALID);
+    #endif
+}
 
 /* fabs */
 
@@ -478,7 +627,7 @@ decl
     _FLT pz = 2 * z * z * z;                   \
     _FLT z2 = z * z;                           \
     int pow_no = 3;                            \
-    while (pz / pow_no > _EPS(_EXT)) {         \
+    while (pz / pow_no > _EPS(x)) {         \
         lnz += pz / pow_no;                    \
         pz *= z2;                              \
         pow_no += 2;                           \
@@ -630,7 +779,7 @@ decl
     _FLT l = 0.0;                                  \
     _FLT r = fmax##_EXT(1.0, x);                   \
     int steps = 0;                                 \
-    while (r - l > _EPS(_EXT) && steps < 1000) {   \
+    while (r - l > _EPS(x) && steps < 1000) {   \
         _FLT m = (l + r) / 2;                      \
         if (m * m == x)                            \
             return m;                              \
@@ -663,7 +812,7 @@ decl
     _FLT l = 0.0;                                  \
     _FLT r = fmax##_EXT(1.0, x);                   \
     int steps = 0;                                 \
-    while (r - l > _EPS(_EXT) && steps < 1000) {   \
+    while (r - l > _EPS(x) && steps < 1000) {   \
         _FLT m = (l + r) / 2;                      \
         if (m * m * m == x)                        \
             return m;                              \
@@ -725,8 +874,8 @@ decl
         *c = NAN;                                                                                  \
         return;                                                                                    \
     }                                                                                              \
-    if (x >= 2 * PI##_EXT) {                                                                      \
-        __sincos##_EXT(fmod##_EXT(x, 2 * PI##_EXT), s, c);                                        \
+    if (x >= 2 * PI##_EXT) {                                                                       \
+        __sincos##_EXT(fmod##_EXT(x, 2 * PI##_EXT), s, c);                                         \
         return;                                                                                    \
     }                                                                                              \
     if (__signbit##_EXT(x)) {                                                                      \
@@ -734,14 +883,14 @@ decl
         *s = -*s;                                                                                  \
         return;                                                                                    \
     }                                                                                              \
-    const int resolution = sizeof##_EXT(approx_sines) / sizeof##_EXT(long _FLT) - 1;               \
+    const int resolution = sizeof(approx_sines) / sizeof(long double) - 1;                         \
     int n = 0;                                                                                     \
-    while (x - n * PI##_EXT / resolution >= 0 && n < resolution)                                  \
+    while (x - n * PI##_EXT / resolution >= 0 && n < resolution)                                   \
         n++;                                                                                       \
     n--;                                                                                           \
     _FLT sin_npi = approx_sines[n];                                                                \
     _FLT cos_npi = approx_cosines[n];                                                              \
-    _FLT r = x - n * (PI##_EXT / resolution);                                                     \
+    _FLT r = x - n * (PI##_EXT / resolution);                                                      \
     if (r == 0.0) {                                                                                \
         *s = sin_npi;                                                                              \
         *c = cos_npi;                                                                              \
@@ -755,7 +904,7 @@ decl
     _FLT px_sin = -r * r * r;                                                                      \
     _FLT px_cos = -r * r;                                                                          \
     int fac_no = 4;                                                                                \
-    while (fabs##_EXT(px_sin / sin_fac) > _EPS(_EXT)&&fabs##_EXT(px_cos / cos_fac) > _EPS(_EXT)) { \
+    while (fabs##_EXT(px_sin / sin_fac) > _EPS(x) && fabs##_EXT(px_cos / cos_fac) > _EPS(x)) {     \
         sin_r += px_sin / sin_fac;                                                                 \
         cos_r += px_cos / cos_fac;                                                                 \
         sin_fac *= fac_no * (fac_no + 1);                                                          \
@@ -783,32 +932,6 @@ decl
 #define func_code(_FLT, _EXT) {    \
     if (x == 0.0)                  \
         return x;                  \
-    if (__isinf##_EXT(x)) {        \
-        feraiseexcept(FE_INVALID); \
-        return NAN;                \
-    }                              \
-    if (__isnan##_EXT(x))          \
-        return NAN;                \
-    _FLT s, c;                     \
-    __sincos##_EXT(x, &s, &c);     \
-    return c;                      \
-}
-
-decl
-
-#undef func_ret
-#undef func_name
-#undef func_args
-#undef func_code
-
-/* cos */
-
-#define func_ret(_FLT) _FLT
-#define func_name cos
-#define func_args(_FLT) (_FLT x)
-#define func_code(_FLT, _EXT) {    \
-    if (x == 0.0)                  \
-        return 1.0;                \
     if (__isinf##_EXT(x)) {        \
         feraiseexcept(FE_INVALID); \
         return NAN;                \
@@ -1191,7 +1314,7 @@ decl
     _FLT sum = x;                                                                                                      \
     _FLT px = -x * x * x;                                                                                              \
     _FLT x2 = -x * x;                                                                                                  \
-    for (int i = 0; i < 20; i++) {                                                                                     \
+    for (int i = 0; i < len; i++) {                                                                                    \
         sum += px / coeffs[i];                                                                                         \
         if (px / coeffs[i] == 0.0) break;                                                                              \
         px *= x2;                                                                                                      \
@@ -1506,6 +1629,10 @@ decl
         return LONG_MAX;                        \
     if (x < (_FLT)LONG_MIN)                     \
         return LONG_MIN;                        \
+    if (__isnan##_EXT(x) || __isinf##_EXT(x)) { \
+        feraiseexcept(FE_INVALID);              \
+        return LONG_MAX;                        \
+    }                                           \
     int mode = fegetround();                    \
     if (mode == FE_DOWNWARD)                    \
         return (long)floor##_EXT(x);            \
@@ -1515,7 +1642,7 @@ decl
         return (long)ceil##_EXT(x);             \
     if (mode == FE_TOWARDZERO)                  \
         return (long)trunc##_EXT(x);            \
-    return NAN;                                 \
+    return LONG_MAX;                            \
 }
 
 decl
@@ -1531,6 +1658,10 @@ decl
         return LLONG_MAX;                       \
     if (x < (_FLT)LLONG_MIN)                    \
         return LLONG_MIN;                       \
+    if (__isnan##_EXT(x) || __isinf##_EXT(x)) { \
+        feraiseexcept(FE_INVALID);              \
+        return LLONG_MAX;                       \
+    }                                           \
     int mode = fegetround();                    \
     if (mode == FE_DOWNWARD)                    \
         return (long long)floor##_EXT(x);       \
@@ -1540,7 +1671,7 @@ decl
         return (long long)ceil##_EXT(x);        \
     if (mode == FE_TOWARDZERO)                  \
         return (long long)trunc##_EXT(x);       \
-    return NAN;                                 \
+    return LLONG_MAX;                           \
 }
 
 decl
@@ -1656,7 +1787,7 @@ decl
 #define func_name scalbln
 #define func_args(_FLT) (_FLT x, long exp)
 #define func_code(_FLT, _EXT) {         \
-    return ldexp##_EXT(x, (int)exp));   \
+    return ldexp##_EXT(x, (int)exp);    \
 }
 
 decl
@@ -1736,7 +1867,7 @@ decl
         nxt = from + eps;                           \
     if (__isinf##_EXT(nxt))                         \
         feraiseexcept(FE_INEXACT | FE_OVERFLOW);    \
-    if (__issubnormal##_EXT(nxt)) || nxt == 0.0)    \
+    if (__issubnormal##_EXT(nxt)  || nxt == 0.0)    \
         feraiseexcept(FE_INEXACT | FE_UNDERFLOW);   \
     return nxt;                                     \
 }
@@ -1770,7 +1901,7 @@ decl
         nxt = from + eps;                           \
     if (__isinf##_EXT(nxt))                         \
         feraiseexcept(FE_INEXACT | FE_OVERFLOW);    \
-    if (__issubnormal##_EXT(nxt)) || nxt == 0.0)    \
+    if (__issubnormal##_EXT(nxt)  || nxt == 0.0)    \
         feraiseexcept(FE_INEXACT | FE_UNDERFLOW);   \
     return nxt;                                     \
 }
@@ -1810,7 +1941,7 @@ decl
 #define func_code(_FLT, _EXT) {         \
     _UNI(_EXT) uni;                     \
     uni.number = x;                     \
-    if (uni.exponent == _MAX_EXP(_EXT) && uni.mantissa == 0) \
+    if (uni.bits.exponent == _MAX_EXP(_EXT) && uni.bits.mantissa == 0) \
         return 1;                       \
     else                                \
         return 0;                       \
@@ -1823,7 +1954,7 @@ decl_math_funcd(func_ret, __isinf, func_args, func_code)
 #define func_code(_FLT, _EXT) {         \
     _UNI(_EXT) uni;                     \
     uni.number = x;                     \
-    if (uni.exponent == _MAX_EXP(_EXT) && uni.mantissa1 == 0 && uni.mantissa2 == 0) \
+    if (uni.bits.exponent == _MAX_EXP(_EXT) && uni.bits.mantissa1 == 0 && uni.bits.mantissa2 == 0) \
         return 1;                       \
     else                                \
         return 0;                       \
@@ -1844,7 +1975,7 @@ decl_math_funcl(func_ret, __isinf, func_args, func_code)
 #define func_code(_FLT, _EXT) {         \
     _UNI(_EXT) uni;                     \
     uni.number = x;                     \
-    if (uni.exponent == _MAX_EXP(_EXT) && uni.mantissa >= (unsigned long long)1 << (_L(_EXT) - 1)) \
+    if (uni.bits.exponent == _MAX_EXP(_EXT) && uni.bits.mantissa >= (unsigned long long)1 << (_L(_EXT) - 1)) \
         return 1;                       \
     else                                \
         return 0;                       \
@@ -1857,13 +1988,13 @@ decl_math_funcd(func_ret, __isnan, func_args, func_code)
 #define func_code(_FLT, _EXT) {         \
     _UNI(_EXT) uni;                     \
     uni.number = x;                     \
-    if (uni.exponent == _MAX_EXP(_EXT) && uni.mantissa2 >= (unsigned long long)1 << (_L(_EXT) - 65)) \
+    if (uni.bits.exponent == _MAX_EXP(_EXT) && uni.bits.mantissa2 >= (unsigned long long)1 << (_L(_EXT) - 65)) \
         return 1;                       \
     else                                \
         return 0;                       \
 }
 
-decl_math_funcl(func_ret, __isinf, func_args, func_code)
+decl_math_funcl(func_ret, __isnan, func_args, func_code)
 
 #undef func_ret
 #undef func_name

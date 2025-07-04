@@ -35,7 +35,7 @@
     || defined __cplusplus && __cplusplus >= 201100L
 
 #define LLONG_MAX __LONG_LONG_MAX__
-#define LLONG_MIN (-__LONG_LONG_MAX - 1LL)
+#define LLONG_MIN (-__LONG_LONG_MAX__ - 1LL)
 #define ULLONG_MAX (__LONG_LONG_MAX__ * 2ULL + 1ULL)
 #define ULLONG_MIN 0
     
