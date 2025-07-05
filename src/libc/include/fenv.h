@@ -1,7 +1,7 @@
 //
-//  fenv.h - Операции над числами с плавающей точкой
+//  fenv.h - Управление окружением процессора чисел с плавающей точкой.
 //
-//  Производит операции над числами с плавающей точкой. Вот же совпадение!
+//  Настраивает процессор для работы с числами с плавающей точкой, обрабатывает его исключения.
 //
 
 #ifndef _FENV_INCL
@@ -29,16 +29,16 @@ typedef struct {
     unsigned short int _reserved5;
 } fenv_t;
 
-// Ошибка деления на ноль
-#define FE_DIVBYZERO    0b1
-// Ошибка неточного результата операции
-#define FE_INEXACT      0b10
 // Ошибка неверного результата
-#define FE_INVALID      0b100
+#define FE_INVALID      0b1
+// Ошибка деления на ноль
+#define FE_DIVBYZERO    0b100
 // Ошибка переполнения
 #define FE_OVERFLOW     0b1000
 // Ошибка недополнения
 #define FE_UNDERFLOW    0b10000
+// Ошибка неточного результата операции
+#define FE_INEXACT      0b100000
 
 // Любая ошибка
 #define FE_ALL_EXCEPT (FE_DIVBYZERO | FE_INEXACT | FE_INVALID | FE_OVERFLOW | FE_UNDERFLOW)
@@ -46,22 +46,23 @@ typedef struct {
 // `fexcept_t` - это тип, отвечающий за показания ошибок от сопроцессора.
 typedef unsigned short int fexcept_t;
 
-// Режим округления - вниз
-#define FE_DOWNWARD     0b1
 // Режим округления - к ближайшему
-#define FE_TONEAREST    0b10
-// Режим округления - к нулю
-#define FE_TOWARDZERO   0b100
+#define FE_TONEAREST    0b00
+// Режим округления - вниз
+#define FE_DOWNWARD     0b01
 // Режим округления - вверх
-#define FE_UPWARD       0b1000
+#define FE_UPWARD       0b10
+// Режим округления - к нулю
+#define FE_TOWARDZERO   0b11
+
 
 // Начальное окружение сопроцессора для чисел с плавающей точкой
 #define FE_DFL_ENV ((const fenv_t*)0)
 
-// Очищает флаг исключения `excepts`.
+// Очищает флаги исключения `excepts`.
 int feclearexcept(int excepts);
 
-// Проверяет, какие исключения вызваны.
+// Проверяет, вызваны ли исключения `excepts`.
 int fetestexcept(int excepts);
 
 // Вызывает исключения `excepts`.
