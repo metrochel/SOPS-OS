@@ -14,6 +14,7 @@
 #define SYS_DEFAULT_LOCALE RU_RU_LOCALE
 #define SYS_DEFAULT_LOCALE_NAME "ru_RU.UTF-8"
 
+lconv _lconv;
 ext_lconv locale;
 const char *cur_locale;
 
@@ -75,4 +76,34 @@ char *setlocale(int category, const char *locale_name) {
     }
 
     return NULL;
+}
+
+lconv* localeconv() {
+    _lconv = (lconv){
+        locale.nums.decimal_point,
+        locale.nums.thousands_sep,
+        locale.nums.grouping,
+        locale.money.mon_decimal_point,
+        locale.money.mon_thousands_sep,
+        locale.money.mon_grouping,
+        locale.money.positive_sign,
+        locale.money.negative_sign,
+        locale.money.currency_symbol,
+        locale.money.frac_digits,
+        locale.money.p_cs_precedes,
+        locale.money.n_cs_precedes,
+        locale.money.p_sep_by_space,
+        locale.money.n_sep_by_space,
+        locale.money.p_sign_posn,
+        locale.money.n_sign_posn,
+        locale.money.int_curr_symbol,
+        locale.money.int_frac_digits,
+        locale.money.int_p_cs_precedes,
+        locale.money.int_n_cs_precedes,
+        locale.money.int_p_sep_by_space,
+        locale.money.int_n_sep_by_space,
+        locale.money.int_p_sign_posn,
+        locale.money.int_n_sign_posn
+    };
+    return &_lconv;
 }
