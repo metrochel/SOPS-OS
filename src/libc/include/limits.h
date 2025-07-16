@@ -11,7 +11,7 @@
 #define MB_LEN_MAX 1
 #endif
 
-#define SCHAR_MAX __SHAR_MAX__
+#define SCHAR_MAX __SCHAR_MAX__
 #define SCHAR_MIN (-__SCHAR_MAX__ - 1)
 #define UCHAR_MAX (2 * __SCHAR_MAX__ + 1)
 #define UCHAR_MIN 0

@@ -4,8 +4,4 @@
  *
  */
 
-int __errnos[] = {0};
-
-void __add_errno() {
-
-}
+int errno = 0;

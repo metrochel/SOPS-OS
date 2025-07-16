@@ -20,12 +20,12 @@
 
 // Код последней возникшей ошибки.
 // Если 0, то всё хорошо.
-#define errno __errnos[thrd_current().id]
+#define errno __errno
 
 BEGIN_DECLS
 
 // Чшшш! Это моё! Не подсматривать!
-extern int __errnos[];
+extern int __errno;
 
 END_DECLS
 
