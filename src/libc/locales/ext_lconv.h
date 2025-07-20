@@ -10,7 +10,7 @@ typedef struct {
     char *decimal_point;        // Строка-разделитель целой и дробной части числа
     char *thousands_sep;        // Строка-разделитель тысяч
     char *grouping;             // Группировка цифр
-} num_lconv;
+} __attribute__((packed)) num_lconv;
 
 
 // `mon_lconv` - это `lconv`, сосредоточенный на деньгах.
@@ -38,7 +38,7 @@ typedef struct {
     char int_n_sep_by_space;    // Как `n_sep_by_space`, только международное
     char int_p_sign_posn;       // Как `p_sign_posn`, только международное
     char int_n_sign_posn;       // Как `n_sign_posn`, только международное
-} mon_lconv;
+} __attribute__((packed)) mon_lconv;
 
 
 // `dat_lconv` - это `lconv`, сосредоточенный на дате и времени.
@@ -89,7 +89,7 @@ typedef struct {
     char *nov_long_str;             // Полное имя ноября (%B)
     char *dec_long_str;             // Полное имя декабря (%B)
 
-} dat_lconv;
+} __attribute__((packed)) dat_lconv;
 
 
 // `ctp_lconv` - это `lconv`, сосредоточенный на функциях из `ctype.h`.
@@ -99,12 +99,12 @@ typedef struct {
     char *digits;                       // Цифры
     char *xdigits;                      // Шестнадцатеричные цифры
     char *other_print_chars;            // Прочие печатные символы
-} ctp_lconv;
+} __attribute__((packed)) ctp_lconv;
 
 // `col_lconv` - это `lconv`, сосредоточенный на сравнении символов.
 typedef struct {
     char **order;                       // Порядок единиц сравнения (оканчивается (char**)(NULL))
-} col_lconv;
+} __attribute__((packed)) col_lconv;
 
 // Это немного расширенный lconv, который хранит больше данных о
 // текущей локали.
@@ -114,6 +114,8 @@ typedef struct {
     dat_lconv dates;        // Дата-временные настройки локали
     ctp_lconv ctype;        // Настройки локали для функций из `ctype.h`
     col_lconv coll;         // Настройки локали для функции `strcoll`
-} ext_lconv;
+} __attribute__((packed)) ext_lconv;
+
+extern ext_lconv locale;    // Текущая локаль
 
 #endif

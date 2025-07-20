@@ -1,8 +1,11 @@
 /*
  * c_locale.c
  *
- *
+ * Локаль "C" (встроенная локаль)
  */
+
+#ifndef _C_LOCALE
+#define _C_LOCALE
 
 #include "../include/locale.h"
 #include "../include/limits.h"
@@ -68,3 +71,5 @@ const ext_lconv C_LOCALE = {
     C_CTYPE,
     C_COLLATE
 };
+
+#endif

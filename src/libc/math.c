@@ -2021,7 +2021,7 @@ decl
 /* __issubnormal */
 
 #define func_ret(_FLT) int
-#define func_name _issubnormal
+#define func_name __issubnormal
 #define func_args(_FLT) (_FLT x)
 #define func_code(_FLT, _EXT) {         \
     _UNI(_EXT) *ptr = (_UNI(_EXT)*)&x;  \

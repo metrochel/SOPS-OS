@@ -6,10 +6,9 @@
 
 #include "include/locale.h"
 #include "include/string.h"
-#include "include/stddef.h"
 
-#include "locales/c_locale.c"
-#include "locales/ru_RU_locale.c"
+#include "locales/c_locale.h"
+#include "locales/ru_RU_locale.h"
 
 #define SYS_DEFAULT_LOCALE RU_RU_LOCALE
 #define SYS_DEFAULT_LOCALE_NAME "ru_RU.UTF-8"

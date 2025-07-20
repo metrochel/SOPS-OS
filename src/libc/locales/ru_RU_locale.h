@@ -1,3 +1,12 @@
+/*
+ * ru_RU_locale.h
+ *
+ * Локаль "ru_RU.utf8" (русский, Россия, кодировка UTF-8)
+ */
+
+#ifndef _RU_RU_LOCALE
+#define _RU_RU_LOCALE
+
 #include "ext_lconv.h"
 
 const num_lconv RU_RU_NUMBER = {
@@ -61,3 +70,5 @@ const ext_lconv RU_RU_LOCALE = {
         RU_RU_CTYPE,
         RU_RU_COL
 };
+
+#endif

@@ -28,28 +28,33 @@ char *strcat(char *dest, const char *src);
 char *strncat(char *dest, const char *src, size_t n);
 
 // Преобразует строку `str1` так, что результат сравнения `strcmp` и `strcoll` со строкой `str2` совпадал.
-size_t *strxfrm(char *str1, const char *str2, size_t n);
+size_t strxfrm(char *str1, const char *str2, size_t n);
 
 // Вычисляет длину строки `str`.
 size_t strlen(const char *str);
 
-// Сравнивает строки `str1` и `str2` и возвращает 1, если они совпадают, иначе 0.
+// Сравнивает строки `str1` и `str2` и возвращает
+// 1, если `str1` идёт после `str2`;
+// -1, если `str1` идёт до `str2`;
+// 0, если `str1` совпадает с `str2`.
 int strcmp(const char *str1, const char *str2);
 
-// Сравнивает `n` символов строк `str1` и `str2` и возвращает 1, если они совпадают,
-// иначе 0.
+// Сравнивает `n` символов строк `str1` и `str2` и возвращает
+// 1, если `str1` идёт после `str2`;
+// -1, если `str1` идёт до `str2`;
+// 0, если `str1` совпадает с `str2`.
 int strncmp(const char *str1, const char *str2, size_t n);
 
-// Сравнивает две строки в соответствии с текущей локалью (языком типа).
+// Сравнивает две строки в соответствии с текущей локалью.
 int strcoll(const char *str1, const char *str2);
 
 // Ищет первое вхождение символа `ch` в строку `src`.
 // Возвращает указатель на `ch` в `src`, если `ch` в ней есть, иначе возвращает нулевой указатель.
-char *strchr(char *src, int ch);
+char *strchr(const char *src, int ch);
 
 // Ищет последнее вхождение символа `ch` в строку `src`.
 // Возвращает указатель на `ch` в `src`, если `ch` в ней есть, иначе возвращает нулевой указатель.
-char *strrchr(char *src, int ch);
+char *strrchr(const char *src, int ch);
 
 // Ищет длину максимального сегмента в строке `str1`, состоящего только из символов строки `str2`.
 size_t strspn(const char *str1, const char *str2);
@@ -57,27 +62,27 @@ size_t strspn(const char *str1, const char *str2);
 // Ищет длину максимального сегмента в строке `str1`, состоящего из любых символов, кроме строки `str2`.
 size_t strcspn(const char *str1, const char *str2);
 
-// Ищет первый символ в строке `str`, входящий в `seps`.
-char *strpbrk(char *str, char *seps);
-
 // FIXME: Вообще говоря, должна быть ещё версия с const char * для strpbrk и strstr, но
 // так как нельзя перегружать функции в C, у меня её сделать не выходит.
 // При этом в glibc она работает без проблем.
+
+// Ищет первый символ в строке `str`, входящий в `seps`.
+char *strpbrk(const char *str, const char *seps);
 
 // // Ищет первый символ в строке `str`, входящий в `seps`.
 // const char *strpbrk(const char *str, const char *seps);
 
 // Ищет первое вхождение строки `str2` в строку `str1`.
-char *strstr(char *str1, char *str2);
+char *strstr(const char *str1, const char *str2);
 
 // // Ищет первое вхождение строки `str2` в строку `str1`.
 // const char *strstr(const char *str1, const char *str2);
 
-// Токенизирует строку `str` в соответствии с токенами в `delim`.
-char *strtok(char *str, char *delim);
+// Токенизирует строку `str` в соответствии с разделителями в `delim`.
+char *strtok(char *str, const char *delim);
 
 // Ищет символ `ch` в буфере `buf` длиной `n` Б.
-void *memchr(void *buf, int ch, size_t n);
+void *memchr(const void *buf, int ch, size_t n);
 
 // Сравнивает буферы `buf1` и `buf2` длиной `n` Б и возвращает 1, если они совпадают.
 int memcmp(const void *buf1, const void *buf2, size_t n);
