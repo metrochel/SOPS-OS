@@ -7,6 +7,7 @@
 #include "include/string.h"
 #include "include/stdlib.h"
 #include "include/ctype.h"
+#include "include/errno.h"
 #include "etc/errmsgs.h"
 #include "locales/ext_lconv.h"
 #include "locales/c_locale.h"
@@ -496,4 +497,5 @@ char* strerror(int errnum) {
         errcase(ERANGE)
         errcase(EILSEQ)
     }
+    return NULL;
 }

@@ -9,6 +9,6 @@
 
 const char *STR_EDOM = "Domain error";
 const char *STR_ERANGE = "Range error";
-const char *STR_EINLSEQ = "Invalid sequence";
+const char *STR_EILSEQ = "Invalid sequence";
 
 #endif
