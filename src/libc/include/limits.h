@@ -8,7 +8,7 @@
 #define CHAR_BIT __CHAR_BIT__
 
 #ifndef MB_LEN_MAX
-#define MB_LEN_MAX 1
+#define MB_LEN_MAX 4
 #endif
 
 #define SCHAR_MAX __SCHAR_MAX__

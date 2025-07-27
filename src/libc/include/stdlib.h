@@ -35,10 +35,6 @@ typedef struct {
     long long int rem;    // Остаток
 } lldiv_t;
 
-// `compare_func_t` - это тип-функция для сравнения двух элементов.
-// Используется в функциях `bsearch` и `qsort`.
-typedef int (compare_func_t)(void*, void*);
-
 // Экстренно завершает исполнение программы.
 void _Noreturn abort(void);
 
@@ -68,7 +64,7 @@ void *realloc(void *ptr, size_t newSz);
 void free(void *ptr);
 
 // Переводит строку `str` в число с плавающей точкой.
-float atof(const char *str);
+double atof(const char *str);
 
 // Переводит строку `str` в целое число.
 int atoi(const char *str);
@@ -136,11 +132,11 @@ void srand(unsigned int seed);
 
 // Ищет `key` в массиве `base` длиной `nmemb` элементов, каждый размером `sz`.
 // Сравнение производится в соответствии с функцией `compare`.
-void *bsearch(const void *key, const void *base, size_t nmemb, size_t sz, compare_func_t *compare);
+void *bsearch(const void *key, const void *base, size_t nmemb, size_t sz, int (*compare)(void*, void*));
 
 // Сортирует массив `base` длиной `nmemb` элементов, каждый размером `sz`.
 // Сравнение производится в соответствии с функцией `compare`.
-void *qsort(void *base, size_t nmemb, size_t sz, compare_func_t *compare);
+void qsort(void *base, size_t nmemb, size_t sz, int (*compare)(void*, void*));
 
 // Операция модуля (y = |x|).
 int abs(int n);
@@ -158,7 +154,7 @@ div_t div(int num, int div);
 ldiv_t ldiv(long int num, long int div);
 
 // Делит число `num` на число `div`.
-lldiv_t lldiv(long int num, long int div);
+lldiv_t lldiv(long long int num, long long int div);
 
 
 END_DECLS

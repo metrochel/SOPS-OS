@@ -10,7 +10,6 @@
 #include "include/errno.h"
 #include "etc/errmsgs.h"
 #include "locales/ext_lconv.h"
-#include "locales/c_locale.h"
 
 #define always_inline __attribute__((always_inline)) inline
 
@@ -265,7 +264,7 @@ size_t strxfrm(char *dest, const char *src, size_t count) {
     if (count != 0 && !dest)
         return -1;
 
-    if (memcmp(&locale, &C_LOCALE, sizeof locale) == 0) {
+    if (!*(localeconv()->grouping)) {               // Используется локаль "C"
         strncpy(dest, src, count);
         return count ? count : strlen(dest);
     }
@@ -274,8 +273,8 @@ size_t strxfrm(char *dest, const char *src, size_t count) {
     while (*src) {
         coll_t coll = get_next_coll_seq(src);
 
-        // TODO: Исправить трансформацию: добавить поддержку чувствительности регистра, диакретиков (Ё или Е) и т.д.
-        int c = coll.index;
+        // TODO: Исправить трансформацию: добавить поддержку чувствительности регистра, диакритиков (Ё или Е) и т.д.
+        int c = coll.index + 1;
 
         size_t add = write_utf8_char(c, &dest, count ? (count - written - 1) : 0);
         written += add;

@@ -7,7 +7,6 @@
 #ifndef _C_LOCALE
 #define _C_LOCALE
 
-#include "../include/locale.h"
 #include "../include/limits.h"
 #include "ext_lconv.h"
 

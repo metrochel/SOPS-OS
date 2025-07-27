@@ -130,6 +130,48 @@ long double fmaxl(long double x, long double y);
 
 #endif
 
+// Возвращает наименьшее число из x и y.
+double fmin(double x, double y);
+
+#if defined(__cplusplus) && __cplusplus >= 201100L \
+    || defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199900L
+
+// Возвращает наименьшее число из x и y.
+float fminf(float x, float y);
+
+// Возвращает наименьшее число из x и y.
+long double fminl(long double x, long double y);
+
+#endif
+
+// Возвращает наименьшее число из 0 и x - y.
+double fdim(double x, double y);
+
+#if defined(__cplusplus) && __cplusplus >= 201100L \
+    || defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199900L
+
+// Возвращает наименьшее число из 0 и x - y.
+float fdimf(float x, float y);
+
+// Возвращает наименьшее число из 0 и x - y.
+long double fdiml(long double x, long double y);
+
+#endif
+
+// Возвращает тихий NaN.
+double nan(const char *arg);
+
+#if defined(__cplusplus) && __cplusplus >= 201100L \
+    || defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199900L
+
+// Возвращает тихий NaN.
+float nanf(const char *arg);
+
+// Возвращает тихий NaN.
+long double nanl(const char *arg);
+
+#endif
+
 // Вычисляет экспоненту для числа x (e^x).
 double exp(double x);
 

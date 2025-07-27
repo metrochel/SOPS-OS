@@ -395,8 +395,7 @@ int handle_char_fmtspec(char **str, fmt_state_t *state, va_list *args, int *char
     if (state->size_spec == 3) {                                                        // Уточнение "l"
         wint_t ch = va_arg(*args, wint_t);
         char buf[4] = {0, 0, 0, 0};
-        mbstate_t mbstate = {};
-        int char_sz = wcrtomb(buf, ch, &mbstate);
+        int char_sz = wctomb(buf, ch);
         char *_buf = buf;
         put_w_padding(char_sz, while (*_buf) {
             put(*_buf++);
@@ -439,10 +438,9 @@ int handle_str_fmtspec(char **str, fmt_state_t *state, va_list *args, int *chars
             stop = state->precision;
         
         put_w_padding(stop, {for (int i = 0; i < stop; i++) {
-        	mbstate_t mbstate = {};
             char buf[4] = {};
-            char *_buf = buf;     
-            size_t wc_len = wcrtomb(buf, string[i], &mbstate);
+            char *_buf = buf;
+            size_t wc_len = wctomb(buf, string[i]);
             while (*_buf) {
                 put(*_buf++);
             }
