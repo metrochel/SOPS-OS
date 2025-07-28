@@ -50,11 +50,12 @@ const dat_lconv C_DATES = {
 };
 
 const ctp_lconv C_CTYPE = {
-        "abcdefghijklmnopqrstuvwxyz",
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-        "0123456789",
-        "0123456789abcdefABCDEF",
-        ".,;:'\"\\|[]{}-=_+()!~@#$%^&*/?<>"
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL
 };
 
 char *c_letters[] = {};
