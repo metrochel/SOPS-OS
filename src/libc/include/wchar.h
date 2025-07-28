@@ -29,21 +29,21 @@ BEGIN_DECLS
 
 // Переводит широкосимвольную строку `str` в число по основанию `base`.
 // По окончании перевода устанавливает `strEnd` на последний символ.
-long wcstol(const wchar_t *str, wchar_t **strEnd, int base);
+long wcstol(const wchar_t *str, wchar_t **str_end, int base);
 
 // Переводит широкосимвольную строку `str` в число по основанию `base`.
 // По окончании перевода устанавливает `strEnd` на последний символ.
-unsigned long wcstoul(const wchar_t *str, wchar_t **strEnd, int base);
+unsigned long wcstoul(const wchar_t *str, wchar_t **str_end, int base);
 
 // Переводит широкосимвольную строку `str` в число с плавающей точкой.
 // По окончании перевода устанавливает `strEnd` на последний символ.
-double wcstod(const wchar_t *str, wchar_t **strEnd);
+double wcstod(const wchar_t *str, wchar_t **str_end);
 
 // Копирует широкосимвольную строку `src` в широкосимвольную строку `dest`.
-wchar_t* wcscpy(wchar_t *dest, wchar_t *src);
+wchar_t* wcscpy(wchar_t *dest, const wchar_t *src);
 
 // Копирует `count` широких символов с `src` на `dest`.
-wchar_t* wcsncpy(wchar_t *dest, wchar_t *src, size_t count);
+wchar_t* wcsncpy(wchar_t *dest, const wchar_t *src, size_t count);
 
 // Записывает широкосимвольную строку `src` на конец строки `dest`.
 wchar_t* wcscat(wchar_t *dest, const wchar_t *src);
@@ -76,7 +76,7 @@ wchar_t* wcsrchr(const wchar_t *str, wchar_t c);
 
 // Ищет фрагмент от начала широкосимвольной строки `str` наибольшей длины,
 // состоящий только из символов, входящих в `chars`. 
-wchar_t* wcsspn(const wchar_t *str, const wchar_t *chars);
+size_t wcsspn(const wchar_t *str, const wchar_t *chars);
 
 // Ищет фрагмент от начала широкосимвольной строки `str` наибольшей длины,
 // состоящий только из символов, не входящих в `chars`. 

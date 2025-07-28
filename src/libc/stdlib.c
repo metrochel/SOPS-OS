@@ -13,6 +13,19 @@ typedef void (*atexit_func_t)();
 atexit_func_t *atexit_funcs = NULL;
 unsigned int atexit_func_cnt = 0;
 
+#define CHAR_T char
+#define ISSPACE         isspace
+#define ISDIGIT         isdigit
+#define ISXDIGIT        isxdigit
+#define ISLOWER         islower
+#define TOLOWER         tolower
+#define TOUPPER         toupper
+#define STRSTR          strstr
+#define STRLEN          strlen
+#define STRPBRK         strpbrk
+#define STRTO           strto
+#include "./.no-compile/strtonum_base.c"
+
 void abort() {
     syscall1(0, EX_CODE_ABORT);
 }
@@ -75,197 +88,6 @@ void* realloc(void *ptr, size_t new_sz) {
     free(ptr);
     return new_ptr;
 }
-
-#define strtox_end(number) \
-    if (negative) number = -number;     \
-    if (str_end) *str_end = (char*)str; \
-    return number
-
-#define strtod_code(_FLT, _EXT) {                                                                              \
-    while (isspace(*str))                                                                                      \
-        str++;                                                                                                 \
-    _FLT number = 0.0;                                                                                         \
-    int negative = 0;                                                                                          \
-    if (*str == '-') {                                                                                         \
-        str++;                                                                                                 \
-        negative = 1;                                                                                          \
-    }                                                                                                          \
-    else if (*str == '+') str++;                                                                               \
-    if (tolower(str[0]) == 'n' && tolower(str[1]) == 'a' && tolower(str[2]) == 'n') {                          \
-        str += 3;                                                                                              \
-        if (*str != '(') {                                                                                     \
-            number = copysign##_EXT(NAN, number);                                                              \
-            strtox_end(number);                                                                                \
-        }                                                                                                      \
-        str++;                                                                                                 \
-        number = copysign##_EXT(nan##_EXT(str), number);                                                       \
-        char *jmp = strpbrk(str, ")");                                                                         \
-        if (!jmp)                                                                                              \
-            return NAN;                                                                                        \
-        str = ++jmp;                                                                                           \
-        strtox_end(number);                                                                                    \
-    }                                                                                                          \
-    if (tolower(str[0]) == 'i' && tolower(str[2]) == 'n' && tolower(str[2]) == 'f') {                          \
-        str += 3;                                                                                              \
-        if (tolower(str[0]) == 'i' && tolower(str[1]) == 'n' && tolower(str[2]) == 'i' &&                      \
-        tolower(str[3]) == 't' && tolower(str[4]) == 'y')                                                      \
-            str += 5;                                                                                          \
-        number = copysign##_EXT(INFINITY, number);                                                             \
-        strtox_end(number);                                                                                    \
-    }                                                                                                          \
-    int hex = 0;                                                                                               \
-    int exponent = 0;                                                                                          \
-    if (*str == '0' && (*(str + 1) == 'x' || *(str + 1) == 'X'))                                               \
-        hex = 1;                                                                                               \
-    if (hex) {                                                                                                 \
-        while (*str && isxdigit(*str)) {                                                                       \
-            int digit = *str - '0';                                                                            \
-            if (digit >= 10)                                                                                   \
-                digit = *str - 'A' + 10;                                                                       \
-            if (digit >= 16)                                                                                   \
-                digit = *str - 'a' + 10;                                                                       \
-            if (digit >= 16 || digit < 0) {                                                                    \
-                strtox_end(number);                                                                            \
-            }                                                                                                  \
-            if (__signbit##_EXT(number))                                                                       \
-                digit = -digit;                                                                                \
-            number = 16 * number + digit;                                                                      \
-            str++;                                                                                             \
-        }                                                                                                      \
-        if (!*str) {                                                                                           \
-            strtox_end(number);                                                                                \
-        }                                                                                                      \
-        if (strstr(str, localeconv()->decimal_point) == str) {                                                 \
-            _FLT mult = 1 / 16;                                                                                \
-            while (*str && isxdigit(*str)) {                                                                   \
-                int digit = *str - '0';                                                                        \
-                if (digit >= 10)                                                                               \
-                    digit = *str - 'A' + 10;                                                                   \
-                if (digit >= 16)                                                                               \
-                    digit = *str - 'a' + 10;                                                                   \
-                if (digit >= 16 || digit < 0) {                                                                \
-                    strtox_end(number);                                                                        \
-                }                                                                                              \
-                if (__signbit##_EXT(number))                                                                   \
-                    digit = -digit;                                                                            \
-                number += digit * mult;                                                                        \
-                mult /= 16;                                                                                    \
-            }                                                                                                  \
-        }                                                                                                      \
-        if (!*str) {                                                                                           \
-            strtox_end(number);                                                                                \
-        }                                                                                                      \
-        if (*str == 'p' || *str == 'P') {                                                                      \
-            str++;                                                                                             \
-            exponent = strtol(str, (char**)&str, 10);                                                          \
-            number *= pow##_EXT(2, exponent);                                                                  \
-        }                                                                                                      \
-    }                                                                                                          \
-    else {                                                                                                     \
-        while (*str && isdigit(*str)) {                                                                        \
-            int digit = *str - '0';                                                                            \
-            if (digit >= 10 || digit < 0) {                                                                    \
-                strtox_end(number);                                                                            \
-            }                                                                                                  \
-            if (__signbit##_EXT(number))                                                                       \
-                digit = -digit;                                                                                \
-            number = 10 * number + digit;                                                                      \
-            str++;                                                                                             \
-        }                                                                                                      \
-        if (!*str) {                                                                                           \
-            strtox_end(number);                                                                                \
-        }                                                                                                      \
-        char *dec = localeconv()->decimal_point;                                                               \
-        if (strstr(str, dec) == str) {                                                                         \
-            str += strlen(dec);                                                                                \
-            while (*str && isdigit(*str)) {                                                                    \
-                int digit = *str - '0';                                                                        \
-                if (digit >= 10 || digit < 0) {                                                                \
-                    strtox_end(number);                                                                        \
-                }                                                                                              \
-                if (__signbit##_EXT(number))                                                                   \
-                    digit = -digit;                                                                            \
-                number = 10 * number + digit;                                                                  \
-                str++;                                                                                         \
-            }                                                                                                  \
-        }                                                                                                      \
-        if (strstr(str, localeconv()->decimal_point) == str) {                                                 \
-            _FLT mult = 1 / 10;                                                                                \
-            while (*str && isdigit(*str)) {                                                                    \
-                int digit = *str - '0';                                                                        \
-                if (digit >= 10 || digit < 0) {                                                                \
-                    strtox_end(number);                                                                        \
-                }                                                                                              \
-                if (__signbit##_EXT(number))                                                                   \
-                    digit = -digit;                                                                            \
-                number += digit * mult;                                                                        \
-                mult /= 10;                                                                                    \
-                str++;                                                                                         \
-            }                                                                                                  \
-        }                                                                                                      \
-        if (*str == 'e' || *str == 'E') {                                                                      \
-            str++;                                                                                             \
-            exponent = strtol(str, (char**)&str, 10);                                                          \
-            number *= pow##_EXT(10, exponent);                                                                 \
-        }                                                                                                      \
-    }                                                                                                          \
-    strtox_end(number);                                                                                        \
-}
-
-float strtof(const char *str, char **str_end) strtod_code(float, f)
-double strtod(const char *str, char **str_end) strtod_code(double, )
-long double strtold(const char *str, char **str_end) strtod_code(long double, l)
-
-#undef strtod_code
-
-#define strtoi_code(_INT) {                                            \
-    if (base > 36) {                                                   \
-        if (str_end) *str_end = (char*)str;                            \
-        return -1;                                                     \
-    }                                                                  \
-    int negative = 0;                                                  \
-    if (*str == '+')                                                   \
-        str++;                                                         \
-    else if (*str == '-') {                                            \
-        negative = 1;                                                  \
-        str++;                                                         \
-    }                                                                  \
-    else {                                                             \
-        if (str_end) *str_end = (char*)str;                            \
-        return 0;                                                      \
-    }                                                                  \
-    if (base == 0) {                                                   \
-        if (*str++ == '0') {                                           \
-            base = 8;                                                  \
-            if (*str == 'x' || *str == 'X') {                          \
-                base = 16;                                             \
-                str++;                                                 \
-            }                                                          \
-        } else                                                         \
-            base = 10;                                                 \
-    }                                                                  \
-    _INT number = 0;                                                   \
-    while (isdigit(*str)) {                                            \
-        _INT digit = *str++;                                           \
-        if (digit > 10 && base > 10) {                                 \
-            if (islower(digit)) digit = toupper(digit);                \
-            digit = 'A' - digit + 10;                                  \
-        } else                                                         \
-            digit -= '0';                                              \
-        if (digit > base || digit < 0) {                               \
-            strtox_end(number);                                        \
-        }                                                              \
-        number = base * number + digit;                                \
-    }                                                                  \
-    strtox_end(number);                                                \
-}
-
-
-
-long strtol(const char *str, char **str_end, int base) strtoi_code(long)
-long long strtoll(const char *str, char **str_end, int base) strtoi_code(long long)
-unsigned long strtoul(const char *str, char **str_end, int base) strtoi_code(unsigned long)
-unsigned long long strtoull(const char *str, char **str_end, int base) strtoi_code(unsigned long long)
 
 double atof(const char *str) {
     return strtod(str, NULL);

@@ -72,6 +72,6 @@ wint_t towupper(wint_t c);
 wint_t towctrans(wint_t c, wctrans_t trans);
 
 // Создаёт таблицу для перевода широких символов на основе строки `str`.
-wctrans_t wctrans_t(const char *str);
+wctrans_t wctrans(const char *str);
 
 #endif

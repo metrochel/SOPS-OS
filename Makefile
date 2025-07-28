@@ -25,7 +25,7 @@ KERNELBIN		:=$(BINSDIR)/kernel.bin
 KERNELMAP		:=$(BUILDDIR)/kernel.map
 
 LIBC_ASM32_SRC  :=$(wildcard $(SRCDIR)/libc/i386/*.asm)
-LIBC_C_SRC		:=$(wildcard $(SRCDIR)/libc/*/*.c) $(wildcard $(SRCDIR)/libc/*.c)
+LIBC_C_SRC		:=$(wildcard $(SRCDIR)/libc/etc/*.c) $(wildcard $(SRCDIR)/libc/*.c)
 LIBCINCLUDE		:=$(SRCDIR)/libc/include
 LIBC_HEADERS    :=$(wildcard $(LIBCINCLUDE)/*/*.h) $(wildcard $(LIBCINCLUDE)/*.h)
 OBJSDIR_LIBC	:=$(OBJSDIR)/libc
