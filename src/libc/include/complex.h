@@ -62,20 +62,20 @@ float cargf(float complex z);
 long double cargl(long double complex z);
 
 // Вычисляет сопряжённое для числа `z`.
-double conj(double complex z);
+double complex conj(double complex z);
 // Вычисляет сопряжённое для числа `z`.
-float conjf(float complex z);
+float complex conjf(float complex z);
 // Вычисляет сопряжённое числа `z`.
-long double conjl(long double complex z);
+long double complex conjl(long double complex z);
 
 /* Пока не знаю, что это такое, но потом дойдём. */
 
 // Вычисляет проекцию числа `z` на сферу Риманна.
-double cproj(double complex z);
+double complex cproj(double complex z);
 // Вычисляет проекцию числа `z` на сферу Риманна.
-float cprojf(float complex z);
+float complex cprojf(float complex z);
 // Вычисляет проекцию числа `z` на сферу Риманна.
-long double cprojl(long double complex z);
+long double complex cprojl(long double complex z);
 
 // Вычисляет `e^z`.
 double complex cexp(double complex z);
