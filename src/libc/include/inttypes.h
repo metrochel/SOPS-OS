@@ -9,6 +9,7 @@
 
 #include <stdint.h>
 #include <etc/decl.h>
+#include <stddef.h>
 
 // Макросы для printf
 
@@ -196,33 +197,33 @@
 
 BEGIN_DECLS
 
-// `idiv_t` - это тип, который возвращается функцией `imaxdiv`.
+// `imaxdiv_t` - это тип, который возвращается функцией `imaxdiv`.
 typedef struct {
-    int quotient;       // Частное
-    int remainder;      // Остаток
-} idiv_t;
+    intmax_t quotient;      // Частное
+    intmax_t remainder;     // Остаток
+} imaxdiv_t;
 
 // Операция модуля (y = |x|).
 intmax_t imaxabs(intmax_t x);
 
 // Вычисляет результат деления `a` на `b`.
-idiv_t imaxdiv(intmax_d a, intmax_d b);
+imaxdiv_t imaxdiv(intmax_t a, intmax_t b);
 
 // Переводит строку `str` в целое число по основанию `base`.
-// После окончания записывает конец строки в `strEnd`, если `strEnd` ненулевой.
-intmax_t strtoimax(const char *str, char **strEnd, int base);
+// После окончания записывает конец строки в `str_end`, если `str_end` ненулевой.
+intmax_t strtoimax(const char *str, char **str_end, int base);
 
 // Переводит строку `str` в целое число по основанию `base`.
-// После окончания записывает конец строки в `strEnd`, если `strEnd` ненулевой.
-uintmax_t strtoumax(const char *str, char **strEnd, int base);
+// После окончания записывает конец строки в `str_end`, если `str_end` ненулевой.
+uintmax_t strtoumax(const char *str, char **str_end, int base);
 
 // Переводит строку `str` в целое число по основанию `base`.
-// После окончания записывает конец строки в `strEnd`, если `strEnd` ненулевой.
-intmax_t wcstoimax(const wchar_t *str, char **strEnd, int base);
+// После окончания записывает конец строки в `str_end`, если `str_end` ненулевой.
+intmax_t wcstoimax(const wchar_t *str, char **str_end, int base);
 
 // Переводит строку `str` в целое число по основанию `base`.
-// После окончания записывает конец строки в `strEnd`, если `strEnd` ненулевой.
-uintmax_t wcstoumax(const wchar_t *str, char **strEnd, int base);
+// После окончания записывает конец строки в `str_end`, если `str_end` ненулевой.
+uintmax_t wcstoumax(const wchar_t *str, char **str_end, int base);
 
 END_DECLS
 
