@@ -6,6 +6,9 @@
 
 #include "include/inttypes.h"
 
+#include "include/ctype.h"
+#include "include/wctype.h"
+
 intmax_t imaxabs(intmax_t x) {
     return x < 0 ? -x : x;
 }

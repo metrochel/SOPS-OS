@@ -219,11 +219,11 @@ uintmax_t strtoumax(const char *str, char **str_end, int base);
 
 // Переводит строку `str` в целое число по основанию `base`.
 // После окончания записывает конец строки в `str_end`, если `str_end` ненулевой.
-intmax_t wcstoimax(const wchar_t *str, char **str_end, int base);
+intmax_t wcstoimax(const wchar_t *str, wchar_t **str_end, int base);
 
 // Переводит строку `str` в целое число по основанию `base`.
 // После окончания записывает конец строки в `str_end`, если `str_end` ненулевой.
-uintmax_t wcstoumax(const wchar_t *str, char **str_end, int base);
+uintmax_t wcstoumax(const wchar_t *str, wchar_t **str_end, int base);
 
 END_DECLS
 
