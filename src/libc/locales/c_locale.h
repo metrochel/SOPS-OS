@@ -50,12 +50,12 @@ const dat_lconv C_DATES = {
 };
 
 const ctp_lconv C_CTYPE = {
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL
+        ctp_str(NULL),
+        ctp_str(NULL),
+        ctp_str(NULL),
+        ctp_str(NULL),
+        ctp_str(NULL),
+        ctp_str(NULL)
 };
 
 char *c_letters[] = {};

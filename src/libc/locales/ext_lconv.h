@@ -2,6 +2,7 @@
 #define _EXT_LCONV
 
 #include "../include/locale.h"
+#include "../include/stddef.h"
 
 typedef int (*eval_func)(int);
 
@@ -91,16 +92,22 @@ typedef struct {
 
 } __attribute__((packed)) dat_lconv;
 
+#define ctp_def(str, wcs) (const char*)str, (const wchar_t*)wcs
+#define ctp_str(str) ctp_def(str, str)
+
+#define ctp_decl(name) const char *name; const wchar_t *wide_##name
 
 // `ctp_lconv` - это `lconv`, сосредоточенный на функциях из `ctype.h`.
 typedef struct {
-    char *lowercase_letters;            // Буквы нижнего регистра
-    char *uppercase_letters;            // Буквы верхнего регистра
-    char *digits;                       // Цифры
-    char *xdigits;                      // Шестнадцатеричные цифры
-    char *punct_chars;                  // Знаки пунктуации
-    char *other_print_chars;            // Прочие печатные символы
+    ctp_decl(lowercase_letters);         // Буквы нижнего регистра
+    ctp_decl(uppercase_letters);         // Буквы верхнего регистра
+    ctp_decl(digits);                    // Цифры
+    ctp_decl(xdigits);                   // Шестнадцатеричные цифры
+    ctp_decl(punct_chars);               // Знаки пунктуации
+    ctp_decl(other_print_chars);         // Прочие печатные символы
 } __attribute__((packed)) ctp_lconv;
+
+#undef ctp_decl
 
 /* !!!
  * При прописывании локалей для ctp_lconv следует учитывать,
@@ -110,6 +117,8 @@ typedef struct {
  * (например, так же использует латиницу без диакритических знаков или арабские цифры),
  * в качестве соответствующей строки нужно указать NULL.
  * Так компьютер будет работать чуть-чуть быстрее.
+ * Для более удобного объявления строк для ctp_lconv следует использовать
+ * макрос ctp_str.
  */
 
 // `col_lconv` - это `lconv`, сосредоточенный на сравнении символов.

@@ -5,71 +5,47 @@
  */
 
 #include "include/ctype.h"
-
-#include "locales/ext_lconv.h"
 #include "include/string.h"
 #include "include/stdlib.h"
-#include "include/limits.h"
 
-int isalnum(int c) {
-    return isalpha(c) || isdigit(c);
-}
+// Здесь мы применим ту же чёрную магию препроцессора, что и в
+// string.c/wchar.c.
 
-int isalpha(int c) {
-    return islower(c) || isupper(c);
-}
+#define CHAR int
+#define SMALL_CHAR char
 
-int islower(int c) {
-    return ('a' <= c && c <= 'z') || strchr(locale.ctype.lowercase_letters, c);
-}
+#define ISALNUM isalnum
+#define ISALPHA isalpha
+#define ISDIGIT isdigit
+#define ISXDIGIT isxdigit
+#define ISLOWER islower
+#define ISUPPER isupper
+#define ISPUNCT ispunct
+#define ISSPACE isspace
+#define ISPRINT isprint
+#define ISCNTRL iscntrl
+#define ISGRAPH isgraph
+#define ISBLANK isblank
 
-int isupper(int c) {
-    return ('A' <= c && c <= 'Z') || strchr(locale.ctype.uppercase_letters, c);
-}
+#define STRCHR strchr
 
-int isdigit(int c) {
-    return ('0' <= c && c <= '9') || strchr(locale.ctype.digits, c);
-}
+#define LOWERCASE       locale.ctype.lowercase_letters
+#define UPPERCASE       locale.ctype.uppercase_letters
+#define DIGITS          locale.ctype.digits
+#define XDIGITS         locale.ctype.xdigits
+#define PUNCTS          locale.ctype.punct_chars
+#define OTHER_PRINTS    locale.ctype.other_print_chars
 
-int isxdigit(int c) {
-    return ('0' <= c && c <= '9')
-    || ('a' <= c && c <= 'f') || ('A' <= c && c <= 'F')
-    || strchr(locale.ctype.xdigits, c);
-}
-
-int iscntrl(int c) {
-    return c < ' ' && c != '\t';
-}
-
-int ispunct(int c) {
-    return strchr(".,/<>?;':\"[]{}-=_+~!@#$%^&*()`|\\\t", c)
-    || strchr(locale.ctype.punct_chars, c);
-}
-
-int isgraph(int c) {
-    return isalnum(c) || strchr(locale.ctype.other_print_chars, c);
-}
-
-int isspace(int c) {
-    return c == ' ';
-}
-
-int isblank(int c) {
-    return c == ' ' || c == '\t';
-}
-
-int isprint(int c) {
-    return isgraph(c) || isspace(c);
-}
+#include ".no-compile/ctype_base.c"
 
 int tolower(int c) {
     if ('A' <= c && c <= 'Z')
         return c + 0x20;
 
-    char *ch = strchr(locale.ctype.uppercase_letters, c);
+    char *ch = strchr(UPPERCASE, c);
     if (!ch) return c;
-    int index = (int)(ch - locale.ctype.uppercase_letters);
-    char *lower_ch = locale.ctype.lowercase_letters + index;
+    int index = (int)(ch - UPPERCASE);
+    const char *lower_ch = LOWERCASE + index;
 
     size_t char_sz = mblen(lower_ch, MB_LEN_MAX);
     int new_ch = 0;
@@ -85,10 +61,10 @@ int toupper(int c) {
     if ('A' <= c && c <= 'Z')
         return c + 0x20;
 
-    char *ch = strchr(locale.ctype.lowercase_letters, c);
+    char *ch = strchr(LOWERCASE, c);
     if (!ch) return c;
-    int index = (int)(ch - locale.ctype.lowercase_letters);
-    char *upper_ch = locale.ctype.uppercase_letters + index;
+    int index = (int)(ch - LOWERCASE);
+    const char *upper_ch = UPPERCASE + index;
 
     size_t char_sz = mblen(upper_ch, MB_LEN_MAX);
     int new_ch = 0;
