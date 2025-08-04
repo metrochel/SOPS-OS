@@ -11,5 +11,7 @@
 typedef struct {
     wint_t symbol;          // Символ
     short shift;            // Сдвиг
+    int utf16_is_surrogate;    // Флаг суррогатной пары (UTF-16)
+    int utf8_followers;     // Количество оставшихся байтов после первого (UTF-8)
 } mbstate_t;
 #endif

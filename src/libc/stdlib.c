@@ -105,7 +105,7 @@ long long atoll(const char *str) {
     return strtoll(str, NULL, 10);
 }
 
-#define utf8_follow_char(c) (((c) & 0b10000000) == 0)
+#define utf8_follow_char(c) (((c) & 0b11000000) ==  )
 
 int mblen(const char *s, size_t n) {
     if (!s) return 0;
@@ -116,34 +116,28 @@ int mblen(const char *s, size_t n) {
     if ((c & 0b11000000) == 0b10000000)
         return -1;
 
-    if (utf8_follow_char(c))
+    if ((c & 0b10000000) == 0)
         return 1;
 
     if ((c & 0b11100000) == 0b11000000) {
-        if (n < 2)
-            return -1;
         s++;
         if (utf8_follow_char(s[0]))
             return 2;
-        else return -1;
+        else return -2;
     }
 
     if ((c & 0b11110000) == 0b11100000) {
-        if (n < 3)
-            return -1;
         s++;
         if (utf8_follow_char(s[0]) && utf8_follow_char(s[1]))
             return 3;
-        else return -1;
+        else return -2;
     }
 
     if ((c & 0b11111000) == 0b11110000) {
-        if (n < 4)
-            return -1;
         s++;
         if (utf8_follow_char(s[0]) && utf8_follow_char(s[1]) && utf8_follow_char(s[2]))
             return 4;
-        else return -1;
+        else return -2;
     }
 
     return -1;
@@ -151,6 +145,7 @@ int mblen(const char *s, size_t n) {
 
 int mbtowc(wchar_t *wc, const char *s, size_t n) {
     size_t sz = mblen(s, n);
+    if (sz == (size_t)-2) return -2;
     if (sz > n) return -1;          // sz == -1 (sz беззнаковое и должно быть меньше n)
 
     wchar_t wch;
@@ -170,7 +165,7 @@ int mbtowc(wchar_t *wc, const char *s, size_t n) {
         wch <<= 6;
         wch |= *s & 0x3F;
         if (wc) *wc = wch;
-        return 1;
+        return 2;
     }
 
     if (sz == 3) {
@@ -180,7 +175,7 @@ int mbtowc(wchar_t *wc, const char *s, size_t n) {
             wch |= *s & 0x3F;
         }
         if (wc) *wc = wch;
-        return 1;
+        return 3;
     }
 
     if (sz == 4) {
@@ -190,7 +185,7 @@ int mbtowc(wchar_t *wc, const char *s, size_t n) {
             wch |= *s & 0x3F;
         }
         if (wc) *wc = wch;
-        return 1;
+        return 4;
     }
 
     return -1;

@@ -25,7 +25,10 @@ BEGIN_DECLS
 #define WCHAR_MAX __WCHAR_MAX__
 
 #include <etc/wint_t.h>
+
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ <= 201102L
 #include <etc/mbstate_t.h>
+#endif
 
 // Переводит широкосимвольную строку `str` в число по основанию `base`.
 // По окончании перевода устанавливает `strEnd` на последний символ.
