@@ -27,7 +27,7 @@ unsigned int atexit_func_cnt = 0;
 #include "./.no-compile/strtonum_base.c"
 
 void abort() {
-    syscall1(0, EX_CODE_ABORT);
+    syscall1(Syscall_Exit, EX_CODE_ABORT);
 }
 
 void exit(int code) {
@@ -35,7 +35,7 @@ void exit(int code) {
         atexit_funcs[i]();
     }
 
-	syscall1(0, code);
+	syscall1(Syscall_Exit, code);
 }
 
 int atexit(void (*func)(void)) {
@@ -58,20 +58,20 @@ int atexit(void (*func)(void)) {
 
 int system(const char *cmd) {
     // TODO: Обработчик команд в ОС
-    return syscall1(0x402, (int)cmd);
+    return syscall1(Syscall_System, (int)cmd);
 }
 
 char* getenv(const char *var_name) {
     // TODO: Окружение программы
-    return (char*)syscall1(0x403, (int)var_name);
+    return (char*)syscall1(Syscall_GetEnvVar, (int)var_name);
 }
 
 void* malloc(size_t sz) {
-    return (void*)syscall1(0x400, (int)sz);
+    return (void*)syscall1(Syscall_Malloc, (int)sz);
 }
 
 void free(void *ptr) {
-    syscall1(0x401, (int)ptr);
+    syscall1(Syscall_Free, (int)ptr);
 }
 
 void* calloc(size_t count, size_t sz) {
@@ -105,7 +105,7 @@ long long atoll(const char *str) {
     return strtoll(str, NULL, 10);
 }
 
-#define utf8_follow_char(c) (((c) & 0b11000000) ==  )
+#define utf8_follow_char(c) (((c) & 0b11000000) ==  0b10000000)
 
 int mblen(const char *s, size_t n) {
     if (!s) return 0;

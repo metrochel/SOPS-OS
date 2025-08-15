@@ -19,13 +19,15 @@ BOOTSRC			:=$(sort $(wildcard $(SRCDIR)/boot/*.asm))
 BOOTBINS		:=$(patsubst $(SRCDIR)/boot/%.asm, $(BUILDDIR)/bins/%.bin, $(BOOTSRC))
 
 OBJSDIR_KERNEL  :=$(OBJSDIR)/kernel
-KERNELSRC   	:=$(SRCDIR)/kernel/kernel.cpp $(wildcard $(SRCDIR)/kernel/*/*.cpp)
+KERNELSRCDIR	:=$(SRCDIR)/kernel
+KERNELSRC   	:=$(KERNELSRCDIR)/kernel.cpp $(wildcard $(KERNELSRCDIR)/*/*.cpp)
 KERNELOBJ       :=$(foreach cpp, $(KERNELSRC), $(OBJSDIR_KERNEL)/$(patsubst %.cpp,%.o,$(notdir $(cpp))))
 KERNELBIN		:=$(BINSDIR)/kernel.bin
 KERNELMAP		:=$(BUILDDIR)/kernel.map
 
-LIBC_ASM32_SRC  :=$(wildcard $(SRCDIR)/libc/i386/*.asm)
-LIBC_C_SRC		:=$(wildcard $(SRCDIR)/libc/etc/*.c) $(wildcard $(SRCDIR)/libc/*.c)
+LIBC_SRC_DIR	:=$(SRCDIR)/libc
+LIBC_ASM32_SRC  :=$(wildcard $(LIBC_SRC_DIR)/i386/*.asm)
+LIBC_C_SRC		:=$(wildcard $(LIBC_SRC_DIR)/etc/*.c) $(wildcard $(LIBC_SRC_DIR)/formatters/*.c) $(wildcard $(LIBC_SRC_DIR)/*.c)
 LIBCINCLUDE		:=$(SRCDIR)/libc/include
 LIBC_HEADERS    :=$(wildcard $(LIBCINCLUDE)/*/*.h) $(wildcard $(LIBCINCLUDE)/*.h)
 OBJSDIR_LIBC	:=$(OBJSDIR)/libc
@@ -44,6 +46,12 @@ CXXCROSSCOMPILER	:=$(SOPSTOOLS)/i686-sops-g++
 ASSEMBLER			:=nasm
 ARCHIVER			:=$(SOPSTOOLS)/i686-sops-ar
 LINKERSCRIPT    	:=linker.ld
+PYTHON				:=python
+
+BUILDUTILS			:=buildutils
+SYSCALLMACRO_SCRIPT	:=$(BUILDUTILS)/make_syscall_macros.py
+SYSCALLMACRO_INFILE	:=$(KERNELSRCDIR)/run/syscalls.hpp
+SYSCALLMACRO_OUTFILE:=$(LIBC_SRC_DIR)/etc/syscall_macros.h
 
 #========================================== Основные цели ===================================================
 #
@@ -166,6 +174,12 @@ assemble_i386_libc_source = $(ASSEMBLER) $(1) -o $(OBJSDIR_LIBC)/$(subst .asm,.o
 compile_c_libc_source = $(CCROSSCOMPILER) -c $(1) -o $(OBJSDIR_LIBC)/$(subst .c,.o,$(notdir $(1))) ;
 
 #
+#	Файл с макросами для системных вызовов
+#
+$(SYSCALLMACRO_OUTFILE): $(SYSCALLMACRO_INFILE)
+	$(PYTHON) $(SYSCALLMACRO_SCRIPT) $(SYSCALLMACRO_INFILE) $(SYSCALLMACRO_OUTFILE)
+
+#
 #	Сборка 32-битных ассемблерных файлов libc
 #
 $(LIBC_ASM32_OBJ): $(LIBC_ASM32_SRC) $(OBJSDIR_LIBC)
@@ -174,7 +188,7 @@ $(LIBC_ASM32_OBJ): $(LIBC_ASM32_SRC) $(OBJSDIR_LIBC)
 #
 #	Сборка C-файлов libc
 #
-$(LIBC_C_OBJ): $(LIBC_C_SRC) $(OBJSDIR_LIBC)
+$(LIBC_C_OBJ): $(LIBC_C_SRC) $(OBJSDIR_LIBC) $(SYSCALLMACRO_OUTFILE)
 	$(foreach src, $(LIBC_C_SRC), $(shell $(call compile_c_libc_source, $(src))))
 
 #

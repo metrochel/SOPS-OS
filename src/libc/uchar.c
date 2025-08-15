@@ -8,7 +8,7 @@
 #include "include/stdlib.h"
 #include "include/errno.h"
 
-size_t mbrtoc16(char16_t restrict *c16, const char restrict *c8, size_t count, mbstate_t restrict *state) {
+size_t mbrtoc16(char16_t* restrict c16, const char* restrict c8, size_t count, mbstate_t* restrict state) {
     if (state->utf16_is_surrogate) {
         char16_t write = 0xDC00 + state->symbol & 0x3FF;
         if (c16) *c16 = write;
@@ -41,7 +41,7 @@ size_t mbrtoc16(char16_t restrict *c16, const char restrict *c8, size_t count, m
     return sz;
 }
 
-size_t c16rtomb(char restrict *c8, char16_t c16, mbstate_t *state) {
+size_t c16rtomb(char* restrict c8, char16_t c16, mbstate_t *state) {
     if (state->utf16_is_surrogate && c16 >= 0xDC00 && c16 <= 0xDFFF) {
         wchar_t c = (state->symbol) | ((c16 & 0x3FF) << 10);
         state->utf16_is_surrogate = 0;
@@ -65,7 +65,7 @@ size_t c16rtomb(char restrict *c8, char16_t c16, mbstate_t *state) {
     return result;
 }
 
-size_t mbrtoc32(char32_t restrict *c32, const char restrict *c8, size_t count, mbstate_t restrict *state) {
+size_t mbrtoc32(char32_t* restrict c32, const char* restrict c8, size_t count, mbstate_t* restrict state) {
     wchar_t wc;
     int sz = mbtowc(&wc, c8, count);
     if (sz == -1) {
@@ -79,16 +79,18 @@ size_t mbrtoc32(char32_t restrict *c32, const char restrict *c8, size_t count, m
     return sz;
 }
 
-size_t c32rtomb(char restrict *c8, char32_t c32, mbstate_t restrict *state) {
+size_t c32rtomb(char* restrict c8, char32_t c32, mbstate_t* restrict state) {
     int result = wctomb(c8, c32);
     if (result < 0) {
-        error = EILSEQ;
+        errno = EILSEQ;
         return -1;
     }
     return result;
 }
 
-size_t mbrtoc8(char8_t restrict *c8, const char restrict *c, size_t count, mbstate_t restrict *state) {
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202300L
+
+size_t mbrtoc8(char8_t* restrict c8, const char* restrict c, size_t count, mbstate_t* restrict state) {
     wchar_t wc;
     size_t sz = mbtowc(&wc, c, count);
     if (sz == (size_t)-2)
@@ -145,7 +147,7 @@ size_t mbrtoc8(char8_t restrict *c8, const char restrict *c, size_t count, mbsta
     return sz;
 }
 
-size_t c8rtomb(char restrict *c, char8_t c8, mbstate_t restrict *state) {
+size_t c8rtomb(char* restrict c, char8_t c8, mbstate_t* restrict state) {
     if (state->utf8_followers) {
         wchar_t symbol = (state->symbol << 6) | (c8 & 0x3F);
         state->symbol = symbol;
@@ -184,3 +186,5 @@ size_t c8rtomb(char restrict *c, char8_t c8, mbstate_t restrict *state) {
     state->utf8_followers = size - 1;
     return 0;
 }
+
+#endif

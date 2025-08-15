@@ -5,3 +5,4 @@ debug
 .clangd
 compile_commands.json
 sysroot/*
+venv

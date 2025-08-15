@@ -3,6 +3,7 @@
 
 #include "../include/locale.h"
 #include "../include/stddef.h"
+#include "../include/stdbool.h"
 
 typedef int (*eval_func)(int);
 
@@ -44,51 +45,36 @@ typedef struct {
 
 // `dat_lconv` - это `lconv`, сосредоточенный на дате и времени.
 typedef struct {
-    char *date_format_str;          // Строка форматирования даты
-    // Используется форматирование функции `strftime`.
-    // Написанный в `date_format_str` формат подставляется вместо %c.
+    const char *std_datestr;                            // Стандартная строка даты (%c)
+    const char *alt_std_datestr;                        // Альтернативная стандартная строка даты (%Ec)
 
-    char *mon_short_str;            // Сокращённое имя понедельника (%a)
-    char *tue_short_str;            // Сокращённое имя вторника (%a)
-    char *wed_short_str;            // Сокращённое имя среды (%a)
-    char *thu_short_str;            // Сокращённое имя четверга (%a)
-    char *fri_short_str;            // Сокращённое имя пятницы (%a)
-    char *sat_short_str;            // Сокращённое имя субботы (%a)
-    char *sun_short_str;            // Сокращённое имя воскресенья (%a)
+    const char *loc_datestr;                            // Локальная строка даты (%x)
+    const char *alt_loc_datestr;                        // Альтернативная локальная строка даты (%Ex)
 
-    char *mon_long_str;             // Полное имя понедельника (%A)
-    char *tue_long_str;             // Полное имя вторника (%A)
-    char *wed_long_str;             // Полное имя среды (%A)
-    char *thu_long_str;             // Полное имя четверга (%A)
-    char *fri_long_str;             // Полное имя пятницы (%A)
-    char *sat_long_str;             // Полное имя субботы (%A)
-    char *sun_long_str;             // Полное имя воскресенья (%A)
+    const char *loc_timestr;                            // Локальная строка времени (%X)
+    const char *alt_loc_timestr;                        // Альтернативная локальная строка времени (%EX)
+    const char *loc_timestr12;                          // Локальная строка 12-часового времени (%r)
 
-    char *jan_short_str;            // Сокращённое имя января (%b)
-    char *feb_short_str;            // Сокращённое имя февраля (%b)
-    char *mar_short_str;            // Сокращённое имя марта (%b)
-    char *apr_short_str;            // Сокращённое имя апреля (%b)
-    char *may_short_str;            // Сокращённое имя мая (%b)
-    char *jun_short_str;            // Сокращённое имя июня (%b)
-    char *jul_short_str;            // Сокращённое имя июля (%b)
-    char *aug_short_str;            // Сокращённое имя августа (%b)
-    char *sep_short_str;            // Сокращённое имя сентября (%b)
-    char *oct_short_str;            // Сокращённое имя октября (%b)
-    char *nov_short_str;            // Сокращённое имя ноября (%b)
-    char *dec_short_str;            // Сокращённое имя декабря (%b)
+    const char *am_str;                                 // Строка времени до полудня (%p)
+    const char *pm_str;                                 // Строка времени после полудня (%p)
 
-    char *jan_long_str;             // Полное имя января (%B)
-    char *feb_long_str;             // Полное имя февраля (%B)
-    char *mar_long_str;             // Полное имя марта (%B)
-    char *apr_long_str;             // Полное имя апреля (%B)
-    char *may_long_str;             // Полное имя мая (%B)
-    char *jun_long_str;             // Полное имя июня (%B)
-    char *jul_long_str;             // Полное имя июля (%B)
-    char *aug_long_str;             // Полное имя августа (%B)
-    char *sep_long_str;             // Полное имя сентября (%B)
-    char *oct_long_str;             // Полное имя октября (%B)
-    char *nov_long_str;             // Полное имя ноября (%B)
-    char *dec_long_str;             // Полное имя декабря (%B)
+    const char *alt_base_year;                          // Год начала
+
+    bool has_alt_months;                                // Флаг наличия альтернативных формулировок месяцев
+    bool has_alt_digits;                                // Флаг наличия альтернативной системы исчисления (АСО)
+    size_t (*conv_to_alt)(char*, int);                  // Функция преобразования числа в АСО
+    /*  Функция должна возвращать размер преобразованной строки или -1,
+     *  если преобразование провалено. Если нет АСО для локали, то этот
+     *  указатель можно установить на NULL.
+     */
+
+    const char *abbr_weekdays[7];                       // Сокращённые названия дней недели (с Вс)
+    const char *full_weekdays[7];                       // Полные названия дней недели      (с Вс)
+
+    const char *abbr_months[12];                        // Сокращённые названия месяцев
+    const char *alt_abbr_months[12];                    // Альтернативные сокращённые названия месяцев
+    const char *full_months[12];                        // Полные названия месяцев
+    const char *alt_full_months[12];                    // Альтернативные полные названия месяцев
 
 } __attribute__((packed)) dat_lconv;
 

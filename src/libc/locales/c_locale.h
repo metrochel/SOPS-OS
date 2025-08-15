@@ -41,12 +41,33 @@ const mon_lconv C_MONEY = {
 };
 
 const dat_lconv C_DATES = {
-        "%a %b %e %H:%M:%S  %Y",
-        "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun",
-        "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-        "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November",
-            "December"
+        "%u %m %b %d %H:%M:%S %Y",
+        NULL,
+
+        NULL,
+        NULL,
+
+        NULL,
+        NULL,
+        NULL,
+
+        NULL,
+        NULL,
+
+        NULL,
+
+        0,
+        0,
+        NULL,
+
+        {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"},
+        {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"},
+
+        {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"},
+        {},
+        {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
+         "November", "December"},
+        {}
 };
 
 const ctp_lconv C_CTYPE = {
