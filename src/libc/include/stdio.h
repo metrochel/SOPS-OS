@@ -146,7 +146,7 @@ int fscanf(FILE *stream, const char *format, ...);
 int sscanf(const char *buf, const char *format, ...);
 
 // Следующие функции определены только после C++11.
-#if defined(__cplusplus) && __cplusplus >= 201100L || defined(__STDC_VERSION__)
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199800L
 
 // Считывает строку из `stdin` и форматирует её в соответствии с `format`.
 // Вместо перечисления аргументов использует `args`.
@@ -171,11 +171,24 @@ int fprintf(FILE *stream, const char *format, ...);
 // Форматирует строку в соответствии с `format` и выводит её в буфер `str`.
 int sprintf(char *str, const char *format, ...);
 
-#if defined(__cplusplus) && __cplusplus >= 201100L || defined(__STDC_VERSION__)
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199900L
 
 // Форматирует строку в соответствии с `format` и выводит её в буфер `str`.
 // Длина форматированной строки не превышает `maxlen`.
 int snprintf(char *s, size_t maxlen, const char *format, ...);
+
+// Форматирует строку в соответствии с `format` и аргументами `args` и выводит её в `stdout`.
+int vprintf(const char *format, va_list args);
+
+// Форматирует строку в соответствии с `format` и аргументами `args` и выводит её в поток `stream`.
+int vfprintf(FILE *stream, const char *format, va_list args);
+
+// Форматирует строку в соответствии с `format` и аргументами `args` и выводит её в буфер `str`.
+int vsprintf(char *str, const char *format, va_list args);
+
+// Форматирует строку в соответствии с `format` и аргументами `args` и выводит её в буфер `str`.
+// Длина форматированной строки не превышает `maxlen`.
+int vsnprintf(char *str, size_t maxlen, const char *format, va_list args);
 
 #endif
 
