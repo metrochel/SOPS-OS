@@ -20,7 +20,7 @@ typedef struct {
     int min_width;
     int precision;
     char spec;
-} fmt_state_t;
+} printf_state_t;
 
 #define put_args char c, void **buf, size_t *chars_count, size_t maxlen
 
@@ -60,7 +60,7 @@ int f_put(put_args) {
     FILE *stream = *(FILE**)buf;
     if (f_putbuf_index == sizeof f_put_buf) {
         fwrite(f_put_buf, sizeof f_put_buf, 1, stream);
-        f_put_buf = 0;
+        f_putbuf_index = 0;
     }
     f_put_buf[f_putbuf_index++] = c;
     (*chars_count)++;
@@ -393,12 +393,12 @@ int f_put(put_args) {
 
 #define handle_decl(name)   \
     inline int              \
-    handle_##name##_fmtspec(void **str, size_t maxlen, fmt_state_t *state, va_list *args,   \
+    handle_##name##_printf_spec(void **str, size_t maxlen, printf_state_t *state, va_list *args,   \
     size_t *chars_count, put_func_t put)
 
 #define handle_decl_caps(name)  \
     inline int                  \
-    handle_##name##_fmtspec(void **str, size_t maxlen, fmt_state_t *state, va_list *args,   \
+    handle_##name##_printf_spec(void **str, size_t maxlen, printf_state_t *state, va_list *args,   \
     size_t *chars_count, put_func_t put, int caps)
 
 handle_decl(char) {
@@ -907,7 +907,7 @@ handle_decl(ptr) {
     return 0;
 }
 
-/* === Функции для fmt_state_t === */
+/* === Функции для printf_state_t === */
 
 short get_size_spec(const char *format, const char **new_format) {
     if (!new_format) return -1;
@@ -938,33 +938,33 @@ short get_size_spec(const char *format, const char **new_format) {
 }
 
 #define handle_case(fmt, func) \
-    case fmt: return func(str, maxlen, state, args, chars_count, put);
+    case fmt: return handle_##func##_printf_spec(str, maxlen, state, args, chars_count, put);
 #define handle_case_caps(fmt1, fmt2, func) \
-    case fmt1: return func(str, maxlen, state, args, chars_count, put, 0);   \
-    case fmt2: return func(str, maxlen, state, args, chars_count, put, 1);
+    case fmt1: return handle_##func##_printf_spec(str, maxlen, state, args, chars_count, put, 0);   \
+    case fmt2: return handle_##func##_printf_spec(str, maxlen, state, args, chars_count, put, 1);
 
-int handle_format(void **str, size_t maxlen, fmt_state_t *state, size_t *chars_count, va_list *args, put_func_t put) {
+int handle_format(void **str, size_t maxlen, printf_state_t *state, size_t *chars_count, va_list *args, put_func_t put) {
     switch (state->spec) {
-        handle_case('c', handle_char_fmtspec)
-        handle_case('s', handle_str_fmtspec)
-        handle_case('d', handle_sint_fmtspec)
-        handle_case('i', handle_sint_fmtspec)
-        handle_case('u', handle_uint_fmtspec)
-        handle_case('o', handle_oct_int_fmtspec)
-        handle_case_caps('x', 'X', handle_hex_int_fmtspec)
-        handle_case_caps('f', 'F', handle_float_fmtspec)
-        handle_case_caps('e', 'E', handle_exp_flt_fmtspec)
-        handle_case_caps('a', 'A', handle_exp16_flt_fmtspec)
-        handle_case_caps('g', 'G', handle_flt_fmtspec)
-        handle_case('n', handle_cw_fmtspec)
-        handle_case('p', handle_ptr_fmtspec)
+        handle_case('c', char)
+        handle_case('s', str)
+        handle_case('d', sint)
+        handle_case('i', sint)
+        handle_case('u', uint)
+        handle_case('o', oct_int)
+        handle_case_caps('x', 'X', hex_int)
+        handle_case_caps('f', 'F', float)
+        handle_case_caps('e', 'E', exp_flt)
+        handle_case_caps('a', 'A', exp16_flt)
+        handle_case_caps('g', 'G', flt)
+        handle_case('n', cw)
+        handle_case('p', ptr)
         default: return -1;
     }
 }
 
 // __nprintf - это основной шаблон для всех *printf-функций.
 int __nprintf(void *out, size_t maxlen, const char *format, va_list args, put_func_t put) {
-    fmt_state_t state;
+    printf_state_t state;
     size_t chars_count = 0;
 
     while (*format && chars_count < maxlen - 1) {
@@ -1086,7 +1086,7 @@ int vfprintf(FILE *stream, const char *format, va_list args) {
 
 int fprintf(FILE *stream, const char *format, ...) {
     va_list args;
-    va_arg(args, format);
+    va_start(args, format);
     return vfprintf(stream, format, args);
 }
 
@@ -1096,6 +1096,6 @@ int vprintf(const char *format, va_list args) {
 
 int printf(const char *format, ...) {
     va_list args;
-    va_arg(args, format);
+    va_start(args, format);
     return vfprintf(stdout, format, args);
 }
