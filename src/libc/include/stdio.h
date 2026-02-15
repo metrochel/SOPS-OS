@@ -8,29 +8,10 @@
 // Тут тоже будет микро-спагетти, по большому счёту из-за одной структуры - FILE.
 #ifndef _STDIO_INCL
 
-// Если вспомогательный макрос __need_FILE не определён, то заголовок включает программа,
-// а значит, ей нужно всё из него.
-#if !defined(__need_FILE) && !defined(__need_fpos_t)
-#define _STDIO_INCL 1
-#define __need_FILE
-#define __need_fpos_t
-#endif
-
 #include <etc/decl.h>
-
-#if defined(__need_FILE)
 #include <etc/FILE.h>
-#undef __need_FILE
-#endif
-
-#if defined(__need_fpos_t)
 #include <etc/fpos_t.h>
-#undef __need_fpos_t
-#endif
-
 #include <stdarg.h>
-
-#ifdef _STDIO_INCL
 
 // Из stddef.h нам потребуется size_t.
 #define __need_size_t
@@ -59,6 +40,9 @@
 
 // Пусть наш временный файл будет иметь формат "$TMPDIR/_tmp_XXXXX", где X - это шестнадцатеричная цифра.
 // Тогла L_tmpnam будет равен 19 (не забываем 0x00 на конце), а TMP_MAX будет равен 16^5 = 1 048 576.
+
+// Длина шестнадцатеричного числа на конце временного файла
+#define __TMPNAM_NUMBERS_LEN        5
 
 // Максимально возможное число имён для временного файла
 #define TMP_MAX 1048576
@@ -90,7 +74,7 @@ int fflush(FILE *stream);
 void setbuf(FILE *stream, char* buf);
 
 // Устанавливает буфер `buf` размером `size` в режиме `mode` для потока `stream`.
-void setvbuf(FILE *stream, char *buf, int mode, size_t size);
+int setvbuf(FILE *stream, char *buf, int mode, size_t size);
 
 // Считывает `nmemb` объектов размером `size` Б из потока `stream` и записывает их в указатель `ptr`.
 size_t fread(void *ptr, size_t size, size_t nmemb, FILE* stream);
@@ -136,6 +120,9 @@ int ungetc(int c, FILE *stream);
 // Изменяет положение указателя в файле.
 int fseek(FILE* stream, long offset, int whence);
 
+// Устанавливает файловый указатель в начало.
+int rewind(FILE *stream);
+
 // Считывает строку из `stdin` и форматирует её в соответствии с `format`.
 int scanf(const char *format, ...);
 
@@ -145,7 +132,7 @@ int fscanf(FILE *stream, const char *format, ...);
 // Считывает строку из буфера `buf` и форматирует её в соответствии с `format`.
 int sscanf(const char *buf, const char *format, ...);
 
-// Следующие функции определены только после C++11.
+// Следующие функции определены только после C99.
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199800L
 
 // Считывает строку из `stdin` и форматирует её в соответствии с `format`.
@@ -171,6 +158,7 @@ int fprintf(FILE *stream, const char *format, ...);
 // Форматирует строку в соответствии с `format` и выводит её в буфер `str`.
 int sprintf(char *str, const char *format, ...);
 
+// Следующие функции определены только после C99.
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199900L
 
 // Форматирует строку в соответствии с `format` и выводит её в буфер `str`.
@@ -198,8 +186,14 @@ long int ftell(FILE *stream);
 // Получает положение потока `stream` и записывает его в `fpos`.
 int fgetpos(FILE *stream, fpos_t *fpos);
 
+// Изменяет положение потока `stream` на `fpos`.
+int fsetpos(FILE *stream, const fpos_t *fpos);
+
 // Проверяет, возникла ли ошибка в потоке `stream`.
 int ferror(FILE *stream);
+
+// Очищает флаги ERROR и EOF в потоке `stream`.
+void clearerr(FILE *stream);
 
 // Выводит строку `str` в `stderr`.
 void perror(const char *str);
@@ -220,8 +214,5 @@ FILE* tmpfile();
 char *tmpnam(char *str);
 
 END_DECLS
-
-
-#endif
 
 #endif

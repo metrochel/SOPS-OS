@@ -1,5 +1,11 @@
 from sys import argv
 
+syscall_cats = dict()
+
+
+def to_hex(s: str):
+    return "0x" + hex(eval(s))[2:].upper()
+
 
 def get_fname() -> (str, str):
     return argv[1], argv[2]
@@ -16,6 +22,11 @@ def parse_data(data: list[str]) -> list[tuple]:
     syscalls = []
     syscalls_started = False
     for line in data:
+        if line.startswith("#define SYSCALL_"):
+            line_split = line.split()
+            syscall_cat = line_split[1]
+            syscall_cat_no = int(line_split[2][2:], 16)
+            syscall_cats[syscall_cat] = syscall_cat_no
         if line.startswith('enum'):
             syscalls_started = True
             continue
@@ -27,6 +38,9 @@ def parse_data(data: list[str]) -> list[tuple]:
         value = value[:-1].strip()
         if value.endswith(','): value = value[:-1]
         name = name.strip()
+        for cat, cat_val in syscall_cats.items():
+            value = value.replace(cat, str(cat_val))
+        value = to_hex(value)
         syscalls.append((name, value))
     return syscalls
 

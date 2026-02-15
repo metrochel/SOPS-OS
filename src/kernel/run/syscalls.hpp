@@ -15,6 +15,11 @@
 #define RUNTIME_ERROR_FILE_MAX_REACHED      0xFFFFFFFA
 #define RUNTIME_ERROR_ALLOC_FAILURE         0xFFFFFFF9
 
+#define SYSCALL_GRAPHICS        0x1000
+#define SYSCALL_HID_INPUT       0x2000
+#define SYSCALL_FILES           0x3000
+#define SYSCALL_EXEC_CTRL       0x4000
+
 // ### Syscall
 // Центральная часть системы. Отвечает за системные вызовы, доступные программе.
 // Программа осуществляет системный вызов путём команды `INT 0xC0` и помещает в 
@@ -32,29 +37,29 @@ enum Syscall {
     /// @param ECX Ордината символа (текстовые координаты)
     /// @param EDX Цвет символа
     /// @param EBX Цвет заднего фона
-    PutCharacter = 0x100,
+    PutCharacter = SYSCALL_GRAPHICS | 0,
     /// @brief Очистка экрана
-    ClearScreen = 0x101,
+    ClearScreen = SYSCALL_GRAPHICS | 1,
     /// @brief Вывод строки на экран
     /// @param ESI Адрес строки
-    Print = 0x102,
+    Print = SYSCALL_GRAPHICS | 2,
     /// @brief Позиционный вывод строки на экран
     /// @param ESI Адрес строки
     /// @param EDI Абсцисса строки (текстовые координаты)
     /// @param ECX Ордината строки (текстовые координаты)
-    PositionedPrint = 0x103,
+    PositionedPrint = SYSCALL_GRAPHICS | 3,
     /// @brief Цветной вывод строки на экран
     /// @param ESI Адрес строки
     /// @param EDI Цвет текста
     /// @param ECX Цвет заднего фона
-    ColouredPrint = 0x104,
+    ColouredPrint = SYSCALL_GRAPHICS | 4,
     /// @brief Позиционный цветной вывод строки на экран
     /// @param ESI Адрес строки
     /// @param EDI Абсцисса строки (текстовые координаты)
     /// @param ECX Ордината строки (текстовые координаты)
     /// @param EDX Цвет текста
     /// @param EBX Цвет заднего фона
-    PositionedColouredPrint = 0x105,
+    PositionedColouredPrint = SYSCALL_GRAPHICS | 5,
     /// @brief Установка границ экрана
     /// @param ESI Абсцисса левого верхнего угла (текстовые координаты)
     /// @param EDI Ордината левого верхнего угла (текстовые координаты)
@@ -63,89 +68,109 @@ enum Syscall {
     /// @note Эта функция влияет только на вызовы `Print` и `ColouredPrint`.
     /// @note Вывод вне границ экрана при помощи `PositionedPrint` или `PutCharacter` по-прежнему допускается,
     /// @note но для первого автоматический перенос сломается. Лучше использовать `PutCharacter`.
-    SetScreenBounds = 0x106,
+    SetScreenBounds = SYSCALL_GRAPHICS | 6,
     /// @brief Получение размеров экрана
     /// @returns - Нижнее слово - ширина экрана в символах
     /// @returns - Верхнее слово - высота экрана в символах
-    GetScreenBounds = 0x107,
+    GetScreenBounds = SYSCALL_GRAPHICS | 7,
     /// @brief Включение курсора
-    EnableCursor = 0x108,
+    EnableCursor = SYSCALL_GRAPHICS | 8,
     /// @brief Выключение курсора
-    DisableCursor = 0x109,
+    DisableCursor = SYSCALL_GRAPHICS | 9,
 
     // Ввод с клавиатуры
 
     /// @brief Чтение одной клавиши
     /// @return - Верхний байт - статус нажатия (клавиши-модификаторы: Ctrl, Alt и т.д.)
     /// @return - Нижний байт - код нажатой клавиши
-    ReadKey = 0x200,
+    ReadKey = SYSCALL_HID_INPUT | 0,
     /// @brief Чтение строки с клавиатуры
     /// @param ESI Адрес строки-буфера для данных
-    ReadStr = 0x201,
+    ReadStr = SYSCALL_HID_INPUT | 1,
 
     // Работа с файлами
 
     /// @brief Открытие файла
     /// @param ESI Указатель на строку-путь к файлу
     /// @param EDI Режим открытия файла
-    /// @return Указатель на структуру `FileHandle` - обработчик файла
-    OpenFile = 0x300,
+    /// @return Дескриптор открытого файла
+    OpenFile = SYSCALL_FILES | 0,
     /// @brief Закрытие файла
-    /// @param ESI Указатель на структуру `FileHandle`
-    CloseFile = 0x301,
+    /// @param ESI Дескриптор закрываемого файла
+    CloseFile = SYSCALL_FILES | 1,
     /// @brief Чтение куска файла в память
     /// @param ESI Указатель на буфер для данных
-    /// @param EDI Размер читаемого блока
-    /// @param ECX Указатель на `FileHandle`
-    /// @return 0, если чтение удалось
-    Read = 0x302,
-    /// @brief Чтение всего файла в память
+    /// @param EDI Размер читаемого блока, Б
+    /// @param ECX Начало считываемого блока
+    /// @param EDX Дескриптор файла
+    /// @return Размер считанного блока, Б
+    Read = SYSCALL_FILES | 2,
+    /// @brief Чтение одного символа из файла в память
+    /// @param ESI Сдвиг символа по файлу, Б
+    /// @param EDI Дескриптор файла
+    /// @return Считанный символ или -1 в случае провала
+    ReadChar = SYSCALL_FILES | 3,
+    /// @brief Запись данных в файл
     /// @param ESI Указатель на буфер для данных
-    /// @param EDI Указатель на `FileHandle`
-    /// @return 0, если чтение удалось
-    ReadFull = 0x303,
-    /// @brief Запись в файл
-    /// @param ESI Указатель на буфер для данных
-    /// @param EDI Размер записываемого блока
-    /// @param ECX Указатель на `FileHandle`
-    /// @return 0, если запись удалась
-    Write = 0x304,
+    /// @param EDI Размер записываемого блока, Б
+    /// @param ECX Начало записываемого блока
+    /// @param EDX Дескриптор файла
+    /// @return Размер записанного блока, Б
+    Write = SYSCALL_FILES | 4,
+    /// @brief Запись одного символа в файл
+    /// @param ESI Записываемый символ
+    /// @param EDI Сдвиг записываемого символа
+    /// @param ECX Дескриптор файла
+    WriteChar = SYSCALL_FILES | 5,
     /// @brief Получение размера файла
-    /// @param ESI Указатель на `FileHandle`
+    /// @param ESI Дескриптор файла
     /// @return Размер файла, Б
-    GetFileSize = 0x305,
+    GetFileSize = SYSCALL_FILES | 6,
+    /// @brief Выделение числа под временный файл
+    /// @return Число от 0x00001 до 0xFFFFF или -1 в случае провала
+    /// @note Для формата временного файла см. src/libc/stdio.h.
+    AllocateTmpFile = SYSCALL_FILES | 7,
+    /// @brief Удаление файла
+    /// @param ESI Название удаляемого файла
+    /// @return 0 в случае успеха
+    RemoveFile = SYSCALL_FILES | 8,
+    /// @brief Перемещение файла
+    /// @param ESI Название старого файла
+    /// @param EDI Название нового файла
+    /// @return 0 в случае успеха
+    MoveFile = SYSCALL_FILES | 9,
 
     // Управление ресурсами и исполнением
 
     /// @brief Выделение памяти для процесса
     /// @param ESI Размер нужного блока, Б
     /// @return Указатель на блок
-    Malloc = 0x400,
+    Malloc = SYSCALL_EXEC_CTRL | 0,
     /// @brief Освобождение памяти, используемой процессом
     /// @param ESI Адрес освобождаемого блока
-    Free = 0x401,
+    Free = SYSCALL_EXEC_CTRL | 1,
     /// @brief Вызов команды в обработчике
     /// @param ESI Указатель на строку-команду
     /// @return Код выхода команды
-    System = 0x402,
+    System = SYSCALL_EXEC_CTRL | 2,
     /// @brief Получение переменной окружения
     /// @param ESI Название переменной
     /// @return Значение переменной
-    GetEnvVar = 0x403,
+    GetEnvVar = SYSCALL_EXEC_CTRL | 3,
     /// @brief Установка значения переменной окружения
     /// @param ESI Название переменной
     /// @param EDI Значение переменной (строка)
     /// @return 0 в случае успеха
-    SetEnvVar = 0x404,
+    SetEnvVar = SYSCALL_EXEC_CTRL | 4,
     /// @brief Время в формате UNIX Timestamp
     /// @return Время в формате UNIX Timestamp
-    GetUnixTime = 0x405,
+    GetUnixTime = SYSCALL_EXEC_CTRL | 5,
     /// @brief Время с точностью до наносекунды (от 0 до 1 с)
     /// @return Время с точностью до наносекунды (от 0 до 1 с)
-    GetNanosecTime = 0x406,
+    GetNanosecTime = SYSCALL_EXEC_CTRL | 6,
     /// @brief Время исполнения процесса (в тактах процессора)
     /// @return Время исполнения процесса (в тактах процессора)
-    GetProcTime = 0x407
+    GetProcTime = SYSCALL_EXEC_CTRL | 7
 };
 
 /// @brief Обрабатывает системный вызов.

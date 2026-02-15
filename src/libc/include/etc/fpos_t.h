@@ -7,6 +7,12 @@
 #ifndef _FPOS_T
 #define _FPOS_T
 
-typedef unsigned long fpos_t;
+#define START_FPOS ((fpos_t){0})
+
+typedef struct {
+    unsigned long pos;
+    unsigned long end;
+    unsigned long file_pos;
+} fpos_t;
 
 #endif

@@ -189,32 +189,6 @@ dword processSyscall(Syscall call, word pid, dword arg1, dword arg2, dword arg3,
         return 0;
     }
 
-    if (call == ReadFull) {
-        byte *out = (byte*)arg1;
-        FileHandle *handle = (FileHandle*)arg2;
-        dword size = handle->file->size;
-        word ownerPid = getBlockOwnerPID(arg2, sizeof(FileHandle));
-        if (ownerPid != PID_KERNEL) {
-            kdebug("ОШИБКА: Обработчик файла вне пространства ядра\n");
-            kdebug(ownerPid == maxword ? "Блок принадлежит нескольким процессам.\n" : "Блок принадлежит процессу %d.\n", ownerPid);
-            return RUNTIME_ERROR_INVALID_ACCESS;
-        }
-
-        ownerPid = getBlockOwnerPID(arg1, size);
-        if (ownerPid != pid) {
-            kdebug("ОШИБКА: Блок не принадлежит процессу\n");
-            kdebug(ownerPid == maxword ? "Блок принадлежит нескольким процессам.\n" : "Блок принадлежит процессу %d.\n", ownerPid);
-            return RUNTIME_ERROR_INVALID_ACCESS;
-        }
-        
-        bool res = readFile(handle, handle->file->size - handle->filePos, out);
-        if (!res) {
-            kdebug("ОШИБКА: Чтение из файла провалено\n");
-            return RUNTIME_ERROR_FILE_READ_FAILURE;
-        }
-        return 0;
-    }
-
     if (call == Write) {
         byte *in = (byte*)arg1;
         dword size = arg2;
