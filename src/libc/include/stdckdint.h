@@ -6,13 +6,25 @@
 
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202300L
 
+#include <stdbool.h>
+
+// Оказывается, GCC тут всё делает за нас.
+// Совет тем, кто хочет собирать библиотеку чем-либо, кроме GCC: не надо.
+// -- А, нет! Оказывается, Clang тоже такие функции объявляет. Ну, тогда пока живём.
+
 // Складывает `x` и `y` и записывает результат в `result`.
-#define ckd_add(result, x, y) __ckd_add(result, &x, &y)
+// Возвращает `false`, если `result` правильно представляет значение `x + y`,
+// то есть не произошло переполнения.
+#define ckd_add(result, x, y) __builtin_add_overflow((x), (y), (result))
 
 // Вычитает `y` из `x` и записывает результат в `result`.
-#define ckd_sub(result, x, y) __ckd_add(result, &x, &y)
+// Возвращает `false`, если `result` правильно представляет значение `x - y`,
+// то есть не произошло переполнения.
+#define ckd_sub(result, x, y) __builtin_sub_overflow((x), (y), (result))
 
 // Умножает `x` на `y` и записывает результат в `result`.
-#define ckd_mul(result, x, y) __ckd_mul(result, &x, &y)
+// Возвращает `false`, если `result` правильно представляет значение `x * y`,
+// то есть не произошло переполнения.
+#define ckd_mul(result, x, y) __builtin_mul_overflow((x), (y), (result))
 
 #endif
