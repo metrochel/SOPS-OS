@@ -2,7 +2,7 @@
 #include "include/stddef.h"
 #include "include/stdlib.h"
 #include "include/stdio.h"
-#include "include/erc/errorcodes.h"
+#include "include/etc/errorcodes.h"
 
 typedef void (*signal_handle_t)(int);
 
@@ -64,24 +64,23 @@ const signal_desc_t default_signal_handlers[] = {
         {SIGTERM, default_sigterm_handle}
 };
 
-inline const size_t default_sig_handles_count = sizeof default_signal_handlers / sizeof (signal_handle_t)NULL;
+#define default_sig_handles_count (sizeof default_signal_handlers / sizeof ((signal_desc_t){}))
 
 inline signal_handle_t get_signal_handle(int signal, signal_handle_t hdl_value) {
-    size_t i;
-    switch (hdl_value) {
-        case SIG_DFL:
-            for (i = 0; i < default_sig_handles_count; i++) {
-                if (default_signal_handlers[i].sig_id == signal)
-                    return default_signal_handlers[i].sig_hdl;
-            }
-            return SIG_ERR;
-        case SIG_ERR:
-            return SIG_ERR;
-        case SIG_IGN:
-            return SIG_IGN;
-        default:
-            return hdl_value;
+    if (hdl_value == SIG_ERR)
+        return SIG_ERR;
+    if (hdl_value == SIG_IGN)
+        return SIG_IGN;
+
+    if (hdl_value == SIG_DFL) {
+        for (size_t i = 0; i < default_sig_handles_count; i++) {
+            if (default_signal_handlers[i].sig_id == signal)
+                return default_signal_handlers[i].sig_hdl;
+        }
+        return SIG_ERR;
     }
+
+    return hdl_value;
 }
 
 void (*signal(int signal, void (*handler)(int)))(int) {
