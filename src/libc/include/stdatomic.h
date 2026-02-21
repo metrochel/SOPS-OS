@@ -35,7 +35,12 @@
 #define MEM_ORD_SEQ_CST     6
 
 typedef enum {
-    
+    mem_ord_relaxed,
+    mem_ord_consume,
+    mem_ord_acquire,
+    mem_ord_release,
+    mem_ord_acq_rel,
+    mem_ord_seq_cst
 } memory_order;
 
 // К поносу макросов приготовиться!
@@ -45,137 +50,137 @@ BEGIN_DECLS
 // Сохраняет значение `val` в атомарном объекте `obj` с использованием порядка операции `order`.
 #define atomic_store_explicit(obj, val, order) \
     __extension__ ({ \
-        __atomic_store(obj, &val, order); \
+        __atomic_store(&obj, &val, order); \
     })
 
     
 // Сохраняет значение `val` в атомарном объекте `obj`.
 #define atomic_store(obj, val) \
-    atomic_store_explicit(obj, val, MEM_ORD_SEQ_CST)
+    atomic_store_explicit(obj, val, mem_ord_seq_cst)
 
     
 // Загружает значение из атомарного объекта `obj` с использованием заданного порядка операции `order`.
 #define atomic_load_explicit(obj, order) \
     __extension__ ({ \
-        typeof(*(obj)) __val; \
-        __atomic_load(obj, &__val, order); \
+        typeof(obj) __val; \
+        __atomic_load(&obj, &__val, order); \
         __val; \
     })
 
     
 // Загружает значение из атомарного объекта `obj`.
 #define atomic_load(obj) \
-    atomic_load_explicit(obj, MEM_ORD_SEQ_CST)
+    atomic_load_explicit(obj, mem_ord_seq_cst)
 
     
 // Обменивает значение атомарного объекта `obj` с заданным значением `val` с использованием заданного порядка операции `order`.
 #define atomic_exchange_explicit(obj, val, order) \
     __extension__ ({ \
-        typeof(*(obj)) __tmp; \
-        __atomic_exchange(obj, &val, &__tmp, order); \
+        typeof(obj) __tmp; \
+        __atomic_exchange(&obj, &val, &__tmp, order); \
         __tmp; \
     })
 
     
 // Обменивает значение атомарного объекта `obj` с заданным значением `val`.
 #define atomic_exchange(obj, val) \
-    atomic_exchange_explicit(obj, val, MEM_ORD_SEQ_CST)
+    atomic_exchange_explicit(obj, val, mem_ord_seq_cst)
 
     
 // Сравнивает значение атомарного объекта `obj` с заданным значением `expected` и обновляет его на `desired` с использованием заданного порядка операции `order`.
 #define atomic_compare_exchange_explicit(obj, expected, desired, order) \
     __extension__ ({ \
-        __atomic_compare_exchange(obj, &expected, &desired, false, order, order); \
+        __atomic_compare_exchange(&obj, &expected, &desired, 0, order, order); \
     })
 
     
 // Сравнивает значение атомарного объекта `obj` с заданным значением `expected` и обновляет его на `desired`.
 #define atomic_compare_exchange(obj, expected, desired) \
-    atomic_compare_exchange_explicit(obj, expected, desired, MEM_ORD_SEQ_CST)
+    atomic_compare_exchange_explicit(obj, expected, desired, mem_ord_seq_cst)
 
     
 // Сравнивает значение атомарного объекта `obj` с заданным значением `expected` и обновляет его на `desired` с использованием заданного порядка операции `order`.
-#define atomic_compare_strong_explicit(obj, expected, desired, order) \
+#define atomic_compare_exchange_strong_explicit(obj, expected, desired, order) \
     __extension__ ({ \
-        __atomic_compare_exchange(obj, &expected, &desired, false, order, order); \
+        __atomic_compare_exchange(&obj, &expected, &desired, 0, order, order); \
     })
 
     
 // Сравнивает значение атомарного объекта `obj` с заданным значением `expected` и обновляет его на `desired`.
-#define atomic_compare_strong(obj, expected, desired) \
-    atomic_compare_strong_explicit(obj, expected, desired, MEM_ORD_SEQ_CST)
+#define atomic_compare_exchange_strong(obj, expected, desired) \
+    atomic_compare_exchange_strong_explicit(obj, expected, desired, mem_ord_seq_cst)
 
     
 // Сравнивает значение атомарного объекта `obj` с заданным значением `expected` и обновляет его на `desired` с использованием заданного порядка операции `order`.
 #define atomic_compare_exchange_weak_explicit(obj, expected, desired, success_order, failure_order) \
     __extension__ ({ \
-        __atomic_compare_exchange(obj, &expected, &desired, true, success_order, failure_order); \
+        __atomic_compare_exchange(&obj, &expected, &desired, 1, success_order, failure_order); \
     })
 
     
 // Сравнивает значение атомарного объекта `obj` с заданным значением `expected` и обновляет его на `desired`.
 #define atomic_compare_exchange_weak(obj, expected, desired) \
-    atomic_compare_exchange_weak_explicit(obj, expected, desired, MEM_ORD_SEQ_CST, MEM_ORD_SEQ_CST)
+    atomic_compare_exchange_weak_explicit(obj, expected, desired, mem_ord_seq_cst, mem_ord_seq_cst)
 
     
 // Складывает значение атомарного объекта `obj` с заданным значением `value` с использованием заданного порядка операции `order`.
 #define atomic_fetch_add_explicit(obj, value, order) \
     __extension__ ({ \
-        __atomic_fetch_add(obj, value, order); \
+        __atomic_fetch_add(&obj, &value, order); \
     })
 
     
 // Складывает значение атомарного объекта `obj` с заданным значением `value`.
 #define atomic_fetch_add(obj, value) \
-    atomic_fetch_add_explicit(obj, value, MEM_ORD_SEQ_CST)
+    atomic_fetch_add_explicit(obj, value, mem_ord_seq_cst)
 
     
 // Вычитает значение атомарного объекта `obj` с заданным значением `value` с использованием заданного порядка операции `order`.
 #define atomic_fetch_sub_explicit(obj, value, order) \
     __extension__ ({ \
-        __atomic_fetch_sub(obj, value, order); \
+        __atomic_fetch_sub(&obj, &value, order); \
     })
 
     
 // Вычитает значение атомарного объекта `obj` с заданным значением `value`.
 #define atomic_fetch_sub(obj, value) \
-    atomic_fetch_sub_explicit(obj, value, MEM_ORD_SEQ_CST)
+    atomic_fetch_sub_explicit(obj, value, mem_ord_seq_cst)
 
     
 // Выполняет побитовое ИЛИ значения атомарного объекта `obj` с заданным значением `value` с использованием заданного порядка операции `order`.
 #define atomic_fetch_or_explicit(obj, value, order) \
     __extension__ ({ \
-        __atomic_fetch_or(obj, value, order); \
+        __atomic_fetch_or(&obj, &value, order); \
     })
 
     
 // Выполняет побитовое ИЛИ значения атомарного объекта `obj` с заданным значением `value`.
 #define atomic_fetch_or(obj, value) \
-    atomic_fetch_or_explicit(obj, value, MEM_ORD_SEQ_CST)
+    atomic_fetch_or_explicit(obj, value, mem_ord_seq_cst)
 
     
 // Выполняет побитовое И с значениями атомарного объекта `obj` и заданным значением `value` с использованием заданного порядка операции `order`.
 #define atomic_fetch_and_explicit(obj, value, order) \
     __extension__ ({ \
-        __atomic_fetch_and(obj, value, order); \
+        __atomic_fetch_and(&obj, &value, order); \
     })
 
     
 // Выполняет побитовое И с значениями атомарного объекта `obj` и заданным значением `value`.
 #define atomic_fetch_and(obj, value) \
-    atomic_fetch_and_explicit(obj, value, MEM_ORD_SEQ_CST)
+    atomic_fetch_and_explicit(obj, value, mem_ord_seq_cst)
     
 
 // Выполняет побитовое исключающее ИЛИ значения атомарного объекта `obj` с заданным значением `value` с использованием заданного порядка операции `order`.
 #define atomic_fetch_xor_explicit(obj, value, order) \
     __extension__ ({ \
-        __atomic_fetch_xor(obj, value, order); \
+        __atomic_fetch_xor(&obj, &value, order); \
     })
 
     
 // Выполняет побитовое исключающее ИЛИ значения атомарного объекта `obj` с заданным значением `value`.
 #define atomic_fetch_xor(obj, value) \
-    atomic_fetch_xor_explicit(obj, value, MEM_ORD_SEQ_CST)
+    atomic_fetch_xor_explicit(obj, value, mem_ord_seq_cst)
 
     
 // `atomic_flag` - это тип, схожий с `atomic_bool`, но никогда не блокирующий.
@@ -187,43 +192,43 @@ typedef _Atomic struct {
 // Очищает атомарный флаг `obj` с использованием заданного порядка операции `order`.
 #define atomic_flag_clear_explicit(obj, order) \
     __extension__ ({ \
-        __atomic_clear(obj, order); \
+        __atomic_clear(&obj, order); \
     })
 
 
 // Очищает атомарный флаг `obj`.
 #define atomic_flag_clear(obj) \
-    atomic_flag_clear_explicit(obj, MEM_ORD_SEQ_CST)
+    atomic_flag_clear_explicit(obj, mem_ord_seq_cst)
     
     
 // Устанавливает атомарный флаг `obj` с использованием заданного порядка операции `order`.
 #define atomic_flag_set_explicit(obj, order) \
     __extension__ ({ \
-        __atomic_test_and_set(obj, order); \
+        __atomic_test_and_set(&obj, order); \
     })
 
 
 // Устанавливает атомарный флаг `obj`.
 #define atomic_flag_set(obj) \
-    atomic_flag_set_explicit(obj, MEM_ORD_SEQ_CST)
+    atomic_flag_set_explicit(obj, mem_ord_seq_cst)
     
 
 // Устанавливает атомарный флаг `obj` с использованием заданного порядка операции `order` и возвращает его предыдущее значение.
 #define atomic_flag_test_and_set_explicit(obj, order) \
     __extension__ ({ \
-        __atomic_test_and_set(obj, order); \
+        __atomic_test_and_set(&obj, order); \
     })
 
 
 // Устанавливает атомарный флаг `obj` и возвращает его предыдущее значение.
 #define atomic_flag_test_and_set(obj) \
-    atomic_flag_test_and_set_explicit(obj, MEM_ORD_SEQ_CST)
+    atomic_flag_test_and_set_explicit(obj, mem_ord_seq_cst)
 
 
 // Инициализирует атомарный объект `obj` значением `val`.
 #define atomic_init(obj, val) \
     __extension__ ({ \
-        __atomic_store(obj, val, MEM_ORD_RELAXED); \
+        __atomic_store(&obj, &val, mem_ord_seq_cst); \
     })
 
 
