@@ -5,6 +5,7 @@
 //
 
 #if !defined(_STDBIT_INCL) && defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202300L
+#define _STDBIT_INCL
 
 #include <etc/decl.h>
 
@@ -16,241 +17,147 @@
 // Мы используем стандартные x86-процессоры, поэтому для них little-endian.
 #define __STDC_ENDIAN_NATIVE__  __STDC_ENDIAN_LITTLE__
 
-BEGIN_DECLS
-
-// Определяет количество битов-ведущих нулей в числе x.
-unsigned int stdc_leading_zeroes_uc(unsigned char x);
-
-// Определяет количество битов-ведущих нулей в числе x.
-unsigned int stdc_leading_zeroes_us(unsigned short x);
-
-// Определяет количество битов-ведущих нулей в числе x.
-unsigned int stdc_leading_zeroes_ui(unsigned int x);
-
-// Определяет количество битов-ведущих нулей в числе x.
-unsigned int stdc_leading_zeroes_ul(unsigned long x);
-
-// Определяет количество битов-ведущих нулей в числе x.
-unsigned int stdc_leading_zeroes_ull(unsigned long long x);
-
-
-// Определяет количество битов-ведущих единиц в числе x.
-unsigned int stdc_leading_ones_uc(unsigned char x);
-
-// Определяет количество битов-ведущих единиц в числе x.
-unsigned int stdc_leading_ones_us(unsigned short x);
-
-// Определяет количество битов-ведущих единиц в числе x.
-unsigned int stdc_leading_ones_ui(unsigned int x);
-
-// Определяет количество битов-ведущих единиц в числе x.
-unsigned int stdc_leading_ones_ul(unsigned long x);
-
-// Определяет количество битов-ведущих единиц в числе x.
-unsigned int stdc_leading_ones_ull(unsigned long long x);
-
-
-// Определяет количество битов-нулей на конце в числе x.
-unsigned int stdc_trailing_zeroes_uc(unsigned char x);
-
-// Определяет количество битов-нулей на конце в числе x.
-unsigned int stdc_trailing_zeroes_us(unsigned short x);
-
-// Определяет количество битов-нулей на конце в числе x.
-unsigned int stdc_trailing_zeroes_ui(unsigned int x);
-
-// Определяет количество битов-нулей на конце в числе x.
-unsigned int stdc_trailing_zeroes_ul(unsigned long x);
-
-// Определяет количество битов-нулей на конце в числе x.
-unsigned int stdc_trailing_zeroes_ull(unsigned long long x);
-
-
-// Определяет количество битов-единиц на конце в числе x.
-unsigned int stdc_trailing_ones_uc(unsigned char x);
-
-// Определяет количество битов-единиц на конце в числе x.
-unsigned int stdc_trailing_ones_us(unsigned short x);
-
-// Определяет количество битов-единиц на конце в числе x.
-unsigned int stdc_trailing_ones_ui(unsigned int x);
-
-// Определяет количество битов-единиц на конце в числе x.
-unsigned int stdc_trailing_ones_ul(unsigned long x);
-
-// Определяет количество битов-единиц на конце в числе x.
-unsigned int stdc_trailing_ones_ull(unsigned long long x);
-
-
-// Определяет первый ведущий бит-ноль в числе x.
-unsigned int stdc_first_leading_zero_uc(unsigned char x);
-
-// Определяет первый ведущий бит-ноль в числе x.
-unsigned int stdc_first_leading_zero_us(unsigned short x);
-
-// Определяет первый ведущий бит-ноль в числе x.
-unsigned int stdc_first_leading_zero_ui(unsigned int x);
-
-// Определяет первый ведущий бит-ноль в числе x.
-unsigned int stdc_first_leading_zero_ul(unsigned long x);
-
-// Определяет первый ведущий бит-ноль в числе x.
-unsigned int stdc_first_leading_zero_ull(unsigned long long x);
-
-
-// Определяет первый ведущий бит-единицу в числе x.
-unsigned int stdc_first_leading_one_uc(unsigned char x);
-
-// Определяет первый ведущий бит-единицу в числе x.
-unsigned int stdc_first_leading_one_us(unsigned short x);
-
-// Определяет первый ведущий бит-единицу в числе x.
-unsigned int stdc_first_leading_one_ui(unsigned int x);
-
-// Определяет первый ведущий бит-единицу в числе x.
-unsigned int stdc_first_leading_one_ul(unsigned long x);
-
-// Определяет первый ведущий бит-единицу в числе x.
-unsigned int stdc_first_leading_one_ull(unsigned long long x);
-
-
-// Определяет первый бит-ноль на конце числа x.
-unsigned int stdc_first_trailing_zero_uc(unsigned char x);
-
-// Определяет первый бит-ноль на конце числа x.
-unsigned int stdc_first_trailing_zero_us(unsigned short x);
-
-// Определяет первый бит-ноль на конце числа x.
-unsigned int stdc_first_trailing_zero_ui(unsigned int x);
-
-// Определяет первый бит-ноль на конце числа x.
-unsigned int stdc_first_trailing_zero_ul(unsigned long x);
-
-// Определяет первый бит-ноль на конце числа x.
-unsigned int stdc_first_trailing_zero_ull(unsigned long long x);
-
-
-// Определяет первый бит-единицу на конце числа x.
-unsigned int stdc_first_trailing_one_uc(unsigned char x);
-
-// Определяет первый бит-единицу на конце числа x.
-unsigned int stdc_first_trailing_one_us(unsigned short x);
-
-// Определяет первый бит-единицу на конце числа x.
-unsigned int stdc_first_trailing_one_ui(unsigned int x);
-
-// Определяет первый бит-единицу на конце числа x.
-unsigned int stdc_first_trailing_one_ul(unsigned long x);
-
-// Определяет первый бит-единицу на конце числа x.
-unsigned int stdc_first_trailing_one_ull(unsigned long long x);
-
-
-// Определяет количество битов-нулей в числе x.
-unsigned int stdc_count_zeroes_uc(unsigned char x);
-
-// Определяет количество битов-нулей в числе x.
-unsigned int stdc_count_zeroes_us(unsigned short x);
-
-// Определяет количество битов-нулей в числе x.
-unsigned int stdc_count_zeroes_ui(unsigned int x);
-
-// Определяет количество битов-нулей в числе x.
-unsigned int stdc_count_zeroes_ul(unsigned long x);
-
-// Определяет количество битов-нулей в числе x.
-unsigned int stdc_count_zeroes_ull(unsigned long long x);
-
-
-// Определяет количество битов-единиц в числе x.
-unsigned int stdc_count_ones_uc(unsigned char x);
-
-// Определяет количество битов-единиц в числе x.
-unsigned int stdc_count_ones_us(unsigned short x);
-
-// Определяет количество битов-единиц в числе x.
-unsigned int stdc_count_ones_ui(unsigned int x);
-
-// Определяет количество битов-единиц в числе x.
-unsigned int stdc_count_ones_ul(unsigned long x);
-
-// Определяет количество битов-единиц в числе x.
-unsigned int stdc_count_ones_ull(unsigned long long x);
-
-
-// Проверяет, что в числе x ровно один бит-единица (число есть
-// степень 2).
-unsigned int stdc_has_single_bit_uc(unsigned char x);
-
-// Проверяет, что в числе x ровно один бит-единица (число есть
-// степень 2).
-unsigned int stdc_has_single_bit_us(unsigned short x);
-
-// Проверяет, что в числе x ровно один бит-единица (число есть
-// степень 2).
-unsigned int stdc_has_single_bit_ui(unsigned int x);
-
-// Проверяет, что в числе x ровно один бит-единица (число есть
-// степень 2).
-unsigned int stdc_has_single_bit_ul(unsigned long x);
-
-// Проверяет, что в числе x ровно один бит-единица (число есть
-// степень 2).
-unsigned int stdc_has_single_bit_ull(unsigned long long x);
-
-
-// Определяет, сколько бит достаточно, чтобы можно было
-// записать число x.
-unsigned int stdc_bit_width_uc(unsigned char x);
-
-// Определяет, сколько бит достаточно, чтобы можно было
-// записать число x.
-unsigned int stdc_bit_width_us(unsigned short x);
-
-// Определяет, сколько бит достаточно, чтобы можно было
-// записать число x.
-unsigned int stdc_bit_width_ui(unsigned int x);
-
-// Определяет, сколько бит достаточно, чтобы можно было
-// записать число x.
-unsigned int stdc_bit_width_ul(unsigned long x);
-
-// Определяет, сколько бит достаточно, чтобы можно было
-// записать число x.
-unsigned int stdc_bit_width_ull(unsigned long long x);
-
-
-// Вычисляет наибольшую степень числа 2, не превышающую x.
-unsigned int stdc_bit_floor_uc(unsigned char x);
-
-// Вычисляет наибольшую степень числа 2, не превышающую x.
-unsigned int stdc_bit_floor_us(unsigned short x);
-
-// Вычисляет наибольшую степень числа 2, не превышающую x.
-unsigned int stdc_bit_floor_ui(unsigned int x);
-
-// Вычисляет наибольшую степень числа 2, не превышающую x.
-unsigned int stdc_bit_floor_ul(unsigned long x);
-
-// Вычисляет наибольшую степень числа 2, не превышающую x.
-unsigned int stdc_bit_floor_ull(unsigned long long x);
-
-
-// Вычисляет наименьшую степень числа 2, превышающую или равную x.
-unsigned int stdc_bit_ceil_uc(unsigned char x);
-
-// Вычисляет наименьшую степень числа 2, превышающую или равную x.
-unsigned int stdc_bit_ceil_us(unsigned short x);
-
-// Вычисляет наименьшую степень числа 2, превышающую или равную x.
-unsigned int stdc_bit_ceil_ui(unsigned int x);
-
-// Вычисляет наименьшую степень числа 2, превышающую или равную x.
-unsigned int stdc_bit_ceil_ul(unsigned long x);
-
-// Вычисляет наименьшую степень числа 2, превышающую или равную x.
-unsigned int stdc_bit_ceil_ull(unsigned long long x);
-
-END_DECLS
+#define __bits_cnt(n) (8 * sizeof(n))
+
+// Определяет количество ведущих двоичных нулей в числе `n`.
+#define stdc_leading_zeroes(n) {                                \
+    size_t __x = 0;                                             \
+    for (size_t __i = __bits_cnt(n) - 1; __i >= 0; __i++) {     \
+        if ((n) & (1 << __i) == 0)                              \
+            __x++;                                              \
+        else break;                                             \
+    }                                                           \
+    __x;                                                        \
+}
+
+// Определяет количество ведущих двоичных единиц в числе `n`.
+#define stdc_leading_ones(n) {                                  \
+    size_t __x = 0;                                             \
+    for (size_t __i = __bits_cnt(n) - 1; __i >= 0; __i++) {     \
+        if ((n) & (1 << __i))                                   \
+            __x++;                                              \
+        else break;                                             \
+    }                                                           \
+    __x;                                                        \
+}
+
+// Определяет количество замыкающих двоичных нулей в числе `n`.
+#define stdc_trailing_zeroes(n) {                               \
+    size_t __x = 0;                                             \
+    for (size_t __i = 0; __i < __bits_cnt(n); __i++) {          \
+        if ((n) & (1 << __i) == 0)                              \
+            __x++;                                              \
+        else break;                                             \
+    }                                                           \
+    __x;                                                        \
+}
+
+// Определяет количество замыкающих двоичных единиц в числе `n`.
+#define stdc_trailing_ones(n) {                                 \
+    size_t __x = 0;                                             \
+    for (size_t __i = 0; __i < __bits_cnt(n); __i++) {          \
+        if ((n) & (1 << __i))                                   \
+            __x++;                                              \
+        else break;                                             \
+    }                                                           \
+    __x;                                                        \
+}
+
+// Определяет номер первой двоичной единицы в числе `n`.
+#define stdc_first_leading_zero(n) {                            \
+    size_t __i;                                                 \
+    for (__i = __bits_cnt(n) - 1; __i >= 0; __i++) {            \
+        if ((n) & (1 << __i) == 0)                              \
+            break;                                              \
+    }                                                           \
+    __i;                                                        \
+}
+
+// Определяет номер первого двоичного нуля в числе `n`.
+#define stdc_first_leading_one(n) {                             \
+    size_t __i;                                                 \
+    for (__i = __bits_cnt(n) - 1; __i >= 0; __i++) {            \
+        if ((n) & (1 << __i))                                   \
+            break;                                              \
+    }                                                           \
+    __i;                                                        \
+}
+
+// Определяет номер последнего двоичного нуля в числе `n`.
+#define stdc_first_trailing_zero(n) {                           \
+    size_t __i;                                                 \
+    for (__i = 0; __i < __bits_cnt(n); __i++) {                 \
+        if ((n) & (1 << __i) == 0)                              \
+            break;                                              \
+    }                                                           \
+    __i;                                                        \
+}
+
+// Определяет номер последней двоичной единицы в числе `n`.
+#define stdc_first_trailing_one(n) {                            \
+    size_t __i;                                                 \
+    for (__i = 0; __i < __bits_cnt(n); __i++) {                 \
+        if ((n) & (1 << __i))                                   \
+            break;                                              \
+    }                                                           \
+    __i;                                                        \
+}
+
+// Определяет количество двоичных нулей в числе `n`.
+#define stdc_count_zeroes(n) {                                  \
+    size_t __x;                                                 \
+    for (__i = 0; __i < __bits_cnt(n); __i++) {                 \
+        if ((n) & (1 << __i) == 0)                              \
+            __x++;                                              \
+    }                                                           \
+    __x;                                                        \
+}
+
+// Определяет количество двоичных единиц в числе `n`.
+#define stdc_count_ones(n) {                                    \
+    size_t __x;                                                 \
+    for (__i = 0; __i < __bits_cnt(n); __i++) {                 \
+        if ((n) & (1 << __i))                                   \
+            __x++;                                              \
+    }                                                           \
+    __x;                                                        \
+}
+
+// Определяет, состоит ли число `n` из одной двоичной единицы, то есть
+// является степенью 2.
+#define stdc_has_single_bit(n) {                                \
+    int __bit_tripped = 0;                                      \
+    for (size_t __i = 0; __i < __bits_cnt(n); __i++) {          \
+        if ((n) & (1 << __i)) {                                 \
+            if (!__bit_tripped) __bit_tripped = 1;              \
+            else {                                              \
+                __bit_tripped = 0;                              \
+                break;                                          \
+            }                                                   \
+        }                                                       \
+    }                                                           \
+    __bit_tripped;                                              \
+}
+
+// Определяет, сколько бит необходимо, чтобы записать число `n`.
+#define stdc_bit_width(n) stdc_first_trailing_one(n)
+
+// Определяет наибольшую степень числа 2, не большую число `n`.
+#define stdc_bit_floor(n) {                                     \
+    __typeof__((n)) __bit_pow = 1;                              \
+    while (__bit_pow <= (n)) {                                  \
+        __bit_pow <<= 1;                                        \
+    }                                                           \
+    __bit_pow >> 1;                                             \
+}
+
+// Определяет наименьшую степень числа 2, не меньшую число `n`.
+#define stdc_bit_ceil(n) {                                      \
+    __typeof__((n)) __bit_pow = 1 << (__bits_cnt(n) - 1);       \
+    while (__bit_pow >= (n)) {                                  \
+        __bit_pow >>= 1;                                        \
+    }                                                           \
+    __bit_pow << 1;                                             \
+}
 
 #endif
