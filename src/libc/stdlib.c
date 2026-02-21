@@ -123,30 +123,30 @@ int mblen(const char *s, size_t n) {
         s++;
         if (utf8_follow_char(s[0]))
             return 2;
-        else return -2;
+        else return MBC_INVALID;
     }
 
     if ((c & 0b11110000) == 0b11100000) {
         s++;
         if (utf8_follow_char(s[0]) && utf8_follow_char(s[1]))
             return 3;
-        else return -2;
+        else return MBC_INVALID;
     }
 
     if ((c & 0b11111000) == 0b11110000) {
         s++;
         if (utf8_follow_char(s[0]) && utf8_follow_char(s[1]) && utf8_follow_char(s[2]))
             return 4;
-        else return -2;
+        else return MBC_INVALID;
     }
 
-    return -1;
+    return MBC_NOTFIT;
 }
 
 int mbtowc(wchar_t *wc, const char *s, size_t n) {
     size_t sz = mblen(s, n);
-    if (sz == (size_t)-2) return -2;
-    if (sz > n) return -1;          // sz == -1 (sz беззнаковое и должно быть меньше n)
+    if (sz == (size_t)-2) return MBC_INVALID;
+    if (sz > n) return MBC_NOTFIT;              // sz == -1 (sz беззнаковое и должно быть меньше n)
 
     wchar_t wch;
     if (sz == 0) {
@@ -161,7 +161,7 @@ int mbtowc(wchar_t *wc, const char *s, size_t n) {
     }
 
     if (sz == 2) {
-        wch = *s & 0x1F;
+        wch = *s++ & 0x1F;
         wch <<= 6;
         wch |= *s & 0x3F;
         if (wc) *wc = wch;
@@ -169,26 +169,26 @@ int mbtowc(wchar_t *wc, const char *s, size_t n) {
     }
 
     if (sz == 3) {
-        wch = *s & 0x0F;
+        wch = *s++ & 0x0F;
         for (int i = 0; i < 2; i++) {
             wch <<= 6;
-            wch |= *s & 0x3F;
+            wch |= *s++ & 0x3F;
         }
         if (wc) *wc = wch;
         return 3;
     }
 
     if (sz == 4) {
-        wch = *s & 0x07;
+        wch = *s++ & 0x07;
         for (int i = 0; i < 2; i++) {
             wch <<= 6;
-            wch |= *s & 0x3F;
+            wch |= *s++ & 0x3F;
         }
         if (wc) *wc = wch;
         return 4;
     }
 
-    return -1;
+    return MBC_NOTFIT;
 }
 
 int wctomb(char *s, wchar_t wc) {

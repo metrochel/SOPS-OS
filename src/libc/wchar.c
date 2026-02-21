@@ -12,6 +12,7 @@
 
 #include "include/wchar.h"
 #include "include/wctype.h"
+#include "include/stdio.h"
 
 #define CHAR_T                  wchar_t
 #define SINGLE_CHAR_T           wchar_t
@@ -84,3 +85,11 @@ wchar_t* wcstok(wchar_t *str, const wchar_t *delim, wchar_t **str_end) {
 #define STRPBRK         wcspbrk
 #define STRTO           wcsto
 #include ".no-compile/strtonum_base.c"
+
+// Ещё надо определить пару функций, которых нет в string.h.
+
+wint_t btowc(int c) {
+    if (c == EOF) return WEOF;
+
+    return (wint_t)(c);
+}

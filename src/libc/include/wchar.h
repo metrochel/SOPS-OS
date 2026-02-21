@@ -30,6 +30,10 @@ BEGIN_DECLS
 #include <etc/mbstate_t.h>
 #endif
 
+// Для wprintf-функций нам понадобятся FILE и va_list.
+#include <etc/FILE.h>
+#include <stdarg.h>
+
 // Переводит широкосимвольную строку `str` в число по основанию `base`.
 // По окончании перевода устанавливает `strEnd` на последний символ.
 long wcstol(const wchar_t *str, wchar_t **str_end, int base);
@@ -109,6 +113,33 @@ wchar_t* wmemchr(const wchar_t *buf, wchar_t c, size_t count);
 
 // Заменяет `count` символов в буфере `dest` на `c`.
 wchar_t* wmemset(wchar_t *dest, wchar_t c, size_t count);
+
+// Переводит однобайтовый символ `c` в широкий формат.
+wint_t btowc(int c);
+
+// Производит широкосимвольный форматный вывод в соответствии с форматной строкой
+// `format` и последующими аргументами в поток `stdout`.
+int wprintf(const wchar_t *format, ...);
+
+// Производит широкосимвольный форматный вывод в соответствии с форматной строкой
+// `format` и последующими аргументами в поток `stream`.
+int fwprintf(FILE *stream, const wchar_t *format, ...);
+
+// Производит широкосимвольный форматный вывод в соответствии с форматной строкой
+// `format` и последующими аргументами в буфер `buffer`. Размер буфера не меньше `bufsz` символов.
+int swprintf(wchar_t *buffer, size_t bufsz, const wchar_t *format, ...);
+
+// Производит широкосимвольный форматный вывод в соответствии с форматной строкой
+// `format` и аргументами `args` в поток `stdout`.
+int vwprintf(const wchar_t *format, va_list args);
+
+// Производит широкосимвольный форматный вывод в соответствии с форматной строкой
+// `format` и аргументами `args` в поток `stream`.
+int vfwprintf(FILE *stream, const wchar_t *format, va_list args);
+
+// Производит широкосимвольный форматный вывод в соответствии с форматной строкой
+// `format` и аргументами `args` в буфер `buffer`.
+int vswprintf(wchar_t *buffer, size_t bufsz, const wchar_t *format, va_list args);
 
 END_DECLS
 

@@ -35,6 +35,9 @@ typedef struct {
     long long int rem;    // Остаток
 } lldiv_t;
 
+#define MBC_NOTFIT      -1
+#define MBC_INVALID     -2
+
 // Экстренно завершает исполнение программы.
 void _Noreturn abort(void);
 
