@@ -141,6 +141,30 @@ int vfwprintf(FILE *stream, const wchar_t *format, va_list args);
 // `format` и аргументами `args` в буфер `buffer`.
 int vswprintf(wchar_t *buffer, size_t bufsz, const wchar_t *format, va_list args);
 
+// Производит широкосимволное форматное считывание в соответвствии с форматной строкой
+// `format` и последующими аргументами из потока `stdin`.
+int wscanf(const wchar_t *format, ...);
+
+// Производит широкосимволное форматное считывание в соответвствии с форматной строкой
+// `format` и последующими аргументами из потока `stream`.
+int fwscanf(FILE *stream, const wchar_t *format, ...);
+
+// Производит широкосимволное форматное считывание в соответвствии с форматной строкой
+// `format` и последующими аргументами из буфера `buffer`.
+int swscanf(const wchar_t *buffer, const wchar_t *format, ...);
+
+// Производит широкосимволное форматное считывание в соответвствии с форматной строкой
+// `format` и аргументами `args` из потока `stdin`.
+int vwscanf(const wchar_t *format, va_list args);
+
+// Производит широкосимволное форматное считывание в соответвствии с форматной строкой
+// `format` и аргументами `args` из потока `stream`.
+int vfwscanf(FILE *stream, const wchar_t *format, va_list args);
+
+// Производит широкосимволное форматное считывание в соответвствии с форматной строкой
+// `format` и аргументами `args` из буфера `buffer`.
+int vsswcanf(const wchar_t *buffer, const wchar_t *format, va_list args);
+
 END_DECLS
 
 #endif
