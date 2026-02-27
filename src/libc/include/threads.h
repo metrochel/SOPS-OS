@@ -8,6 +8,8 @@
 #define _THREADS_INCL 1
 
 #include <etc/decl.h>
+#include <etc/timespec.h>
+#include <stdnoreturn.h>
 
 BEGIN_DECLS
 
@@ -36,31 +38,48 @@ BEGIN_DECLS
 // Наибольшее количество раз, которые вызывается деструктор поточного хранилища
 #define TSS_DTOR_ITERATIONS 4
 
+// Инициализационное значение для переменных типа once_flag
+#define ONCE_FLAG_INIT 0
+
+/// `thrd_start_t` - это тип указателя на функцию, которая может являться точкой входа нового потока.
+typedef int (*thrd_start_t)(void*);
+
+// `tss_dtor_t` - это тип указателя на функцию-деструктор поточного хранилища.
+typedef void (*tss_dtor_t)(void*);
+
+typedef enum {
+    thrd_active,
+    thrd_blocked,
+    thrd_sleeping,
+    thrd_detached,
+    thrd_stopped
+} __thrd_states_t;
+
 // `thrd_t` - это структура, позволяющая однозначно описать один поток.
 typedef struct {
     int id;
-    int state;
+    __thrd_states_t state;
 } thrd_t;
 
 // `mtx_t` - это структура, определяющая один мьютекс.
 typedef struct {
     int id;
     int type;
-    void *value;
 } mtx_t;
 
 // `cnd_t` - это структура, определяющая одну условную переменную.
 typedef struct {
-    
+    int id;
 } cnd_t;
 
 // `tss_t` - это структура, описывающая хранилище для одного потока (поточное хранилище).
 typedef struct {
-    
+    void *key;
+    tss_dtor_t dtor;
 } tss_t;
 
-// `tss_dtor_t` - это тип указателя на функцию-деструктор поточного хранилища.
-typedef void (*tss_dtor_t)(void*);
+// `once_flag` - это переменная, используемая в функции `call_once`, чтобы вызвать подпрограмму ровно 1 раз.
+typedef int once_flag;
 
 // Создаёт новый поток, исполняющий функцию `start(args)`. При успехе записывает его данные в `thrd`.
 int thrd_create(thrd_t *thrd, thrd_start_t start, void *args);
@@ -79,7 +98,7 @@ int thrd_sleep(const struct timespec* duration, struct timespec *remaining);
 void thrd_yield();
 
 // Завершает текущий поток с кодом `exit_code`.
-void _Noreturn thrd_exit(int exit_code);
+void noreturn thrd_exit(int exit_code);
 
 // Отсоединяет поток `thread`.
 int thrd_detach(thrd_t thread);

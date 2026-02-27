@@ -351,7 +351,7 @@ time_t mktime(struct tm *arg) {
 int timespec_get(struct timespec *ts, int base) {
     time_t time_s = time(NULL) + base * HOUR_SECS;
     long time_ns = syscall0(Syscall_GetNanosecTime);
-    struct timespec spec = {.tv_nsec = time_ns, .tv_sec = time_s};
+    struct timespec spec = {.tv_nsec = time_ns, .tv_sec = time_s, .base = base};
     *ts = spec;
     return base;
 }

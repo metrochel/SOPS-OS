@@ -32,5 +32,26 @@
 #define Syscall_GetUnixTime             0x4005
 #define Syscall_GetNanosecTime          0x4006
 #define Syscall_GetProcTime             0x4007
+#define Syscall_StartThread             0x5000
+#define Syscall_ExitThread              0x5001
+#define Syscall_GetCurrentThread        0x5002
+#define Syscall_ThreadYield             0x5003
+#define Syscall_JoinThread              0x5004
+#define Syscall_BlockThread             0x5005
+#define Syscall_TimedBlockThread        0x5006
+#define Syscall_DetachThread            0x5007
+#define Syscall_CreateMutex             0x5008
+#define Syscall_CreateCondVar           0x5009
+#define Syscall_CreateTSS               0x500A
+#define Syscall_DestroyMutex            0x500B
+#define Syscall_DestroyCondVar          0x500C
+#define Syscall_DestroyTSS              0x500D
+#define Syscall_GetMutexLocked          0x500E
+#define Syscall_LockMutex               0x500F
+#define Syscall_UnlockMutex             0x5010
+#define Syscall_SignalCondVar           0x5011
+#define Syscall_BroadcastCondVar        0x5012
+#define Syscall_GetTSS                  0x5013
+#define Syscall_SetTSS                  0x5014
 
 #endif
