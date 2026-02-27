@@ -25,6 +25,10 @@
 #define __scanf_args_t(scanf) concat(scanf, _args_t)
 #define __scanf_params_t(scanf) concat(scanf, _params_t)
 
+#define scanf_state_t __scanf_state_t(SCANF)
+#define scanf_args_t __scanf_args_t(SCANF)
+#define scanf_params_t __scanf_params_t(SCANF)
+
 #ifndef _SCANF_DECL
 #define _SCANF_DECL
 
@@ -47,31 +51,35 @@ typedef struct {
     short flags;
     int max_width;
     CHAR size_spec;
-} __scanf_state_t(SCANF);
+} scanf_state_t;
 
 typedef struct {
     const CHAR *format;
     void *buffer;
     size_t chars_count;
     va_list args;
-    __scanf_state_t(SCANF) state;
-} __scanf_args_t(SCANF);
+    scanf_state_t state;
+} scanf_args_t;
 
 #define __get_func_t(scanf) concat(scanf, _get_func_t)
 #define __consume_func_t(scanf) concat(scanf, _consume_func_t)
 #define __unget_func_t(scanf) concat(scanf, _unget_func_t)
 
-typedef int (*__get_func_t(SCANF))(__scanf_args_t(SCANF)*);
+#define get_func_t __get_func_t(SCANF)
+#define consume_func_t __consume_func_t(SCANF)
+#define unget_func_t __unget_func_t(SCANF)
 
-typedef int (*__consume_func_t(SCANF))(__scanf_args_t(SCANF)*);
+typedef int (*get_func_t)(scanf_args_t*);
 
-typedef int (*__unget_func_t(SCANF))(__scanf_args_t(SCANF)*, int);
+typedef int (*consume_func_t)(scanf_args_t*);
+
+typedef int (*unget_func_t)(scanf_args_t*, int);
 
 typedef struct {
-    __get_func_t(SCANF) get;
-    __consume_func_t(SCANF) consume_spaces;
-    __unget_func_t(SCANF) unget;
-} __scanf_params_t(SCANF);
+    get_func_t get;
+    consume_func_t consume_spaces;
+    unget_func_t unget;
+} scanf_params_t;
 
 /* === Параметры для видов scanf === */
 
@@ -80,10 +88,14 @@ typedef struct {
 #define __sscanf_get(scanf) concat3(s, scanf, _get)
 #define __sscanf_consume(scanf) concat3(s, scanf, _consume_spaces)
 #define __sscanf_unget(scanf) concat3(s, scanf, _unget)
-
 #define __SSCANF(scanf) concat(params_s, scanf)
 
-int __sscanf_get(SCANF)(__scanf_args_t(SCANF) *scanf_args) {
+#define sscanf_get __sscanf_get(SCANF)
+#define sscanf_consume __sscanf_consume(SCANF)
+#define sscanf_unget __sscanf_unget(SCANF)
+#define SSCANF __SSCANF(SCANF)
+
+int sscanf_get(scanf_args_t *scanf_args) {
     const CHAR *ptr = (const CHAR*)(scanf_args->buffer);
 
     int c = *ptr++;
@@ -97,7 +109,7 @@ int __sscanf_get(SCANF)(__scanf_args_t(SCANF) *scanf_args) {
     return c;
 }
 
-int __sscanf_consume(SCANF)(__scanf_args_t(SCANF) *scanf_args) {
+int sscanf_consume(scanf_args_t *scanf_args) {
     const CHAR *ptr = (const CHAR*)(scanf_args->buffer);
     
     while (ISSPACE(*ptr)) {
@@ -109,7 +121,7 @@ int __sscanf_consume(SCANF)(__scanf_args_t(SCANF) *scanf_args) {
     return 0;
 }
 
-int __sscanf_unget(SCANF)(__scanf_args_t(SCANF) *scanf_args, int c) {
+int sscanf_unget(scanf_args_t *scanf_args, int c) {
     const CHAR *ptr = (const CHAR*)(scanf_args->buffer);
 
     ptr--;
@@ -119,17 +131,21 @@ int __sscanf_unget(SCANF)(__scanf_args_t(SCANF) *scanf_args, int c) {
     return 0;
 }
 
-const __scanf_params_t(SCANF) __SSCANF(SCANF) = {__sscanf_get(SCANF), __sscanf_consume(SCANF), __sscanf_unget(SCANF)};
+const scanf_params_t SSCANF = {sscanf_get, sscanf_consume, sscanf_unget};
 
 /* fscanf */
 
 #define __fscanf_get(scanf) concat3(f, scanf, _get)
 #define __fscanf_consume(scanf) concat3(f, scanf, _consume_spaces)
 #define __fscanf_unget(scanf) concat3(f, scanf, _unget)
-
 #define __FSCANF(scanf) concat(params_f, scanf)
 
-int __fscanf_get(SCANF)(__scanf_args_t(SCANF) *scanf_args) {
+#define fscanf_get __fscanf_get(SCANF)
+#define fscanf_consume __fscanf_consume(SCANF)
+#define fscanf_unget __fscanf_unget(SCANF)
+#define FSCANF __FSCANF(SCANF)
+
+int fscanf_get(scanf_args_t *scanf_args) {
     FILE *file = (FILE*)(scanf_args->buffer);
 
     int c = fgetc(file);
@@ -146,7 +162,7 @@ int __fscanf_get(SCANF)(__scanf_args_t(SCANF) *scanf_args) {
     return c;
 }
 
-int __fscanf_consume(SCANF)(__scanf_args_t(SCANF) *scanf_args) {
+int fscanf_consume(scanf_args_t *scanf_args) {
     FILE *file = (FILE*)(scanf_args->buffer);
 
     int c = fgetc(file);
@@ -161,7 +177,7 @@ int __fscanf_consume(SCANF)(__scanf_args_t(SCANF) *scanf_args) {
     return 0;
 }
 
-int __fscanf_unget(SCANF)(__scanf_args_t(SCANF) *scanf_args, int c) {
+int fscanf_unget(scanf_args_t *scanf_args, int c) {
     FILE *file = (FILE*)(scanf_args->buffer);
 
     ungetc(c, file);
@@ -170,7 +186,7 @@ int __fscanf_unget(SCANF)(__scanf_args_t(SCANF) *scanf_args, int c) {
     return 0;
 }
 
-const __scanf_params_t(SCANF) __FSCANF(SCANF) = {__fscanf_get(SCANF), __fscanf_consume(SCANF), __fscanf_unget(SCANF)};
+const scanf_params_t FSCANF = {fscanf_get, fscanf_consume, fscanf_unget};
 
 /* === Вспомогательные макросы и функции === */
 
@@ -186,7 +202,7 @@ extern size_t get_utf8_char_len(const char *str);
 
 #define __handle_decl(name, scanf) \
     inline int                     \
-    concat3(handle_##name##_,scanf,_spec) (__scanf_args_t(SCANF) *scanf_args, const __scanf_params_t(scanf) *params)
+    concat3(handle_##name##_,scanf,_spec) (scanf_args_t *scanf_args, const scanf_params_t *params)
 
 #define handle_decl(name) __handle_decl(name, SCANF)
 
@@ -303,6 +319,10 @@ if (scanf_args->state.size_spec == spec_L) {                            \
 #define __read_charset(scanf)       concat3(__read_, scanf, _charset)
 #define __charset_check(scanf)      concat3(__, scanf, _charset_check)
 
+#define get_charset_len __get_charset_len(SCANF)
+#define read_charset __read_charset(SCANF)
+#define charset_check __charset_check(SCANF)
+
 #define parse_charset                                                   \
     int inverse = 0;                                                    \
     (scanf_args->format)++;                                             \
@@ -310,13 +330,12 @@ if (scanf_args->state.size_spec == spec_L) {                            \
         (scanf_args->format)++;                                         \
         inverse = 1;                                                    \
     }                                                                   \
-    size_t charset_len = __get_charset_len(SCANF)(scanf_args);          \
+    size_t charset_len = get_charset_len(scanf_args);                   \
     CHAR charset[charset_len];                                          \
-    __read_charset(SCANF)(scanf_args, charset);
+    read_charset(scanf_args, charset);
 
 
-
-inline size_t __get_charset_len(SCANF)(__scanf_args_t(SCANF) *scanf_args) {
+inline size_t get_charset_len(scanf_args_t *scanf_args) {
     size_t len = 0;
 
     if (*scanf_args->format == ']') {
@@ -338,8 +357,8 @@ inline size_t __get_charset_len(SCANF)(__scanf_args_t(SCANF) *scanf_args) {
     return len;
 }
 
-inline void __read_charset(SCANF)(__scanf_args_t(SCANF) *scanf_args, CHAR *charset) {
-    size_t len = __get_charset_len(SCANF)(scanf_args);
+inline void read_charset(scanf_args_t *scanf_args, CHAR *charset) {
+    size_t len = get_charset_len(scanf_args);
 
     if (*scanf_args->format == '^')
         scanf_args->format++;
@@ -369,7 +388,7 @@ inline void __read_charset(SCANF)(__scanf_args_t(SCANF) *scanf_args, CHAR *chars
     }
 }
 
-inline int __charset_check(SCANF)(const CHAR *charset, CHAR ch, int inverse) {
+inline int charset_check(const CHAR *charset, CHAR ch, int inverse) {
     while (*charset) {
         if (*charset == ch)
             return inverse ? 0 : 1;
@@ -378,7 +397,7 @@ inline int __charset_check(SCANF)(const CHAR *charset, CHAR ch, int inverse) {
     return inverse ? 1 : 0;
 }
 
-#define charset_check __charset_check(SCANF)(charset, c, inverse)
+#define pre_charset_check charset_check(charset, c, inverse)
 
 /* === Обработчики форматов === */
 
@@ -451,7 +470,7 @@ handle_decl(charset) {
         size_t processed_chars = 0;
         parse_charset
         int c = call_get;
-        while (charset_check && processed_chars < width) {
+        while (pre_charset_check && processed_chars < width) {
             get_mchar
             processed_chars++;
         }
@@ -467,7 +486,7 @@ handle_decl(charset) {
         size_t processed_chars = 0;
         parse_charset
         int c = call_get;
-        while (charset_check && processed_chars < width) {
+        while (pre_charset_check && processed_chars < width) {
             get_wchar
             write_arg(*ptr++, wchar)
             processed_chars ++;
@@ -718,7 +737,10 @@ handle_decl(ptr) {
 #define __get_size_spec(scanf) concat3(get_, scanf, _size_spec)
 #define __handle_fmt(scanf) concat3(handle_, scanf, _format)
 
-int __get_size_spec(SCANF)(const CHAR **str) {
+#define get_size_spec __get_size_spec(SCANF)
+#define handle_format __handle_fmt(SCANF)
+
+int get_size_spec(const CHAR **str) {
     CHAR spec = *(*str);
     switch (spec) {
         case 'h':
@@ -744,7 +766,7 @@ int __get_size_spec(SCANF)(const CHAR **str) {
 
 #define handle_case(fmt, func) __handle_case(fmt, func, SCANF)
 
-int __handle_fmt(SCANF)(__scanf_args_t(SCANF) *scanf_args, const __scanf_params_t(SCANF) *scanf_params) {
+int handle_format(scanf_args_t *scanf_args, const scanf_params_t *scanf_params) {
     switch (scanf_args->state.fmt_spec) {
         handle_case('c', char)
         handle_case('s', str)
@@ -771,8 +793,10 @@ int __handle_fmt(SCANF)(__scanf_args_t(SCANF) *scanf_args, const __scanf_params_
 
 #define __nscanf_func(scanf)    concat(__n, scanf)
 
+#define __nscanf                __nscanf_func(SCANF)
+
 // __nscanf - это основа для всех *scanf-функций.
-int __nscanf_func(SCANF)(__scanf_args_t(SCANF) *scanf_args, const __scanf_params_t(SCANF) *params) {
+int __nscanf(scanf_args_t *scanf_args, const scanf_params_t *params) {
     int handled_args = 0;
     while (scanf_args->format) {
         CHAR fmt_char = *scanf_args->format++;
@@ -791,7 +815,7 @@ int __nscanf_func(SCANF)(__scanf_args_t(SCANF) *scanf_args, const __scanf_params
             continue;
         }
 
-        scanf_args->state = (__scanf_state_t(SCANF)){};
+        scanf_args->state = (scanf_state_t){};
 
         if (fmt_char == '*') {
             scanf_args->state.flags |= FMT_NO_WRITE;
@@ -805,13 +829,13 @@ int __nscanf_func(SCANF)(__scanf_args_t(SCANF) *scanf_args, const __scanf_params
             scanf_args->state.max_width = width;
         }
 
-        int size_spec = __get_size_spec(SCANF)(&scanf_args->format);
+        int size_spec = get_size_spec(&scanf_args->format);
         scanf_args->state.size_spec = size_spec;
 
         int fmt_spec = *scanf_args->format++;
         scanf_args->state.fmt_spec = fmt_spec;
 
-        int result = __handle_fmt(SCANF)(scanf_args, params);
+        int result = handle_format(scanf_args, params);
         if (result < 0)
             return -1;
         if (result == 1)
@@ -831,45 +855,45 @@ int __nscanf_func(SCANF)(__scanf_args_t(SCANF) *scanf_args, const __scanf_params
 #define __scanf(scanf)      scanf
 
 int __vsscanf(SCANF)(const CHAR *restrict buffer, const CHAR *restrict format, va_list args) {
-    __scanf_args_t(SCANF) scanf_args;
+    scanf_args_t scanf_args;
     scanf_args.buffer = (void*)buffer;
     scanf_args.format = format;
     scanf_args.chars_count = 0;
     scanf_args.args = args;
-    scanf_args.state = (__scanf_state_t(SCANF)){};
-    return __nscanf_func(SCANF)(&scanf_args, &__SSCANF(SCANF));
+    scanf_args.state = (scanf_state_t){};
+    return __nscanf(&scanf_args, &SSCANF);
 }
 
 int __vfscanf(SCANF)(FILE *restrict buffer, const CHAR *restrict format, va_list args) {
-    __scanf_args_t(SCANF) scanf_args;
+    scanf_args_t scanf_args;
     scanf_args.buffer = buffer;
     scanf_args.format = format;
     scanf_args.chars_count = 0;
     scanf_args.args = args;
-    scanf_args.state = (__scanf_state_t(SCANF)){};
-    return __nscanf_func(SCANF)(&scanf_args, &__FSCANF(SCANF));
+    scanf_args.state = (scanf_state_t){};
+    return __nscanf(&scanf_args, &FSCANF);
 }
 
 int __vscanf(SCANF)(const CHAR *restrict format, va_list args) {
-    __scanf_args_t(SCANF) scanf_args;
+    scanf_args_t scanf_args;
     scanf_args.buffer = stdin;
     scanf_args.format = format;
     scanf_args.chars_count = 0;
     scanf_args.args = args;
-    scanf_args.state = (__scanf_state_t(SCANF)){};
-    return __nscanf_func(SCANF)(&scanf_args, &__FSCANF(SCANF));
+    scanf_args.state = (scanf_state_t){};
+    return __nscanf(&scanf_args, &FSCANF);
 }
 
 int __sscanf(SCANF)(const CHAR *restrict buffer, const CHAR *restrict format, ...) {
     va_list args;
     va_start(args, format);
-    __scanf_args_t(SCANF) scanf_args;
+    scanf_args_t scanf_args;
     scanf_args.buffer = (void*)buffer;
     scanf_args.format = format;
     scanf_args.chars_count = 0;
     scanf_args.args = args;
-    scanf_args.state = (__scanf_state_t(SCANF)){};
-    int result = __nscanf_func(SCANF)(&scanf_args, &__SSCANF(SCANF));
+    scanf_args.state = (scanf_state_t){};
+    int result = __nscanf(&scanf_args, &SSCANF);
     va_end(args);
     return result;
 }
@@ -877,13 +901,13 @@ int __sscanf(SCANF)(const CHAR *restrict buffer, const CHAR *restrict format, ..
 int __fscanf(SCANF)(FILE *restrict buffer, const CHAR *restrict format, ...) {
     va_list args;
     va_start(args, format);
-    __scanf_args_t(SCANF) scanf_args;
+    scanf_args_t scanf_args;
     scanf_args.buffer = buffer;
     scanf_args.format = format;
     scanf_args.chars_count = 0;
     scanf_args.args = args;
-    scanf_args.state = (__scanf_state_t(SCANF)){};
-    int result = __nscanf_func(SCANF)(&scanf_args, &__FSCANF(SCANF));
+    scanf_args.state = (scanf_state_t){};
+    int result = __nscanf(&scanf_args, &FSCANF);
     va_end(args);
     return result;
 }
@@ -891,13 +915,13 @@ int __fscanf(SCANF)(FILE *restrict buffer, const CHAR *restrict format, ...) {
 int __scanf(SCANF)(const CHAR *restrict format, ...) {
     va_list args;
     va_start(args, format);
-    __scanf_args_t(SCANF) scanf_args;
+    scanf_args_t scanf_args;
     scanf_args.buffer = stdin;
     scanf_args.format = format;
     scanf_args.chars_count = 0;
     scanf_args.args = args;
-    scanf_args.state = (__scanf_state_t(SCANF)){};
-    int result = __nscanf_func(SCANF)(&scanf_args, &__FSCANF(SCANF));
+    scanf_args.state = (scanf_state_t){};
+    int result = __nscanf(&scanf_args, &FSCANF);
     va_end(args);
     return result;
 }

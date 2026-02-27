@@ -1056,8 +1056,9 @@ handle_decl(ptr) {
 /* === Функции для printf_state_t === */
 
 #define __get_size_spec_func(printf) concat3(get_, printf, _size_spec)
+#define get_size_spec __get_size_spec_func(PRINTF)
 
-size_spec_t __get_size_spec_func(PRINTF)(const CHAR *format, const CHAR **new_format) {
+size_spec_t get_size_spec(const CHAR *format, const CHAR **new_format) {
     if (!new_format) return -1;
     *new_format = format + 1;
     switch(*format) {
@@ -1095,8 +1096,9 @@ size_spec_t __get_size_spec_func(PRINTF)(const CHAR *format, const CHAR **new_fo
 #define handle_case_caps(fmt1, fmt2, func)  __handle_case_caps(fmt1, fmt2, func, PRINTF)
 
 #define __handle_fmt_func(printf) concat3(handle_, printf, _format)
+#define handle_fmt_func __handle_fmt_func(PRINTF)
 
-int __handle_fmt_func(PRINTF)(void **str, size_t maxlen, printf_state_t *state, size_t *chars_count, va_list *args, put_func_t put) {
+int handle_fmt_func(void **str, size_t maxlen, printf_state_t *state, size_t *chars_count, va_list *args, put_func_t put) {
     switch (state->spec) {
         handle_case('c', char)
         handle_case('s', str)
@@ -1115,10 +1117,11 @@ int __handle_fmt_func(PRINTF)(void **str, size_t maxlen, printf_state_t *state, 
     }
 }
 
-#define __nprintf_func(the_printf) concat(__n, the_printf)
+#define __nprintf_func(the_printf)  concat(__n, the_printf)
+#define __nprintf                   __nprintf_func(PRINTF)
 
 // __nprintf - это основной шаблон для всех *printf-функций.
-int __nprintf_func(PRINTF)(void *out, size_t maxlen, const CHAR *format, va_list args, put_func_t put) {
+int __nprintf(void *out, size_t maxlen, const CHAR *format, va_list args, put_func_t put) {
     printf_state_t state;
     size_t chars_count = 0;
 
@@ -1191,11 +1194,11 @@ int __nprintf_func(PRINTF)(void *out, size_t maxlen, const CHAR *format, va_list
             state.precision = -2;
         }
 
-        state.size_spec = __get_size_spec_func(PRINTF)(format, &format);
+        state.size_spec = get_size_spec(format, &format);
 
         state.spec = *format++;
 
-        int fmt_result = __handle_fmt_func(PRINTF)(&out, maxlen, &state, &chars_count, &args, put);
+        int fmt_result = handle_fmt_func(&out, maxlen, &state, &chars_count, &args, put);
 
         if (fmt_result)         // Произошла ошибка при обработке формата
             return fmt_result;
@@ -1225,23 +1228,23 @@ int __nprintf_func(PRINTF)(void *out, size_t maxlen, const CHAR *format, va_list
 #define __sprintf(printf)   concat(s, printf)
 
 int __vsnprintf(PRINTF)(CHAR *out, size_t maxlen, const CHAR *format, va_list args) {
-    return __nprintf_func(PRINTF)(out, maxlen, format, args, __str_put_func);
+    return __nprintf(out, maxlen, format, args, __str_put_func);
 }
 
 int __vsprintf(PRINTF)(CHAR *out, const CHAR *format, va_list args) {
-    return __nprintf_func(PRINTF)(out, (size_t)-1, format, args, __str_put_func);
+    return __nprintf(out, (size_t)-1, format, args, __str_put_func);
 }
 
 int __snprintf(PRINTF)(CHAR *out, size_t maxlen, const CHAR *format, ...) {
     va_list args;
     va_start(args, format);
-    return __nprintf_func(PRINTF)(out, maxlen, format, args, __str_put_func);
+    return __nprintf(out, maxlen, format, args, __str_put_func);
 }
 
 int __sprintf(PRINTF)(CHAR *out, const CHAR *format, ...) {
     va_list args;
     va_start(args, format);
-    return __nprintf_func(PRINTF)(out, (size_t)-1, format, args, __str_put_func);
+    return __nprintf(out, (size_t)-1, format, args, __str_put_func);
 }
 
 #else
@@ -1250,13 +1253,13 @@ int __sprintf(PRINTF)(CHAR *out, const CHAR *format, ...) {
 #define __sprintf(printf)   concat(s, printf)
 
 int __vsprintf(PRINTF)(CHAR *out, size_t bufsz, const CHAR *format, va_list args) {
-    return __nprintf_func(PRINTF)(out, bufsz, format, args, __str_put_func);
+    return __nprintf(out, bufsz, format, args, __str_put_func);
 }
 
 int __sprintf(PRINTF)(CHAR *out, size_t bufsz, const CHAR *format, ...) {
     va_list args;
     va_start(args, format);
-    return __nprintf_func(PRINTF)(out, bufsz, format, args, __str_put_func);
+    return __nprintf(out, bufsz, format, args, __str_put_func);
 }
 
 #endif
@@ -1268,7 +1271,7 @@ int __sprintf(PRINTF)(CHAR *out, size_t bufsz, const CHAR *format, ...) {
 
 int __vfprintf(PRINTF)(FILE *stream, const CHAR *format, va_list args) {
     f_putbuf_index = 0;
-    int result = __nprintf_func(PRINTF)(stream, (size_t)-1, format, args, __f_put_func);
+    int result = __nprintf(stream, (size_t)-1, format, args, __f_put_func);
     if (result < 0)
         return -1;
     if (f_putbuf_index)
