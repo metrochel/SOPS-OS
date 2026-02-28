@@ -27,7 +27,7 @@ unsigned int atexit_func_cnt = 0;
 #include "./.no-compile/strtonum_base.c"
 
 void abort() {
-    syscall1(Syscall_Exit, EX_CODE_ABORT);
+    syscall1(syscall_exit, EX_CODE_ABORT);
 }
 
 void exit(int code) {
@@ -35,7 +35,7 @@ void exit(int code) {
         atexit_funcs[i]();
     }
 
-	syscall1(Syscall_Exit, code);
+	syscall1(syscall_exit, code);
 }
 
 int atexit(void (*func)(void)) {
@@ -58,20 +58,20 @@ int atexit(void (*func)(void)) {
 
 int system(const char *cmd) {
     // TODO: Обработчик команд в ОС
-    return syscall1(Syscall_System, (int)cmd);
+    return syscall1(syscall_shell_cmd, (int)cmd);
 }
 
 char* getenv(const char *var_name) {
     // TODO: Окружение программы
-    return (char*)syscall1(Syscall_GetEnvVar, (int)var_name);
+    return (char*)syscall1(syscall_get_env_var, (int)var_name);
 }
 
 void* malloc(size_t sz) {
-    return (void*)syscall1(Syscall_Malloc, (int)sz);
+    return (void*)syscall1(syscall_malloc, (int)sz);
 }
 
 void free(void *ptr) {
-    syscall1(Syscall_Free, (int)ptr);
+    syscall1(syscall_free, (int)ptr);
 }
 
 void* calloc(size_t count, size_t sz) {

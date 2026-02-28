@@ -25,6 +25,7 @@ struct Process {
     FileHandle *handles[PROC_MAX_FILES];
     dword usedMemory;
     ptrint startAddress;
+    qword start_timestamp;
 };
 
 /// @brief Инициализирует библиотеку процессов для работы.
@@ -51,7 +52,7 @@ void unregisterProcess(word pid);
 /// @brief Определяет по данному адресу PID процесса, к которому он принадлежит.
 /// @param addr Адрес внутри пространства данного процесса
 /// @return PID процесса
-word determinePID(ptrint addr);
+word determine_pid(ptrint addr);
 
 /// @brief Определяет PID процесса-владельца блока по адресу `addr` размером `size` Б.
 /// @param addr Адрес блока

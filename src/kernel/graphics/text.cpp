@@ -56,6 +56,10 @@ bool Character::operator!=(Character &c) {
     return this->character != c.character || this->charCol != c.charCol || this->bgCol != c.bgCol;
 }
 
+bool bound_check(word bound_x, word bound_y) {
+    return (bound_x >= 0 && bound_x < textScreenWidth) && (bound_y >= 0 && bound_y < textScreenHeight);
+}
+
 Glyph getglyph(byte code) {
     switch (code)
     {

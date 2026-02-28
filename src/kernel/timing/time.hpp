@@ -13,18 +13,20 @@
 class Time {
 
 public:
-    word year;       // Год
-    byte month;      // Месяц
-    byte day;        // День
-    byte hours;      // Часы
-    byte minutes;    // Минуты
-    byte seconds;    // Секунды
-    byte weekday;    // День недели
+    word year;      // Год
+    byte month;     // Месяц
+    byte day;       // День
+    byte hours;     // Часы
+    byte minutes;   // Минуты
+    byte seconds;   // Секунды
+    byte weekday;   // День недели
 
     byte asString(char* out);
     byte asStringFull(char* out);
     byte asStringWeekday(char* out);
     byte asStringMonth(char* out);
+
+    qword to_unix();
 
     bool operator==(Time t);
 };

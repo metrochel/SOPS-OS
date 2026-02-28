@@ -131,12 +131,12 @@ char __asctime_str[64];
 struct tm __localtime_buf, __ctime_buf;
 
 clock_t clock() {
-    clock_t time = syscall0(Syscall_GetProcTime);
+    clock_t time = syscall0(syscall_get_proc_time);
     return time;
 }
 
 time_t time(time_t *arg) {
-    time_t time = syscall0(Syscall_GetUnixTime);
+    time_t time = syscall0(syscall_get_unix_time);
     if (arg) *arg = time;
     return time;
 }
@@ -350,7 +350,7 @@ time_t mktime(struct tm *arg) {
 
 int timespec_get(struct timespec *ts, int base) {
     time_t time_s = time(NULL) + base * HOUR_SECS;
-    long time_ns = syscall0(Syscall_GetNanosecTime);
+    long time_ns = syscall0(syscall_get_nanosec_time);
     struct timespec spec = {.tv_nsec = time_ns, .tv_sec = time_s};
     *ts = spec;
     return base;

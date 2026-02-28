@@ -68,7 +68,7 @@ FILE* fopen(const char *fname, const char *strmode) {
 
     int mode = generate_fopen_mode(strmode);
 
-    int syscall_result = syscall2(Syscall_OpenFile, (int)fname, mode);
+    int syscall_result = syscall2(syscall_open_file, (int)fname, mode);
     if (syscall_result == -1)
         return NULL;
 
@@ -88,11 +88,11 @@ FILE* fopen(const char *fname, const char *strmode) {
 FILE* freopen(const char *fname, const char *strmode, FILE *handle) {
     int mode = generate_fopen_mode(strmode);
 
-    int syscall_result = syscall1(Syscall_CloseFile, handle->descriptor);
+    int syscall_result = syscall1(syscall_close_file, handle->descriptor);
     if (syscall_result != 0)
         return NULL;
 
-    syscall_result = syscall2(Syscall_OpenFile, SYSCALL_ARG(fname), mode);
+    syscall_result = syscall2(syscall_open_file, SYSCALL_ARG(fname), mode);
     if (syscall_result == -1)
         return NULL;
 
@@ -106,7 +106,7 @@ FILE* freopen(const char *fname, const char *strmode, FILE *handle) {
 }
 
 int fclose(FILE *file) {
-    int syscall_result = syscall1(Syscall_CloseFile, file->descriptor);
+    int syscall_result = syscall1(syscall_close_file, file->descriptor);
     if (syscall_result != 0)
         return EOF;
 
@@ -136,7 +136,7 @@ size_t fread(void *ptr, size_t sz, size_t n, FILE *stream) {
         ptr = buf;
         if (read_size) {
             ptr = (void*)buf;
-            size_t syscall_result = syscall4(Syscall_Read, (int)ptr, read_size, read_start.pos, desc);
+            size_t syscall_result = syscall4(syscall_read, (int)ptr, read_size, read_start.pos, desc);
             if (syscall_result == (size_t)-1) {
                 read_objects = 0;
             } else {
@@ -175,12 +175,12 @@ size_t fwrite(const void *ptr, size_t sz, size_t n, FILE *stream) {
 
     size_t written_objects = 0;
     if (sz == 1) {
-        size_t syscall_result = syscall4(Syscall_Write, (int)ptr, sz * n, write_start.pos, desc);
+        size_t syscall_result = syscall4(syscall_write, (int)ptr, sz * n, write_start.pos, desc);
         write_start.pos += syscall_result;
         written_objects = syscall_result;
     } else {
         for (size_t i = 0; i < n; i++) {
-            size_t syscall_result = syscall4(Syscall_Write, (int)ptr, sz, write_start.pos, desc);
+            size_t syscall_result = syscall4(syscall_write, (int)ptr, sz, write_start.pos, desc);
             write_start.pos += syscall_result;
             if (syscall_result != sz)
                 break;
@@ -206,7 +206,7 @@ int fgetc(FILE *stream) {
 
     if (__is_buffered(stream)) {
         if (stream->buffer_idx == stream->buffer_active_size) {
-            int syscall_result = syscall4(Syscall_Read,
+            int syscall_result = syscall4(syscall_read,
                 SYSCALL_ARG(stream->buffer),
                 stream->buffer_size,
                 stream->pos.pos,
@@ -232,7 +232,7 @@ int fgetc(FILE *stream) {
     int desc = stream->descriptor;
     fpos_t read_start = stream->pos;
 
-    int syscall_result = syscall2(Syscall_ReadChar, read_start.pos, desc);
+    int syscall_result = syscall2(syscall_read_char, read_start.pos, desc);
     if (syscall_result == -1) {
         stream->eof = 1;
         return EOF;
@@ -276,7 +276,7 @@ int fputc(int c, FILE *stream) {
     int desc = stream->descriptor;
     fpos_t write_start = stream->pos;
 
-    int syscall_result = syscall3(Syscall_WriteChar, c, write_start.pos, desc);
+    int syscall_result = syscall3(syscall_write_char, c, write_start.pos, desc);
     if (syscall_result == -1) {
         stream->error = 1;
         return EOF;
@@ -341,7 +341,7 @@ inline int __flush_stream(FILE *stream) {
     size_t bytes_to_write = pos->pos - pos->file_pos;
     size_t write_start = pos->file_pos;
 
-    size_t syscall_result = syscall4(Syscall_Write,
+    size_t syscall_result = syscall4(syscall_write,
         SYSCALL_ARG(stream->buffer),
         bytes_to_write,
         write_start,
@@ -447,12 +447,12 @@ void clearerr(FILE *stream) {
 }
 
 int remove(const char *filename) {
-    int result = syscall1(Syscall_RemoveFile, SYSCALL_ARG(filename));
+    int result = syscall1(syscall_remove_file, SYSCALL_ARG(filename));
     return result;
 }
 
 int rename(const char *oldname, const char *newname) {
-    int result = syscall2(Syscall_MoveFile, SYSCALL_ARG(oldname), SYSCALL_ARG(newname));
+    int result = syscall2(syscall_move_file, SYSCALL_ARG(oldname), SYSCALL_ARG(newname));
     return result;
 }
 
@@ -461,7 +461,7 @@ char* tmpnam(char *buf) {
 
     const char tmpnam_format[] = "$TMPDIR/_tmp_XXXXX";
 
-    int syscall_result = syscall0(Syscall_AllocateTmpFile);
+    int syscall_result = syscall0(syscall_allocate_tmp_file);
     if (syscall_result == -1)
         return NULL;
 

@@ -1,80 +1,122 @@
 from sys import argv
 
-syscall_cats = dict()
+out_file = ""
+in_files = []
 
 
-def to_hex(s: str):
-    return "0x" + hex(eval(s))[2:].upper()
+def get_files():
+    global out_file
+    out_file = argv[1]
+    for i in range(2, len(argv)):
+        in_files.append(argv[i])
 
 
-def get_fname() -> (str, str):
-    return argv[1], argv[2]
+def get_hex_no(x):
+    return "0x" + hex(x)[2:].upper()
 
 
-def get_data(fname: str) -> list[str]:
-    f = open(fname)
-    data = f.readlines()
-    f.close()
-    return data
-
-
-def parse_data(data: list[str]) -> list[tuple]:
-    syscalls = []
+def parse_file(fname):
+    file = open(fname)
+    base = 0
+    count = 0
     syscalls_started = False
-    for line in data:
-        if line.startswith("#define SYSCALL_"):
-            line_split = line.split()
-            syscall_cat = line_split[1]
-            syscall_cat_no = int(line_split[2][2:], 16)
-            syscall_cats[syscall_cat] = syscall_cat_no
-        if line.startswith('enum'):
+    calls_dict = dict()
+    for line in file:
+        if line == "\n":
+            continue
+        if line.startswith("#define SYSCALL_BASE"):
+            base = int(line[20:], 16)
+            calls_dict["base"] = base
+            continue
+        if line.endswith("{\n"):
             syscalls_started = True
             continue
-        if line.startswith('}'):
+        if line.endswith("}\n"):
             break
-        if not syscalls_started: continue
-        if not line or line == '\n' or line.strip().startswith('/'): continue
-        name, value = line.split(' = ')
-        value = value[:-1].strip()
-        if value.endswith(','): value = value[:-1]
-        name = name.strip()
-        for cat, cat_val in syscall_cats.items():
-            value = value.replace(cat, str(cat_val))
-        value = to_hex(value)
-        syscalls.append((name, value))
+        if syscalls_started and not line.strip().startswith("///") and line.strip().startswith("declare_syscall"):
+            syscall_start = line.find("(") + 1
+            syscall_end = line.find(")")
+            syscall_name = line[syscall_start:syscall_end]
+            syscall_no = base | count
+            calls_dict["syscall_" + syscall_name] = get_hex_no(syscall_no)
+            count += 1
+    if not calls_dict["base"]:
+        calls_dict["base"] = 0
+    file.close()
+    return calls_dict
+
+
+def parse_all_files():
+    parsed_file_data = []
+    for file in in_files:
+        calls_dict = parse_file(file)
+        parsed_file_data.append(calls_dict)
+    return parsed_file_data
+
+
+def sort_files_data(parsed_file_data):
+    return sorted(parsed_file_data, key=lambda x: x["base"])
+
+
+def generate_tuples(sorted_file_data):
+    files_syscalls = []
+    for file_data in sorted_file_data:
+        file_syscalls = []
+        for k,v in file_data.items():
+            if k == "base":
+                continue
+            file_syscalls.append((k, v))
+        file_syscalls = sorted(file_syscalls, key=lambda x: int(x[1], 16))
+        files_syscalls.append(file_syscalls)
+
+    files_syscalls = sorted(files_syscalls, key=lambda x: int(x[0][1], 16))
+
+    syscalls = []
+    for file_syscalls in files_syscalls:
+        syscalls.extend(file_syscalls)
+        syscalls.append(("", ""))
+
     return syscalls
 
 
-def compute_tab(syscalls: list[tuple]) -> int:
-    max_tab = 0
-    for name, value in syscalls:
-        strlen = len(name) + len("#define Syscall_")
-        tab = strlen + 4 - (strlen % 4)
-        if tab > max_tab:
-            max_tab = tab
-    return max_tab
+def get_max_tab(syscalls):
+    maxlen = 0
+    for call, _ in syscalls:
+        maxlen = max(maxlen, len("#define " + call))
+
+    if (maxlen & 3) == 0:
+        maxlen += 4
+
+    return ((maxlen + 3) >> 2) << 2
 
 
-def generate_macros(syscalls: list[tuple], tab: int) -> str:
-    macros_str = ''
-    for name, value in syscalls:
-        length = len("#define Syscall_" + name)
-        macro = '#define Syscall_' + name + ' ' * (tab - length) + value + '\n'
-        macros_str += macro
-    return macros_str
+def generate_macros(syscalls, tabs):
+    total_macros = "#ifndef _SYSCALL_MACROS_INCL\n#define _SYSCALL_MACROS_INCL\n\n"
+    for call, value in syscalls:
+        if call == "":
+            total_macros += "\n"
+            continue
+
+        macro_string = "#define " + call
+        macro_string += " " * (tabs - len(macro_string))
+        macro_string += value
+        macro_string += "\n"
+
+        total_macros += macro_string
+
+    total_macros += "#endif"
+    return total_macros
 
 
-def write_macros_file(fname: str, macros: str):
-    file = open(fname, 'w')
-    file.write('#ifndef _SYSCALL_MACROS_INCL\n#define _SYSCALL_MACROS_INCL\n\n')
-    file.write(macros)
-    file.write('\n#endif')
-    file.close()
+def write_file(macros_str):
+    file = open(out_file, "w")
+    file.write(macros_str)
 
 
-in_fname, out_fname = get_fname()
-data = get_data(in_fname)
-syscalls = parse_data(data)
-tab = compute_tab(syscalls)
+get_files()
+parsed_file_data = parse_all_files()
+sorted_file_data = sort_files_data(parsed_file_data)
+syscalls = generate_tuples(sorted_file_data)
+tab = get_max_tab(syscalls)
 macros = generate_macros(syscalls, tab)
-write_macros_file(out_fname, macros)
+write_file(macros)

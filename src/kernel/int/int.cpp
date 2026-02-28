@@ -10,11 +10,13 @@
 #include "../timing/time.hpp"
 #include "../dbg/dbg.hpp"
 #include "../util/util.hpp"
-#include "../run/syscalls.hpp"
+#include "../syscall/syscall.hpp"
 #include "../run/process.hpp"
 
 IDT_Register *idtr;
 const byte irqOffset = 0x20;
+
+extern __attribute__((interrupt)) void syscall_int(IntFrame*);
 
 void encode_idt_entry(void (*handlePtr)(IntFrame*), byte intNum) {
     encode_idt_entry(handlePtr, intNum, 0);
@@ -63,7 +65,7 @@ void initInts() {
     encode_idt_entry(irq14, irqOffset + 0xE);
     encode_idt_entry(irq15, irqOffset + 0xF);
 
-    encode_idt_entry(syscallInt, 0xC0, 3);
+    encode_idt_entry(syscall_int, 0xC0, 3);
 
     lidt(*idtr);
     enableInts();
@@ -458,7 +460,23 @@ __attribute__((interrupt)) void irq7(IntFrame* frame) {
     int_exit_master();
 }
 
-__attribute__((interrupt)) void syscallInt(IntFrame *frame) {
+#ifdef __x86_64__
+#define EAX "%rax"
+#define ESI "%rsi"
+#define EDI "%rdi"
+#define ECX "%rcx"
+#define EDX "%rdx"
+#define EBX "%rbx"
+#else
+#define EAX "%eax"
+#define ESI "%esi"
+#define EDI "%edi"
+#define ECX "%ecx"
+#define EDX "%edx"
+#define EBX "%ebx"
+#endif
+
+__attribute__((interrupt, noreturn)) void syscallInt(IntFrame *frame) {
     __asm__ (
         "test %eax, %eax;"
         "jnz not_exit;"
@@ -478,41 +496,18 @@ __attribute__((interrupt)) void syscallInt(IntFrame *frame) {
         "sti;"
     );
 
-    Syscall syscall;
-    dword arg1, arg2, arg3, arg4, arg5;
-    dword retAddr;
+    register dword syscall asm (EAX);
+    register syscall_arg_t arg1 asm (ESI);
+    register syscall_arg_t arg2 asm (EDI);
+    register syscall_arg_t arg3 asm (ECX);
+    register syscall_arg_t arg4 asm (EDX);
+    register syscall_arg_t arg5 asm (EBX);
 
-    __asm__ (
-        "movl %%eax, %d0;"
-        "movl %%esi, %d1;"
-        "movl %%edi, %d2;"
-        "movl %%ecx, %d3;"
-        "movl %%edx, %d4;"
-        "movl %%ebx, %d5;"
-        "push %%edx;"
-        "movl %%esp, %%edx;"
-        "movl %%ebp, %%esp;"
-        "add  $0x4, %%esp;"
-        "pop %d6;"
-        "movl %%edx, %%esp;"
-        "pop %%edx;"
-        : "=m"(syscall), "=m"(arg1), "=m"(arg2), "=m"(arg3), "=m"(arg4), "=m"(arg5), "=r"(retAddr)
-        :
-        :
-    );
+    ptrint ret_addr = getReturnAddress();
+    word pid = determine_pid(ret_addr);
 
-    word pid = determinePID(retAddr);
-    dword ret = processSyscall(syscall, pid, arg1, arg2, arg3, arg4, arg5);
+    kdebug("Процесс %d выполняет системный вызов %x.\n", pid, syscall);
 
-    __asm__ (
-        "movl %%ebp, %%esp;"
-        "sub $0x8, %%esp;"
-        "pop %%edx;"
-        "pop %%ecx;"
-        "pop %%ebp;"
-        "iret;"
-        :
-        : "m"(ret)
-        :
-    );
+    syscall_handle_t handle = get_syscall_handle(syscall);
+    syscall_ret_t ret = handle(pid, arg1, arg2, arg3, arg4, arg5);
 }

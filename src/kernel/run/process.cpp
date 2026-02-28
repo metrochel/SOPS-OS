@@ -75,7 +75,7 @@ void unregisterProcess(word pid) {
     processData[pid] = {};
 }
 
-word determinePID(ptrint addr) {
+word determine_pid(ptrint addr) {
     dword tableNo = addr >> 22;
     return tables[tableNo].pid;
 }

@@ -1,10 +1,10 @@
 #include "time.hpp"
 #include "../str/str.hpp"
 #include "../io/io.hpp"
-#include "../io/com.hpp"
-#include "../dbg/dbg.hpp"
 
 Time systime = {0,0,0,0,0,0,0};
+
+const qword month_days[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 
 byte Time::asString(char* out) {
     *out++ = (this->hours / 10) + 0x30;
@@ -59,6 +59,24 @@ byte Time::asStringMonth(char* out) {
         case 11: return strcpy((char*)"ноября", out);
         case 12: return strcpy((char*)"декабря", out);
     }
+}
+
+qword Time::to_unix() {
+    const qword minute_secs = 60;
+    const qword hour_secs = 60 * minute_secs;
+    const qword day_secs = 24 * hour_secs;
+    const qword year_secs = 365 * day_secs;
+
+    qword month_secs = 0;
+    for (byte i = 0; i < month - 1; i++) {
+        month_secs += month_days[i];
+        if (i == 2 && (year & 3) == 0 && year % 100 != 0)
+            month_secs++;
+    }
+    month_secs *= day_secs;
+
+    qword unix = (year - 1970) * year_secs + month_secs + day * day_secs + hours * hour_secs + minutes * minute_secs + seconds;
+    return unix;
 }
 
 bool Time::operator==(Time t) {

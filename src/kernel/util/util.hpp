@@ -100,10 +100,9 @@ inline word getFlags() {
 }
 
 /// @brief Вызывает прерывание.
-/// @param intNo Номер прерывания
-inline void interrupt(byte intNo) {
-    __asm__ ("int %b0" : : "a"(intNo));
-}
+/// @param int_no Номер прерывания
+#define interrupt(int_no) \
+    __asm__ ("int $" #int_no)
 
 /// @brief Меняет значения A и B местами.
 inline void swap(char* a, char* b) {
@@ -240,6 +239,19 @@ inline void setCarry() {
 
 inline void clearCarry() {
     __asm__ ("clc");
+}
+
+inline qword get_timestamp() {
+    qword tsc;
+    dword *ptr = (dword*)&tsc;
+    __asm__ ("rdtsc;"
+             "movl %%edx, %d1;"
+             "movl %%eax, %d0;"
+             : "=m"(ptr[0]), "=m"(ptr[1])
+             :
+             :
+     );
+    return tsc;
 }
 
 inline bool isCarry() {

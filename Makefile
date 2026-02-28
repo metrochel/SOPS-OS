@@ -20,8 +20,12 @@ BOOTBINS		:=$(patsubst $(SRCDIR)/boot/%.asm, $(BUILDDIR)/bins/%.bin, $(BOOTSRC))
 
 OBJSDIR_KERNEL  :=$(OBJSDIR)/kernel
 KERNELSRCDIR	:=$(SRCDIR)/kernel
-KERNELSRC   	:=$(KERNELSRCDIR)/kernel.cpp $(wildcard $(KERNELSRCDIR)/*/*.cpp)
-KERNELOBJ       :=$(foreach cpp, $(KERNELSRC), $(OBJSDIR_KERNEL)/$(patsubst %.cpp,%.o,$(notdir $(cpp))))
+KERNEL_CPP_SRC 	:=$(KERNELSRCDIR)/kernel.cpp $(wildcard $(KERNELSRCDIR)/*/*.cpp) $(wildcard $(KERNELSRCDIR)/*/*/*.cpp)
+KERNEL_ASM_SRC	:=$(wildcard $(KERNELSRCDIR)/*/*.asm)
+KERNELSRC		:=$(KERNEL_ASM_SRC) $(KERNEL_CPP_SRC)
+KERNEL_CPP_OBJ  :=$(foreach cpp, $(KERNEL_CPP_SRC), $(OBJSDIR_KERNEL)/$(patsubst %.cpp,%.o,$(notdir $(cpp))))
+KERNEL_ASM_OBJ	:=$(foreach asm, $(KERNEL_ASM_SRC), $(OBJSDIR_KERNEL)/$(patsubst %.asm,%.o,$(notdir $(asm))))
+KERNELOBJ		:=$(KERNEL_CPP_OBJ) $(KERNEL_ASM_OBJ)
 KERNELBIN		:=$(BINSDIR)/kernel.bin
 KERNELMAP		:=$(BUILDDIR)/kernel.map
 
@@ -50,7 +54,7 @@ PYTHON				:=python
 
 BUILDUTILS			:=buildutils
 SYSCALLMACRO_SCRIPT	:=$(BUILDUTILS)/make_syscall_macros.py
-SYSCALLMACRO_INFILE	:=$(KERNELSRCDIR)/run/syscalls.hpp
+SYSCALLMACRO_INFILES:=$(KERNELSRCDIR)/syscall/syscall.hpp $(wildcard $(KERNELSRCDIR)/syscall/syscalls/incl/*.hpp)
 SYSCALLMACRO_OUTFILE:=$(LIBC_SRC_DIR)/etc/syscall_macros.h
 
 #========================================== Основные цели ===================================================
@@ -153,13 +157,20 @@ $(BOOTBINS): $(BOOTSRC)
 
 #==================================================== Ядро ========================================================
 
-compile_kernel_cpp_source = $(CXXCROSSCOMPILER) -c $(1) -o $(OBJSDIR_KERNEL)/$(subst .cpp,.o,$(notdir $(1))) -ffreestanding -O2 -lgc++ -Wall -Wextra -Wno-write-strings $(if $(filter-out src/kernel/graphics/text.cpp,$(1)),,-Wno-multichar) -fno-exceptions -fno-rtti $(if $(filter-out src/kernel/int/int.cpp,$(1)),,-mgeneral-regs-only) $(if $(filter-out src/kernel/acpi/sci.cpp,$(1)),,-mgeneral-regs-only)
+compile_kernel_cpp_source = $(CXXCROSSCOMPILER) -c $(1) -o $(OBJSDIR_KERNEL)/$(subst .cpp,.o,$(notdir $(1))) -ffreestanding \
+	-O2 -lgc++ -Wall -Wextra -Wno-write-strings \
+	$(if $(filter-out src/kernel/graphics/text.cpp,$(1)),,-Wno-multichar) -fno-exceptions -fno-rtti \
+	$(if $(filter-out src/kernel/int/int.cpp,$(1)),,-mgeneral-regs-only) \
+	$(if $(filter-out src/kernel/acpi/sci.cpp,$(1)),,-mgeneral-regs-only)
+
+assemble_kernel_asm_source = $(ASSEMBLER) $(1) -o $(OBJSDIR_KERNEL)/$(subst .asm,.o,$(notdir $(1))) -f elf
 
 #
 #	Компиляция файлов ядра
 #
-$(KERNELOBJ): $(KERNELSRC) $(OBJSDIR_KERNEL)
-	$(foreach cpp, $(KERNELSRC), $(shell $(call compile_kernel_cpp_source, $(cpp))))
+$(KERNELOBJ): $(KERNEL_CPP_SRC) $(KERNEL_ASM_SRC) $(OBJSDIR_KERNEL)
+	$(foreach asm, $(KERNEL_ASM_SRC), $(shell $(call assemble_kernel_asm_source, $(asm))))	\
+	$(foreach cpp, $(KERNEL_CPP_SRC), $(shell $(call compile_kernel_cpp_source,  $(cpp))))
 
 #
 #	Компоновка ядра
@@ -176,8 +187,8 @@ compile_c_libc_source = $(CCROSSCOMPILER) -c $(1) -o $(OBJSDIR_LIBC)/$(subst .c,
 #
 #	Файл с макросами для системных вызовов
 #
-$(SYSCALLMACRO_OUTFILE): $(SYSCALLMACRO_INFILE)
-	$(PYTHON) $(SYSCALLMACRO_SCRIPT) $(SYSCALLMACRO_INFILE) $(SYSCALLMACRO_OUTFILE)
+$(SYSCALLMACRO_OUTFILE): $(SYSCALLMACRO_INFILES)
+	$(PYTHON) $(SYSCALLMACRO_SCRIPT) $(SYSCALLMACRO_OUTFILE) $(SYSCALLMACRO_INFILES)
 
 #
 #	Сборка 32-битных ассемблерных файлов libc

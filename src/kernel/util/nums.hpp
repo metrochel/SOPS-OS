@@ -7,24 +7,35 @@
 #ifndef _NUMS_INCL
 #define _NUMS_INCL
 
-#define byte unsigned char
-#define word unsigned short
-#define dword unsigned int
-#define qword unsigned long long
+// `byte` - это число размером 1 байт.
+typedef unsigned char byte;
+// `word` - это число размером 2 байта.
+typedef unsigned short word;
+// `dword` - это число размером 4 байта.
+typedef unsigned int dword;
+// `qword` - это число размером 8 байтов.
+typedef unsigned long long qword;
 
-#define maxbyte 0xFF
-#define maxword 0xFFFF
-#define maxdword 0xFFFFFFFF
-#define maxqword 0xFFFFFFFFFFFFFFFF
+// Наибольшее возможное значение `byte`
+#define maxbyte     0xFF
+// Наибольшее возможное значение `word`
+#define maxword     0xFFFF
+// Наибольшее возможное значение `dword`
+#define maxdword    0xFFFFFFFF
+// Наибольшее возможное значение `qword`
+#define maxqword    0xFFFFFFFFFFFFFFFF
 
 #define null 0
 
 #ifdef __x86_64__
-typedef unsigned long long ptrint;
+// `ptrint` - это число, имеющее размер одного указателя.
+typedef qword ptrint;
 #else
-typedef unsigned int ptrint;
+// `ptrint` - это число, имеющее размер одного указателя.
+typedef dword ptrint;
 #endif
 
+// Размер указателя
 #define ptrsize sizeof(ptrint)
 
 #endif
