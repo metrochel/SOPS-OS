@@ -20,8 +20,10 @@ void setProcessData(word pid, Process p) {
 }
 
 Process registerProcess() {
-    word pid;
-    for (word i = 2; i < maxdword; i++) {
+    if (!processData) return {};
+
+    word pid = 0;
+    for (word i = 2; i < maxword; i++) {
         if (processData[i].pid == 0) {
             pid = i;
             break;
@@ -33,6 +35,31 @@ Process registerProcess() {
     Process p = processData[pid];
     memset(&p, sizeof(Process), 0);
     p.pid = pid;
+
+    stdin_file stdin(processData + pid);
+    stdout_file stdout(processData + pid);
+    stderr_file stderr(processData + pid);
+
+    stdin_file *stdin_ptr = (stdin_file*)kmalloc(sizeof stdin);
+    if (!stdin_ptr)
+        return {};
+    *stdin_ptr = stdin;
+    p.stdin = stdin_ptr;
+
+    stdout_file *stdout_ptr = (stdout_file*)kmalloc(sizeof stdout);
+    if (!stdout_ptr)
+        return {};
+    *stdout_ptr = stdout;
+    p.stdout = stdout_ptr;
+
+    stderr_file *stderr_ptr = (stderr_file*)kmalloc(sizeof stderr);
+    if (!stderr_ptr)
+        return {};
+    *stderr_ptr = stderr;
+    p.stderr = stderr_ptr;
+
+    p.parent = nullptr;
+
     processData[pid] = p;
     return p;
 }
@@ -68,8 +95,8 @@ void unregisterProcess(word pid) {
     }
 
     for (byte i = 0; i < PROC_MAX_FILES; i++) {
-        if (process.handles[i])
-            closeFile(process.handles[i]);
+        if (process.files[i])
+            closeFile(process.files[i]);
     }
 
     processData[pid] = {};

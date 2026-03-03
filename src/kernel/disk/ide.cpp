@@ -1,9 +1,7 @@
 #include "ide.hpp"
 #include "../pci/pci.hpp"
-#include "../graphics/glyphs.hpp"
 #include "../memmgr/paging.hpp"
 #include "../io/com.hpp"
-#include "../dbg/dbg.hpp"
 #include "../util/util.hpp"
 
 const dword prdt1start = 0x9500;
@@ -24,6 +22,8 @@ bool prdt1read = false;
 bool prdt2read = false;
 
 bool transferring = false;
+dword transfer_start = 0;
+dword transferred_sectors = 0;
 
 void cleanPRDT1() {
     while ((dword)prdt1 > prdt1start) {
@@ -122,8 +122,10 @@ bool initIDE() {
     return true;
 }
 
-void readSectorsATA(dword startLBA, byte sectorsCount, byte driveNo, byte *out) {
+dword readSectorsATA(dword startLBA, byte sectorsCount, byte driveNo, byte *out) {
     transferring = true;
+    transfer_start = startLBA;
+    transferred_sectors = 0;
     // kdebug("Получена команда на считывание %d секторов с LBA %d с диска %d.\n", sectorsCount, startLBA, driveNo);
     // kdebug("Начата подготовка к исполнению команды.\n");
     bool secondary = driveNo & 2;
@@ -245,10 +247,13 @@ void readSectorsATA(dword startLBA, byte sectorsCount, byte driveNo, byte *out) 
     enableInts();
     while (transferring) {io_wait();}
     // kdebug("Чтение с диска успешно завершено.\n");
+    return transferred_sectors;
 }
 
-void writeSectorsATA(dword startLBA, byte sectorsCount, byte driveNo, byte *out) {
+dword writeSectorsATA(dword startLBA, byte sectorsCount, byte driveNo, byte *out) {
     transferring = true;
+    transfer_start = startLBA;
+    transferred_sectors = 0;
     // kdebug("Получена команда на запись %d секторов с LBA %d на диск %d.\n", sectorsCount, startLBA, driveNo);
     // kdebug("Начинается подготовка к записи на диск.\n");
     bool slave = driveNo & 1;
@@ -365,4 +370,5 @@ void writeSectorsATA(dword startLBA, byte sectorsCount, byte driveNo, byte *out)
     enableInts();
     while (transferring) {io_wait();}
     // kdebug("Запись на диск успешно завершена.\n");
+    return transferred_sectors;
 }

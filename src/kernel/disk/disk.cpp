@@ -48,24 +48,24 @@ DiskData identifyDisk(byte diskNo) {
     return {};
 }
 
-void readSectors(byte *buf, dword lba, dword count, byte drive) {
+dword readSectors(byte *buf, dword lba, dword count, byte drive) {
     // TODO: Добавить возможность считывать с разных видов устройств
     // (ATAPI, SATA+AHCI, USB, дискеты и т.д.)
     enableInts();
-    readSectorsATA(lba, count, drive, buf);
+    return readSectorsATA(lba, count, drive, buf);
 }
 
-void readSector(byte *buf, dword lba, byte drive) {
-    readSectors(buf, lba, 1, drive);
+bool readSector(byte *buf, dword lba, byte drive) {
+    return readSectors(buf, lba, 1, drive);
 }
 
-void writeSectors(byte *buf, dword lba, dword count, byte drive) {
+dword writeSectors(byte *buf, dword lba, dword count, byte drive) {
     // TODO: Добавить возможность записывать в разные типы устройств
     // (ATAPI, SATA+AHCI, USB, дискеты и т.д.)
     enableInts();
-    writeSectorsATA(lba, count, drive, buf);
+    return writeSectorsATA(lba, count, drive, buf);
 }
 
-void writeSector(byte *buf, dword lba, byte drive) {
-    writeSectors(buf, lba, 1, drive);
+bool writeSector(byte *buf, dword lba, byte drive) {
+    return writeSectors(buf, lba, 1, drive);
 }

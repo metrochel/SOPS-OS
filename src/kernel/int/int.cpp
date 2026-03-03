@@ -16,7 +16,10 @@
 IDT_Register *idtr;
 const byte irqOffset = 0x20;
 
-extern __attribute__((interrupt)) void syscall_int(IntFrame*);
+#define isr(name) __attribute__((interrupt)) void name([[maybe_unused]] IntFrame* frame)
+#define irq(irq_no) isr(irq##irq_no)
+
+extern isr(syscall_int);
 
 void encode_idt_entry(void (*handlePtr)(IntFrame*), byte intNum) {
     encode_idt_entry(handlePtr, intNum, 0);
@@ -86,24 +89,24 @@ inline void resetSegmentRegs() {
     );
 }
 
-__attribute__((interrupt)) void zero_divide_err(IntFrame* frame) {
+isr(zero_divide_err) {
     kerror("\nОШИБКА: Деление на ноль\n");
     traceStack();
 }
 
-__attribute__((interrupt)) void overflow_err(IntFrame* frame) {
+isr(overflow_err) {
     resetSegmentRegs();
     kerror("\nОШИБКА: Переполнение\n");
     traceStack();
 }
 
-__attribute__((interrupt)) void bound_err(IntFrame* frame) {
+isr(bound_err) {
     resetSegmentRegs();
     kerror("\nОШИБКА: Индекс превышает длину массива\n");
     traceStack();
 }
 
-__attribute__((interrupt)) void invalid_opcode_err(IntFrame* frame) {
+isr(invalid_opcode_err) {
     resetSegmentRegs();
     kerror("\nОШИБКА: Невозможная инструкция\n");
     traceStack();
@@ -111,13 +114,13 @@ __attribute__((interrupt)) void invalid_opcode_err(IntFrame* frame) {
     magicBreakpoint();
 }
 
-__attribute__((interrupt)) void dev_unavailable_err(IntFrame* frame) {
+isr(dev_unavailable_err) {
     resetSegmentRegs();
     kerror("\nОШИБКА: Устройство недоступно\n");
     traceStack();
 }
 
-__attribute__((interrupt)) void double_fault(IntFrame* frame) {
+isr(double_fault) {
     resetSegmentRegs();
     kerror("\nОШИБКА: Двойной сбой\n");
     kwarn("Возврат невозможен!\n");
@@ -125,25 +128,25 @@ __attribute__((interrupt)) void double_fault(IntFrame* frame) {
     __asm__ ("hlt");
 }
 
-__attribute__((interrupt)) void invalid_task_switch_err(IntFrame* frame) {
+isr(invalid_task_switch_err) {
     resetSegmentRegs();
     kerror("\nОШИБКА: Неправильный переход на процесс\n");
     traceStack();
 }
 
-__attribute__((interrupt)) void seg_not_present_err(IntFrame* frame) {
+isr(seg_not_present_err) {
     resetSegmentRegs();
     kerror("\nОШИБКА: Сегмент ненастоящий\n");
     traceStack();
 }
 
-__attribute__((interrupt)) void stack_seg_fault(IntFrame* frame) {
+isr(stack_seg_fault) {
     resetSegmentRegs();
     kerror("\nОШИБКА: Сбой сегмента стека\n");
     traceStack();
 }
 
-__attribute__((interrupt)) void general_prot_fault(IntFrame* frame) {
+isr(general_prot_fault) {
     resetSegmentRegs();
     dword errcode = (dword)frame;
     kerror("\nОШИБКА: Общий сбой защиты\n");
@@ -172,7 +175,7 @@ __attribute__((interrupt)) void general_prot_fault(IntFrame* frame) {
     while (true) {io_wait();}
 }
 
-__attribute__((interrupt)) void page_fault(IntFrame* frame) {
+isr(page_fault) {
     resetSegmentRegs();
     dword faultAddr;
     dword errorCode = (dword)frame;
@@ -192,24 +195,24 @@ __attribute__((interrupt)) void page_fault(IntFrame* frame) {
     while (true) {__asm__("nop");}
 }
 
-__attribute__((interrupt)) void float_exception(IntFrame* frame) {
+isr(float_exception) {
     resetSegmentRegs();
     kerror("\nОШИБКА: Сбой математического сопроцессора\n");
     traceStack();
 }
 
-__attribute__((interrupt)) void align_check(IntFrame* frame) {
+isr(align_check) {
     resetSegmentRegs();
     kerror("\nОШИБКА: Сбой ровнения\n");
     traceStack();
 }
 
-__attribute__((interrupt)) void irq0(IntFrame* frame) {
+irq(0) {
     updateCursor();
     int_exit_master();
 }
 
-__attribute__((interrupt)) void irq1(IntFrame* frame) {
+irq(1) {
     disableInts();
     while (!(inb(0x64) & 1)) {io_wait();}
     byte scancode = inb(0x60);
@@ -262,12 +265,12 @@ __attribute__((interrupt)) void irq1(IntFrame* frame) {
     int_exit_master();
 }
 
-__attribute__((interrupt)) void irq12(IntFrame* frame) {
+irq(12) {
     kprint("IRQ 12\n");
     int_exit_slave();
 }
 
-__attribute__((interrupt)) void irq14(IntFrame* frame) {
+irq(14) {
     // kdebug("\nВызвано IRQ 14.\nПрерывание вызвал ");
     byte ideStatus = inb(IDE_STATUS_PRIMARY);
     byte ataStatus = inb(ATA_STATUS_PRIMARY);
@@ -285,15 +288,18 @@ __attribute__((interrupt)) void irq14(IntFrame* frame) {
         kdebug("Статус диска: %b\n", inb(ATA_ERROR_PRIMARY));
         dword errSector = (inb(ATA_LBA_HIGH_PRIMARY) << 16) | (inb(ATA_LBA_MID_PRIMARY) << 8) | inb(ATA_LBA_LOW_PRIMARY);
         kdebug("Проблемный сектор: %d\n", errSector);
+        transferred_sectors = errSector - transfer_start;
         outb(IDE_STATUS_PRIMARY, 2);
     }
     byte cmd = inb(IDE_COMMAND_PRIMARY);
     // kdebug("Команда 1 канала: %b\n", cmd);
     // kdebug("Команда была на ");
     bool read = cmd & 8;
+    PRD donePrd = *prdt1base++;
+    if (!transferred_sectors)
+        transferred_sectors = donePrd.count / SECT_SIZE;
     // kdebug(read ? "чтение.\n" : "запись.\n");
     // PRD donePrd = *prdt1base++;
-    prdt1base++;
     // kdebug("Обработанный PRD:\n\tФиз. адрес данных: %x\n\tРазмер блока данных: %d Б\n\tПоследний ли? ", donePrd.base, donePrd.count, donePrd.msb);
     // kdebug((donePrd.msb & 0x80) ? "Да\n" : "Нет\n");
     if (prdt1base == prdt1) {
@@ -311,22 +317,34 @@ __attribute__((interrupt)) void irq14(IntFrame* frame) {
     int_exit_slave();
 }
 
-__attribute__((interrupt)) void irq15(IntFrame* frame) {
+irq(15) {
     // kdebug("\nВызвано IRQ 15.\nПрерывание вызвал ");
     byte ideStatus = inb(IDE_STATUS_SECONDARY);
+    byte ataStatus = inb(ATA_STATUS_SECONDARY);
     if (!(ideStatus & 4)) {
         // kdebug("не диск.\nВНИМАНИЕ: Прерывание вызвано не диском, обработка прервана\n\n");
         int_exit_slave();
         return;
     }
+
+    if ((ideStatus & 2) || (ataStatus & ATA_STATUS_ERROR)) {
+        kdebug("ВНИМАНИЕ: Зафиксирована ошибка диска\n");
+        kdebug("Статус диска: %b\n", inb(ATA_ERROR_SECONDARY));
+        dword errSector = (inb(ATA_LBA_HIGH_SECONDARY) << 16) | (inb(ATA_LBA_MID_SECONDARY) << 8) | inb(ATA_LBA_LOW_SECONDARY);
+        kdebug("Проблемный сектор: %d\n", errSector);
+        transferred_sectors = errSector - transfer_start;
+        outb(IDE_STATUS_SECONDARY, 2);
+    }
+
     // kdebug("диск.\n");
     // kdebug("Статус IDE-контроллера: %b\n", ideStatus);
     byte cmd = inb(IDE_COMMAND_SECONDARY);
     // kdebug("Команда была на ");
     bool read = cmd & 8;
     // kdebug(read ? "чтение.\n" : "запись.");
-    // PRD donePrd = *prdt2base++;
-    prdt2base++;
+    PRD donePrd = *prdt2base++;
+    if (!transferred_sectors)
+        transferred_sectors = donePrd.count / SECT_SIZE;
     // kdebug("Обработанный PRD:\n\tФиз. адрес данных: %x\n\tРазмер блока данных: %d Б\n\tПоследний ли? ", donePrd.base, donePrd.count, donePrd.msb);
     // kdebug((donePrd.msb & 0x80) ? "Да\n" : "Нет\n");
     if (prdt2base == prdt2) {
@@ -342,7 +360,7 @@ __attribute__((interrupt)) void irq15(IntFrame* frame) {
     int_exit_slave();
 }
 
-__attribute__((interrupt)) void irq3(IntFrame* frame) {
+irq(3) {
     disableInts();
     word ioPort = getIOPort(2);
     byte iir = inb(ioPort + 2);
@@ -384,7 +402,7 @@ __attribute__((interrupt)) void irq3(IntFrame* frame) {
     int_exit_master();
 }
 
-__attribute__((interrupt)) void irq4(IntFrame* frame) {
+irq(4) {
     disableInts();
     word ioPort = getIOPort(1);
     byte iir = inb(ioPort + 2);
@@ -416,7 +434,7 @@ __attribute__((interrupt)) void irq4(IntFrame* frame) {
     int_exit_master();
 }
 
-__attribute__ ((interrupt)) void irq8(IntFrame* frame) {
+irq(8) {
     byte cmosStatusB = readCMOSReg(0x0B);
     cmosStatusB |= 16;
     writeCMOSReg(0x0B, cmosStatusB);
@@ -449,65 +467,13 @@ __attribute__ ((interrupt)) void irq8(IntFrame* frame) {
     int_exit_slave();
 }
 
-__attribute__((interrupt)) void irq2(IntFrame* frame) {
+irq(2) {
     int_exit_master();
 }
 
-__attribute__((interrupt)) void irq7(IntFrame* frame) {
+irq(7) {
     if (!(getISR() & 0x80))
         return;
 
     int_exit_master();
-}
-
-#ifdef __x86_64__
-#define EAX "%rax"
-#define ESI "%rsi"
-#define EDI "%rdi"
-#define ECX "%rcx"
-#define EDX "%rdx"
-#define EBX "%rbx"
-#else
-#define EAX "%eax"
-#define ESI "%esi"
-#define EDI "%edi"
-#define ECX "%ecx"
-#define EDX "%edx"
-#define EBX "%ebx"
-#endif
-
-__attribute__((interrupt, noreturn)) void syscallInt(IntFrame *frame) {
-    __asm__ (
-        "test %eax, %eax;"
-        "jnz not_exit;"
-        "movw $0x10, %ax;"
-        "movw %ax, %ds;"
-        "movw %ax, %es;"
-        "movw %ax, %fs;"
-        "movw %ax, %gs;"
-        "movl %esi, %eax;"
-        "movl %ebp, %esp;"
-        "pop %ebp;"
-        "add $0x14, %esp;"
-        "pop %ebp;"
-        "sti;"
-        "ret;"
-        "not_exit:"
-        "sti;"
-    );
-
-    register dword syscall asm (EAX);
-    register syscall_arg_t arg1 asm (ESI);
-    register syscall_arg_t arg2 asm (EDI);
-    register syscall_arg_t arg3 asm (ECX);
-    register syscall_arg_t arg4 asm (EDX);
-    register syscall_arg_t arg5 asm (EBX);
-
-    ptrint ret_addr = getReturnAddress();
-    word pid = determine_pid(ret_addr);
-
-    kdebug("Процесс %d выполняет системный вызов %x.\n", pid, syscall);
-
-    syscall_handle_t handle = get_syscall_handle(syscall);
-    syscall_ret_t ret = handle(pid, arg1, arg2, arg3, arg4, arg5);
 }

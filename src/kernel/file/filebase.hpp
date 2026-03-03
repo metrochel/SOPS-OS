@@ -20,23 +20,38 @@ class File {
         Time creationDate;          // Дата создания файла
         Time lastEditDate;          // Дата редактирования файла
 
+        byte *single_chars_buf;     // Буфер для односимвольных манипуляций
+        dword single_char_buf_idx;  // Индекс в буфере для односимвольных манипуляций
+        dword single_char_buf_pos;  // Положение буфера относительно начала файла
+
         /// @brief Создаёт файл на диске.
-        virtual void create();
+        virtual bool create();
 
         /// @brief Считывает весь файл в память.
         /// @param out Указатель выхода данных
-        virtual bool read(byte *out);
+        /// @return Размер считанного блока, Б
+        virtual dword read(byte *out);
 
         /// @brief Считывает кусок из файла в память.
-        /// @param start Сдвиг первого байта
-        /// @param size Размер считываемого куска, Б
+        /// @param read_start Сдвиг первого байта
+        /// @param read_size Размер считываемого куска, Б
         /// @param out Указатель выхода данных
-        virtual bool read(dword start, dword size, byte *out);
+        /// @return Размер считанного блока, Б
+        virtual dword read(dword read_start, dword read_size, byte *out);
 
         /// @brief Записывает данные в файл.
+        /// @param write_start Сдвиг первого байта
+        /// @param write_size Размер данных, Б
         /// @param in Указатель входа данных
-        /// @param dataSize Размер данных, Б
-        virtual bool write(byte *in, dword dataSize);
+        /// @return Размер записанного блока, Б
+        virtual dword write(dword write_start, dword write_size, byte *in);
+
+        /// @brief Записывает данные в файл.
+        /// @param write_size Размер данных, Б
+        /// @param in Указатель входа данных
+        /// @return Размер записанного блока, Б
+        /// @note Запись производится в конец файла.
+        virtual dword write(dword write_size, byte *in);
 
         /// @brief Переименовывает файл.
         /// @param newname Новое имя файла
@@ -49,6 +64,10 @@ class File {
         virtual void clear();
 
         bool operator!();
+
+        File() : name(nullptr), attributes(0), drive(maxbyte), size(0),
+                 creationDate(Time()), lastEditDate(Time()),
+                 single_chars_buf(nullptr), single_char_buf_idx(0), single_char_buf_pos(0) {}
 };
 
 #endif

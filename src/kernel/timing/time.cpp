@@ -41,6 +41,7 @@ byte Time::asStringWeekday(char* out) {
         case 5: return strcpy((char*)"Чт", out); break;
         case 6: return strcpy((char*)"Пт", out); break;
         case 7: return strcpy((char*)"Сб", out); break;
+        default: return 0;
     }
 }
 
@@ -58,6 +59,7 @@ byte Time::asStringMonth(char* out) {
         case 10: return strcpy((char*)"октября", out);
         case 11: return strcpy((char*)"ноября", out);
         case 12: return strcpy((char*)"декабря", out);
+        default: return 0;
     }
 }
 

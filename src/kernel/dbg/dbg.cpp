@@ -217,14 +217,14 @@ char *parseSymbol(char *symbol) {
 
 void initKernelMap(byte drive) {
     kdebug("Начата инициализация карты ядра.\n");
-    FileHandle *map = openFile("/kernel.map", drive, FILE_MODE_READ);
+    File *map = openFile("/kernel.map", drive, FILE_MODE_READ);
     if (!map)
         return;
 
     kdebug("Файл готов. Начинается анализ.\n");
-    char *fileBuf = (char*)kmalloc(map->file->size);
+    char *fileBuf = (char*)kmalloc(map->size);
     char *_fileBuf = fileBuf;
-    map->file->read((byte*)fileBuf);
+    map->read((byte*)fileBuf);
 
     kernelSymbols = (char*)kmalloc(kernelSymbolsSize);
     kernelSymbolsBase = kernelSymbols;

@@ -769,12 +769,15 @@ void printStr(const char* text, va_list args, dword charCol, dword bgCol, bool f
                 state = 222;
             else if (symb == 'f')
                 state = 6;
+            else if (symb == 's')
+                state = 67;
         }
         else
             state = 0;
         word unicode = 0;
         qword arg;
         double flarg;
+        const char *strarg;
         switch (Glyph g; state) {
             case 0:
                 g = getglyph(symb);
@@ -844,6 +847,10 @@ void printStr(const char* text, va_list args, dword charCol, dword bgCol, bool f
             case 64:
                 arg = va_arg(args, qword);
                 printHexUInt(arg, charCol, bgCol);
+                break;
+            case 67:
+                strarg = va_arg(args, const char*);
+                printStr(strarg, null, charCol, bgCol, false);
                 break;
         }
         text++;

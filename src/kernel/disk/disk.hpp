@@ -65,26 +65,30 @@ byte determineDriveNo(char *path);
 /// @param buf Буфер выхода данных
 /// @param lba LBA-координаты блока
 /// @param drive Номер диска в системе
-void readSector(byte *buf, dword lba, byte drive);
+/// @return Успех чтения сектора
+bool readSector(byte *buf, dword lba, byte drive);
 
 /// @brief Считывает несколько блоков данных.
 /// @param buf Буфер выхода данных
 /// @param lba LBA-координаты первого блока
 /// @param count Количество блоков
 /// @param drive Номер диска в системе
-void readSectors(byte *buf, dword lba, dword count, byte drive);
+/// @return Количество считанных секторов
+dword readSectors(byte *buf, dword lba, dword count, byte drive);
 
 /// @brief Записывает один блок данных.
 /// @param buf Буфер новых данных
 /// @param lba LBA-координаты блока
 /// @param drive Номер диска в системе
-void writeSector(byte* buf, dword lba, byte drive);
+/// @return Успех записи
+bool writeSector(byte* buf, dword lba, byte drive);
 
 /// @brief Записывает несколько блоков данных.
 /// @param buf Буфер новых данных
 /// @param lba LBA-координаты первого блока
 /// @param count Количество блоков
 /// @param drive Номер диска в системе
-void writeSectors(byte* buf, dword lba, dword count, byte drive);
+/// @return Количество фактически записанных секторов
+dword writeSectors(byte* buf, dword lba, dword count, byte drive);
 
 #endif

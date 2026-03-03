@@ -484,18 +484,18 @@ void cmdCat(char *fname) {
 		fname = newFname;
 		fnameChanged = true;
 	}
-	FileHandle *handle = openFile(fname, drive, FILE_MODE_READ);
-	if (!handle) {
+	File *file = openFile(fname, drive, FILE_MODE_READ);
+	if (!file) {
 		kerror("ОШИБКА: Не удалось открыть файл ");
 		kerror(fname);
 		kerror(".\n");
 		if (fnameChanged) kfree(fname);
 		return;
 	}
-	dword fileSz = handle->file->size;
+	dword fileSz = file->size;
 	char *buf = (char*)kmalloc(fileSz + 1);
 	buf[fileSz] = 0;
-	readFile(handle, fileSz, (byte*)buf);
+	file->read((byte*)buf);
 	kprint(buf);
 	if (fnameChanged) kfree(fname);
 }

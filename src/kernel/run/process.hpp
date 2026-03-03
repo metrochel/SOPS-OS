@@ -7,6 +7,7 @@
 //
 #include "../util/nums.hpp"
 #include "../file/file.hpp"
+#include "stdio.hpp"
 
 // Резервированный PID для ядра
 #define PID_KERNEL          1
@@ -18,14 +19,18 @@
 // Хранит в себе все важные данные о процессе: его PID,
 // количество использованной ОЗУ и так далее.
 struct Process {
-    word pid;
-    word clearedScreen : 1;
-    word changedBounds : 1;
-    word _reserved : 14;
-    FileHandle *handles[PROC_MAX_FILES];
-    dword usedMemory;
-    ptrint startAddress;
-    qword start_timestamp;
+    word pid;                               // PID процесса
+    word clearedScreen : 1;                 // Флаг; если true, то процесс очищал экран
+    word changedBounds : 1;                 // Флаг; если true, то процесс менял размер экрана
+    word _reserved : 14;                    // <резервировано>
+    stdout_file *stdout;                    // Файл стандартного вывода
+    stdin_file *stdin;                      // Файл стандартного ввода
+    stderr_file *stderr;                    // Файл стандартной ошибки
+    File *files[PROC_MAX_FILES];            // Открытые файлы
+    Process *parent;                        // Родительский процесс
+    dword usedMemory;                       // Использованная процессом память, Б
+    ptrint startAddress;                    // Начальный адрес процесса
+    qword start_timestamp;                  // Момент запуска процесса
 };
 
 /// @brief Инициализирует библиотеку процессов для работы.

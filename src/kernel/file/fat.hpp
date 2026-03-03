@@ -99,22 +99,23 @@ class FAT32_File : public File {
         ~FAT32_File();
 
         /// @brief Создаёт файл на диске.
-        void create() override;
+        bool create() override;
 
         /// @brief Считывает весь файл в память.
         /// @param out Указатель выхода данных
-        bool read(byte *out) override;
+        dword read(byte *out) override;
 
         /// @brief Считывает кусок файла в память.
         /// @param start Сдвиг первого байта
         /// @param size Размер считываемого куска, Б
         /// @param out Указатель выхода данных
-        bool read(dword start, dword size, byte *out) override;
+        dword read(dword start, dword size, byte *out) override;
 
         /// @brief Записывает данные в файл.
+        /// @param start Сдвиг первого байта
+        /// @param size Размер данных, Б
         /// @param in Указатель входа данных
-        /// @param dataSize Размер данных, Б
-        bool write(byte *in, dword dataSize) override;
+        dword write(dword start, dword size, byte *in) override;
 
         /// @brief Переименовывает файл.
         /// @param newname Новое имя файла
@@ -182,7 +183,7 @@ extern FAT32_EBPB ebpbs[16];
 
 /// @brief Обновляет метку директории для файла.
 /// @param f Файл
-void updateDirEntry(FAT32_File *f);
+bool updateDirEntry(FAT32_File *f);
 
 /// @brief Создаёт SFN-имя для данного названия
 /// @param name Исходное название
@@ -208,13 +209,15 @@ bool initFAT(byte driveNo);
 /// @param driveNo Номер диска, с которого считать кластер
 /// @param clusterNo Номер кластера
 /// @param out Буфер выхода данных
-void readCluster(byte driveNo, dword clusterNo, byte *out);
+/// @return Успешность считывания кластера
+bool readCluster(byte driveNo, dword clusterNo, byte *out);
 
 /// @brief Записывает один кластер.
 /// @param driveNo Номер диска, на котором записывать кластер
 /// @param clusterNo Номер кластера
 /// @param in Буфер данных
-void writeCluster(byte driveNo, dword clusterNo, byte *in);
+/// @return Успешность записи кластера
+bool writeCluster(byte driveNo, dword clusterNo, byte *in);
 
 /// @brief Выделяет один кластер.
 /// @param driveNo Номер диска, где искать

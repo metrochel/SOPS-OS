@@ -53,6 +53,8 @@
 #define IDE_STATUS_SECONDARY                0x10A
 #define IDE_PRDT_ADDR_SECONDARY             0x10C
 
+#define SECT_SIZE                           512
+
 
 // Структура дескриптора физического адреса
 struct PRD {
@@ -78,6 +80,10 @@ extern bool prdt1read;
 extern bool prdt2read;
 // Флаг; если установлен, на данный момент происходит обмен данными
 extern bool transferring;
+// Сектор, с которого начата текущая передача данных
+extern dword transfer_start;
+// Количество фактически переданных секторов
+extern dword transferred_sectors;
 /// @brief Инициализирует IDE-контроллер.
 bool initIDE();
 
@@ -86,14 +92,16 @@ bool initIDE();
 /// @param sectorsCount Число секторов
 /// @param driveNo Номер диска
 /// @param out Буфер приёма
-void readSectorsATA(dword startLBA, byte sectorsCount, byte driveNo, byte *out);
+/// @return Количество фактически считанных секторов
+dword readSectorsATA(dword startLBA, byte sectorsCount, byte driveNo, byte *out);
 
 /// @brief Записывает секторы на ATA-диск.
 /// @param startLBA LBA начала
 /// @param sectorsCount Число секторов
 /// @param driveNo Номер диска
 /// @param out Буфер данных
-void writeSectorsATA(dword startLBA, byte sectorsCount, byte driveNo, byte *out);
+/// @return Количество фактически записанных секторов
+dword writeSectorsATA(dword startLBA, byte sectorsCount, byte driveNo, byte *out);
 
 /// @brief Очищает таблицу PRD для 1 канала.
 void cleanPRDT1();

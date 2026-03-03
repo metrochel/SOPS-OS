@@ -366,12 +366,15 @@ void kdebug(const char* text, ...) {
                 state = 2;
             else if (c == 'B')
                 state = 22;
+            else if (c == 's')
+                state = 67;
             else
                 state = 0;
         }
         else
             state = 0;
         qword arg;
+        const char *strarg;
         switch (state) {
             case 0:
                 if (c == 0x0A)
@@ -413,6 +416,10 @@ void kdebug(const char* text, ...) {
             case 64:
                 arg = va_arg(l, qword);
                 writeComHexUInt(arg, 1);
+                break;
+            case 67:
+                strarg = va_arg(l, const char*);
+                kdebug(strarg);
                 break;
         }
         msg ++;

@@ -6,18 +6,14 @@
 #include "../dbg/dbg.hpp"
 #include "../str/str.hpp"
 
-FileHandle *handles = nullptr;
-
 void initFiles() {
-    handles = (FileHandle*)kmalloc(MAX_FILE_HANDLES * sizeof(FileHandle));
-    memset(handles, MAX_FILE_HANDLES * sizeof(FileHandle), 0);
+
 }
 
-FileHandle *openFile(char *path, byte driveNo, byte mode) {
+File *openFile(char *path, byte driveNo, byte mode) {
     kdebug("Получен запрос на открытие файла ");
     kdebug(path);
     kdebug(" на диске %d.\n", driveNo);
-    FileHandle handle = {};
     if (disks[driveNo].diskBus == NotConnected) {
         kdebug("ОШИБКА: Диск %d не подключён\n");
         return nullptr;
@@ -28,19 +24,7 @@ FileHandle *openFile(char *path, byte driveNo, byte mode) {
         return nullptr;
     }
 
-    word handleSlot = maxword;
-    for (word i = 0; i < MAX_FILE_HANDLES; i++) {
-        if (handles[i].file)
-            continue;
-
-        handleSlot = i;
-        break;
-    }
-
-    if (handleSlot == maxword) {
-        kdebug("ОШИБКА: Слот для обработчика не выделен\n");
-        return nullptr;
-    }
+    File *file_ptr;
 
     if (disks[driveNo].filesystem == FAT32) {
         kdebug("Файловая система диска %d - FAT32.\n", driveNo);
@@ -48,73 +32,26 @@ FileHandle *openFile(char *path, byte driveNo, byte mode) {
         if (!f || (f.name && (mode & FILE_MODE_FLAG_EX))) {
             return nullptr;
         }
-        handle.file = (File*)kmalloc(sizeof(FAT32_File));
-        *handle.file = f;
-        memcpy((byte*)&f, (byte*)handle.file, sizeof(FAT32_File));
+        File *file_ptr = (File*)kmalloc(sizeof(FAT32_File));
+        memcpy((byte*)&f, (byte*)file_ptr, sizeof(FAT32_File));
     } else {
         return nullptr;
     }
 
-    handle.filePos = 0;
-    handle.eof = 0;
-    handle.error = 0;
-    handle.buffer = nullptr;
-    handle.bufferSize = 0;
-    handle.mode = mode;
-
     if ((mode & 7) == FILE_MODE_WRITE) {
-        handle.file->clear();
+        file_ptr->clear();
     }
 
     kdebug("Открытие завершено успешно.\n");
 
-    handles[handleSlot] = handle;
-    return handles + handleSlot;
+    return file_ptr;
 }
 
-void closeFile(FileHandle *handle) {
+void closeFile(File *file) {
     kdebug("Файл ");
-    kdebug(handle->file->name);
+    kdebug(file->name);
     kdebug(" закрывается.\n");
-    kfree(handle->file);
-    if (handle->buffer)
-        kfree(handle->buffer);
-    *handle = {};
-}
-
-bool readFile(FileHandle *handle, dword size, byte *out) {
-    if ((handle->mode & FILE_MODE_FLAG_UPD) == 0 && handle->mode & 7 != FILE_MODE_READ) {
-        handle->error = 1;
-        return false;
-    }
-
-    bool result = handle->file->read(handle->filePos, size, out);
-    if (!result) {
-        handle->error = 1;
-        return false;
-    }
-    handle->filePos += size;
-    if (handle->filePos == handle->file->size - 1)
-        handle->eof = 1;
-    return true;
-}
-
-bool writeFile(FileHandle *handle, dword size, byte *in) {
-    if ((handle->mode & FILE_MODE_FLAG_UPD) == 0 && (handle->mode & 7) != FILE_MODE_WRITE && (handle->mode & 7) != FILE_MODE_APPEND) {
-        handle->error = 1;
-        return false;
-    }
-
-    if ((handle->mode & FILE_MODE_FLAG_BIN) == 0 && in[size-1] == 0)
-        size --;
-
-    bool result = handle->file->write(in, size);
-    if (!result) {
-        handle->error = 1;
-        return false;
-    }
-    handle->filePos += size;
-    return true;
+    kfree(file);
 }
 
 bool createFolder(char *path, byte drive, bool force) {
