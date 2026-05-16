@@ -24,9 +24,8 @@
 #define syscall_write                       0x3004
 #define syscall_write_char                  0x3005
 #define syscall_get_file_size               0x3006
-#define syscall_allocate_tmp_file           0x3007
-#define syscall_remove_file                 0x3008
-#define syscall_move_file                   0x3009
+#define syscall_remove_file                 0x3007
+#define syscall_move_file                   0x3008
 
 #define syscall_malloc                      0x4000
 #define syscall_free                        0x4001

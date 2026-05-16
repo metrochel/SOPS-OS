@@ -51,7 +51,6 @@ syscall_handle_t get_syscall_handle(dword syscall) {
         handle_case(write)
         handle_case(write_char)
         handle_case(get_file_size)
-        handle_case(allocate_tmp_file)
         handle_case(remove_file)
         handle_case(move_file)
 
