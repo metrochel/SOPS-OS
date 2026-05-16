@@ -61,7 +61,7 @@ int main() {
     initDisks();
     initFiles();
 
-    kprint("Добро пожаловать в СОПС вер. 1.0.0-АЛЬФА!\n\n");
+    kprint("Добро пожаловать в СОПС вер. 0.1.0!\n\n");
 
     disableInts();
     outb(0x70, 0x8B);
