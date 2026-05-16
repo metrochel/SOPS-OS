@@ -11,30 +11,13 @@
 
 #define MAX_FILE_HANDLES 256
 
-/*
- * Режим открытия файла - это 5-битовое число, имеющее следующий вид:
- * 0b000XUBMM,
- * где
- *  M - сам режим открытия (0 - чтение, 1 - запись, 2 - добавление),
- *  B - флаг двоичного открытия (0 - текст, 1 - бинарник),
- *  U - флаг обновления (0 - только в одну сторону, 1 - можно в обе),
- *  X - флаг эксклюзивности (т.е. если такой файл уже есть на диске, открытие проваливается)
- */
-
-#define FILE_MODE_READ      0
-#define FILE_MODE_WRITE     1
-#define FILE_MODE_APPEND    2
-#define FILE_MODE_FLAG_BIN  8
-#define FILE_MODE_FLAG_UPD  16
-#define FILE_MODE_FLAG_EX   32
-
 void initFiles();
 
 /// @brief Открывает файл.
 /// @param path Путь к файлу
 /// @param driveNo Номер диска, содержащего файл
 /// @return Ссылка на открытый файл
-File *openFile(char *path, byte driveNo, byte mode);
+File *openFile(char *path, byte driveNo, file_open_mode mode);
 
 /// @brief Закрывает файл.
 /// @param handle Указатель на закрываемый файл

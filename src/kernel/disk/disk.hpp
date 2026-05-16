@@ -59,7 +59,7 @@ void initDisks();
 /// @brief Определяет номер логического диска по данному пути.
 /// @param path Путь
 /// @return Определённый номер диска
-byte determineDriveNo(char *path);
+byte determineDriveNo(const char *path);
 
 /// @brief Считывает один блок данных.
 /// @param buf Буфер выхода данных

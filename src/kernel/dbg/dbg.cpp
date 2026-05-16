@@ -41,7 +41,8 @@ void traceStack() {
 }
 
 char *findFunctionName(ptrint addr) {
-    ptrint lowAddr = *(ptrint*)kernelSymbolsBase;
+    if (!kernelMap || !kernelMapBase)
+        return nullptr;
     char *funcName = nullptr;
     dword mapSize = (dword)(kernelMap - kernelMapSize) / (sizeof(byte*));
     for (dword i = 0; i < mapSize - 2; i++) {
@@ -55,7 +56,7 @@ char *findFunctionName(ptrint addr) {
     return funcName;
 }
 
-char *parseSymbol(char *symbol) {
+const char *parseSymbol(const char *symbol) {
     char *out = (char*)kernelSymbols;
     if (!strstartswith(symbol, "_Z")) {
         strcpy(symbol, out);
@@ -217,9 +218,14 @@ char *parseSymbol(char *symbol) {
 
 void initKernelMap(byte drive) {
     kdebug("Начата инициализация карты ядра.\n");
-    File *map = openFile("/kernel.map", drive, FILE_MODE_READ);
-    if (!map)
+    File *map = openFile("/kernel.map", drive, read_open_mode);
+    if (!map) {
+        kernelSymbols = nullptr;
+        kernelSymbolsBase = nullptr;
+        kernelMap = nullptr;
+        kernelMapBase = nullptr;
         return;
+    }
 
     kdebug("Файл готов. Начинается анализ.\n");
     char *fileBuf = (char*)kmalloc(map->size);
@@ -261,11 +267,11 @@ void initKernelMap(byte drive) {
         fileBuf += 2;
 
         ptrint addr = strhextoint(fileBuf - 26);
-        char *ptr = fileBuf;
+        char *ptr = (char*)fileBuf;
         while (*ptr && *ptr != 0x0A)
             ptr++;
         *ptr = 0;
-        char *name = parseSymbol(fileBuf);
+        const char *name = parseSymbol(fileBuf);
 
         *kernelMap++ = (ptrint)addr;
         *kernelMap++ = (ptrint)name;

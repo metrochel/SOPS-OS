@@ -76,8 +76,9 @@ class FAT32_File : public File {
         /// @param cluster Кластер с меткой
         /// @param offset Сдвиг метки
         /// @param driveNo Номер диска метки
+        /// @param mode Режим открытия файла
         /// @attention Сдвиг указывать на первую LFN-метку файла!
-        FAT32_File(dword cluster, word offset, byte driveNo);
+        FAT32_File(dword cluster, word offset, byte driveNo, file_open_mode mode);
 
         /// @brief Конструктор по непосредственным данным файла.
         /// @param name Имя файла
@@ -85,15 +86,18 @@ class FAT32_File : public File {
         /// @param drive Номер диска
         /// @param size Размер файла
         /// @param creationDate Время создания
+        /// @param mode Режим открытия файла
         /// @note Очень полезно для создания виртуальных файлов, то есть таких, которых нет сейчас на диске.
-        FAT32_File(char *name, byte attr, byte drive, dword size, Time creationDate, dword directoryCluster);
+        FAT32_File(char *name, byte attr, byte drive, dword size, Time creationDate, dword directoryCluster,
+                   file_open_mode mode);
 
         /// @brief Конструктор по пути к файлу.
         /// @param path Абсолютный путь к файлу
         /// @param driveNo Номер диска 
         /// @param forceFile Флаг; если `true` и файл отсутствует, то он создаётся
         /// @param forceFolders Флаг; если `true`, то создаются все отсутствующие по пути папки
-        FAT32_File(char *path, byte driveNo, bool forceFile, bool forceFolders);
+        /// @param mode Режим открытия файла
+        FAT32_File(char *path, byte driveNo, bool forceFile, bool forceFolders, file_open_mode mode);
 
         /// @brief Деструктор файла.
         ~FAT32_File();

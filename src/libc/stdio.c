@@ -3,6 +3,10 @@
 #include "include/string.h"
 #include "etc/syscalls.h"
 
+FILE __stdout = {};
+FILE __stdin  = {};
+FILE __stderr = {};
+
 FILE files[FOPEN_MAX];
 unsigned char files_taken[FOPEN_MAX];
 
@@ -11,7 +15,7 @@ unsigned char files_taken[FOPEN_MAX];
 #define FILE_DESC_STDERR    2
 #define FILE_DESC_INVALID   255
 
-#define __is_buffered(stream) (((stream)->buffer_mode == _IOLBF) || ((stream)->buffer_mode == _IOFBF))
+#define __is_buffered(stream) ((((stream)->buffer_mode == _IOLBF) || ((stream)->buffer_mode == _IOFBF)) && (stream)->buffer)
 #define __invalid_stream(stream) ((stream)->descriptor == FILE_DESC_INVALID)
 
 #define __increment_pos(arg_pos) \
@@ -20,29 +24,37 @@ unsigned char files_taken[FOPEN_MAX];
 // === Открытие/закрытие файла ===
 
 int generate_fopen_mode(const char *mode) {
-    // Режим открытия файла описан в src/kernel/file/file.hpp.
-    int open_mode = 0, ex_flag = 0, b_flag = 0, update_flag = 0;
+    // Режим открытия файла описан в src/kernel/file/filebase.hpp.
+    struct {
+        int read_allow : 1;
+        int write_allow : 1;
+        int append : 1;
+        int binary : 1;
+        int exclusive : 1;
+    } open_mode;
     while (*mode) {
         char c = *mode++;
         switch (c) {
-            case 'r': open_mode = 0; break;
-            case 'w': open_mode = 1; break;
-            case 'a': open_mode = 2; break;
+            case 'r': open_mode.read_allow = 1; break;
+            case 'w': open_mode.write_allow = 1; break;
+            case 'a': open_mode.append = 1; open_mode.write_allow = 1; break;
             default: break;
         }
 
         if (c == 'b')
-            b_flag = 8;
+            open_mode.binary = 1;
 
-        if (c == '+')
-            update_flag = 16;
+        if (c == '+') {
+            open_mode.read_allow = 1;
+            open_mode.write_allow = 1;
+        }
 
-        if (c == 'x')
-            ex_flag = 32;
+        if (c == 'x') {
+            open_mode.exclusive = 1;
+        }
     }
 
-    int final_mode = open_mode | ex_flag | b_flag | update_flag;
-    return final_mode;
+    return *(int*)&open_mode;
 }
 
 int take_file_spot() {
@@ -69,8 +81,10 @@ FILE* fopen(const char *fname, const char *strmode) {
     int mode = generate_fopen_mode(strmode);
 
     int syscall_result = syscall2(syscall_open_file, (int)fname, mode);
-    if (syscall_result == -1)
+    if (syscall_result < 0) {
+        free_file_spot(spot);
         return NULL;
+    }
 
     FILE *fileptr = files + spot;
 
@@ -175,12 +189,12 @@ size_t fwrite(const void *ptr, size_t sz, size_t n, FILE *stream) {
 
     size_t written_objects = 0;
     if (sz == 1) {
-        size_t syscall_result = syscall4(syscall_write, (int)ptr, sz * n, write_start.pos, desc);
+        size_t syscall_result = syscall4(syscall_write, (syscall_arg_t)ptr, sz * n, write_start.pos, desc);
         write_start.pos += syscall_result;
         written_objects = syscall_result;
     } else {
         for (size_t i = 0; i < n; i++) {
-            size_t syscall_result = syscall4(syscall_write, (int)ptr, sz, write_start.pos, desc);
+            size_t syscall_result = syscall4(syscall_write, (syscall_arg_t)ptr, sz, write_start.pos, desc);
             write_start.pos += syscall_result;
             if (syscall_result != sz)
                 break;
@@ -322,18 +336,22 @@ char *fgets(char *s, int n, FILE *stream) {
 }
 
 int fputs(const char *s, FILE *stream) {
-    while (*s) {
-        int result = fputc(*s++, stream);
-        if (result == EOF) {
-            stream->error = 1;
-            return EOF;
-        }
-    }
+    if (!s) return EOF;
+    if (!stream) return EOF;
 
-    return 0;
+    if (stream->error)
+        return EOF;
+
+    size_t len = strlen(s);
+    int result = fwrite(s, 1, len, stream);
+    return result;
 }
 
-inline int __flush_stream(FILE *stream) {
+int puts(const char *str) {
+    return fputs(str, stdout);
+}
+
+[[gnu::always_inline]] int __flush_stream(FILE *stream) {
     if (__invalid_stream(stream)) return EOF;
 
     fpos_t *pos = &(stream->pos);
@@ -456,12 +474,17 @@ int rename(const char *oldname, const char *newname) {
     return result;
 }
 
+int __allocate_tmpfile() {
+    // TODO
+    return -1;
+}
+
 char* tmpnam(char *buf) {
     // Формат названия временного файла см. в файле stdio.h.
 
     const char tmpnam_format[] = "$TMPDIR/_tmp_XXXXX";
 
-    int syscall_result = syscall0(syscall_allocate_tmp_file);
+    int syscall_result = __allocate_tmpfile();
     if (syscall_result == -1)
         return NULL;
 
@@ -469,7 +492,7 @@ char* tmpnam(char *buf) {
     char *number_ptr = (char*)tmpnam_format + sizeof tmpnam_format - __TMPNAM_NUMBERS_LEN - 1;
 
     int number = syscall_result;
-    for (int i = 0; i < __TMPNAM_NUMBERS_LEN; i++) {
+    for (int i = __TMPNAM_NUMBERS_LEN - 1; i >= 0; i--) {
         int digit = (number & 0xF) + '0';
         if (digit > '9')
             digit = (number & 0xF) - 10 + 'A';

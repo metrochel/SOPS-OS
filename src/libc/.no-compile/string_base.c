@@ -50,7 +50,7 @@
 
 /* Вспомогательные функции для UTF-8 */
 
-size_t get_utf8_char_len(const char *str) {
+always_inline size_t get_utf8_char_len(const char *str) {
     if ((*str & 0x80) == 0)
         return 1;
     if ((*str & 0xE0) == 0xC0)

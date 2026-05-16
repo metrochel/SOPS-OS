@@ -41,21 +41,22 @@ typedef dword syscall_ret_t;
 
 typedef syscall_ret_t (*syscall_handle_t)(syscall_args);
 
-/*
- * Я подсмотрел этот метод на StackOverflow. Чтобы использовать встроенный счётчик, мы объявим его
- * текущее значение как основное, а потом каждый раз вычитать его из счётчика.
- */
-enum { __COUNTER_BASE__ = __COUNTER__ };
-#define __counter __COUNTER__ - __COUNTER_BASE__
-
 #endif
 
 /*
- * Здесь используем ту же схему, что и в libc: этот заголовок будет включаться для каждой категории,
+ * Здесь используем ту же схему, что и в libc для string.c/wchar.c: этот заголовок будет включаться для каждой категории,
  * каждая из которых будет объявлять SYSCALL_BASE как основу для своей категории.
  */
 
 #ifdef SYSCALL_BASE
+
+#define concat(a,b) a##b
+#define cnt_base(x) concat(__COUNTER_BASE, x)
+
+enum {
+    cnt_base(SYSCALL_BASE) = __COUNTER__ + 1
+};
+#define __counter (__COUNTER__ - cnt_base(SYSCALL_BASE))
 
 // Этот макрос объявляет аттрибуты функций от компилятора, применимые к системным вызовам.
 #define __syscall_handle__

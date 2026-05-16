@@ -12,6 +12,7 @@
 #include "../include/stddef.h"
 #include "../include/wchar.h"
 #include "../include/limits.h"
+#include "../etc/syscalls.h"
 #include <stdint.h>
 
 #define concat(a,b) a##b
@@ -100,11 +101,6 @@ int sscanf_get(scanf_args_t *scanf_args) {
 
     int c = *ptr++;
     scanf_args->chars_count++;
-    while (ISSPACE(*ptr)) {
-        ptr++;
-        (scanf_args->chars_count)++;
-    }
-    scanf_args->buffer = (void*)ptr;
 
     return c;
 }
@@ -150,14 +146,6 @@ int fscanf_get(scanf_args_t *scanf_args) {
 
     int c = fgetc(file);
     (scanf_args->chars_count)++;
-    int _c = fgetc(file);
-    (scanf_args->chars_count)++;
-    while (ISSPACE(_c) && !feof(file)) {
-        _c = fgetc(file);
-        (scanf_args->chars_count)++;
-    }
-    ungetc(_c, file);
-    (scanf_args->chars_count)--;
 
     return c;
 }
@@ -196,12 +184,10 @@ const scanf_params_t FSCANF = {fscanf_get, fscanf_consume, fscanf_unget};
 #define call_consume_spaces params->consume_spaces(scanf_args)
 #define call_unget params->unget(scanf_args, c)
 
-extern size_t get_utf8_char_len(const char *str);
-
 #define write_arg(arg, val) if (!(scanf_args->state.flags & FMT_NO_WRITE)) arg = val;
 
-#define __handle_decl(name, scanf) \
-    inline int                     \
+#define __handle_decl(name, scanf)                                                                  \
+    [[gnu::always_inline]] inline int                                                               \
     concat3(handle_##name##_,scanf,_spec) (scanf_args_t *scanf_args, const scanf_params_t *params)
 
 #define handle_decl(name) __handle_decl(name, SCANF)
@@ -210,19 +196,21 @@ extern size_t get_utf8_char_len(const char *str);
 
 #define get_mchar                                   \
     char mchar = call_get;                          \
-    write_arg(*ptr, mchar);                         \
+    write_arg(*ptr++, mchar);                       \
     c = mchar;
 
 #define get_wchar                                   \
-    int c = call_get;                               \
-    char _buf[] = {0, 0, 0, 0};                     \
-    _buf[0] = c;                                    \
-    size_t len = get_utf8_char_len(_buf);           \
+    char _buf[4] = {0, 0, 0, 0};                    \
+    for (int i = 0; i < 4; i++) {                   \
+        int c = call_get;                           \
+        if (!c || c == EOF) break;                  \
+        _buf[i] = c;                                \
+    }                                               \
+    size_t len = mblen(_buf, 4);                    \
     if (len == (size_t)-1) return -1;               \
-    for (size_t _j = 1; _j < len; _j++) {           \
-        c = call_get;                               \
-        if (!c || c == EOF) return 1;               \
-        _buf[_j] = c;                               \
+    for (int i = 3; i >= len; i++) {                \
+        c = _buf[i];                                \
+        call_unget;                                 \
     }                                               \
     wchar_t wchar;                                  \
     int result = mbtowc(&wchar, _buf, sizeof _buf); \
@@ -335,7 +323,7 @@ if (scanf_args->state.size_spec == spec_L) {                            \
     read_charset(scanf_args, charset);
 
 
-inline size_t get_charset_len(scanf_args_t *scanf_args) {
+[[gnu::always_inline]] inline size_t get_charset_len(scanf_args_t *scanf_args) {
     size_t len = 0;
 
     if (*scanf_args->format == ']') {
@@ -357,7 +345,7 @@ inline size_t get_charset_len(scanf_args_t *scanf_args) {
     return len;
 }
 
-inline void read_charset(scanf_args_t *scanf_args, CHAR *charset) {
+[[gnu::always_inline]] inline void read_charset(scanf_args_t *scanf_args, CHAR *charset) {
     size_t len = get_charset_len(scanf_args);
 
     if (*scanf_args->format == '^')
@@ -388,7 +376,7 @@ inline void read_charset(scanf_args_t *scanf_args, CHAR *charset) {
     }
 }
 
-inline int charset_check(const CHAR *charset, CHAR ch, int inverse) {
+[[gnu::always_inline]] inline int charset_check(const CHAR *charset, CHAR ch, int inverse) {
     while (*charset) {
         if (*charset == ch)
             return inverse ? 0 : 1;
@@ -409,7 +397,6 @@ handle_decl(char) {
         for (int i = 0; i < width; i++) {
             get_mchar
         }
-        call_consume_spaces;
         return 1;
     }
 
@@ -420,7 +407,6 @@ handle_decl(char) {
         for (int i = 0; i < width; i++) {
             get_wchar
         }
-        call_consume_spaces;
         return 1;
     }
 
@@ -438,8 +424,7 @@ handle_decl(str) {
         do {
             get_mchar
             processed_chars ++;
-        } while ((c || !ISSPACE(c)) && processed_chars < width);
-        call_consume_spaces;
+        } while ((c && !ISSPACE(c)) && processed_chars < width);
         write_arg(*ptr, 0)
         scanf_args->chars_count += processed_chars;
         return 1;
@@ -455,7 +440,6 @@ handle_decl(str) {
             processed_chars ++;
         } while ((c || !ISSPACE(c)) && processed_chars < width);
         write_arg(*ptr, 0)
-        call_consume_spaces;
         scanf_args->chars_count += processed_chars;
         return 1;
     }
@@ -476,7 +460,6 @@ handle_decl(charset) {
         }
         call_unget;
         write_arg(*ptr, 0)
-        call_consume_spaces;
         return 1;
     }
 
@@ -493,6 +476,8 @@ handle_decl(charset) {
             c = wchar;
         }
         call_unget;
+        write_arg(*ptr, (wchar_t)0)
+        return 1;
     }
 
     return -1;
@@ -501,6 +486,8 @@ handle_decl(charset) {
 handle_decl(dec_int) {
     long long number = 0;
     int negative = 0;
+
+    call_consume_spaces;
 
     int c = call_get;
     if (c == '+')
@@ -525,6 +512,8 @@ handle_decl(dec_int) {
 handle_decl(int) {
     long long number = 0;
     int negative = 0;
+
+    call_consume_spaces;
 
     int c = call_get;
     if (c == '+') {
@@ -564,6 +553,8 @@ handle_decl(int) {
 handle_decl(uint) {
     unsigned long long number = 0;
 
+    call_consume_spaces;
+
     int c = call_get;
 
     while (ISDIGIT(c)) {
@@ -580,6 +571,8 @@ handle_decl(uint) {
 handle_decl(oct_int) {
     unsigned long long number = 0;
 
+    call_consume_spaces;
+
     int c = call_get;
 
     while (ISDIGIT(c)) {
@@ -595,6 +588,8 @@ handle_decl(oct_int) {
 
 handle_decl(hex_int) {
     unsigned long long number = 0;
+
+    call_consume_spaces;
 
     int c = call_get;
 
@@ -616,6 +611,8 @@ handle_decl(hex_int) {
 handle_decl(float) {
     long double number = 0.0;
     int negative = 0;
+
+    call_consume_spaces;
 
     int c = call_get;
     if (c == '-') {
@@ -643,16 +640,26 @@ handle_decl(float) {
             number = 0.0;
             write_float
         }
+    } else {
+        base = 10;
     }
 
-
     long double frac_exp = (base == 10) ? 0.1 : 0.0625;
-    while (ISXDIGIT(c) || (c == '.' && !is_past_point)) {
+    while (ISXDIGIT(c) || c == '.') {
+        if (c == '.' && !is_past_point) {
+            is_past_point = 1;
+            c = call_get;
+            continue;
+        }
+        else if (c == '.' && is_past_point)
+            break;
+
         int digit = c - '0';
         if (c >= 'a')
             digit = c - 'a' + 10;
-        if (c >= 'A')
+        else if (c >= 'A')
             digit = c - 'A' + 10;
+
         if (digit < 0 || digit >= base) {
             break;
         }
@@ -663,6 +670,8 @@ handle_decl(float) {
             number += digit * frac_exp;
             frac_exp /= base;
         }
+
+        c = call_get;
     }
 
     if (((c == 'e' || c == 'E') && base == 10) || ((c == 'p' || c == 'P') && base == 16)) {
@@ -683,6 +692,9 @@ handle_decl(float) {
 
             while (ISDIGIT(c)) {
                 int digit = c - '0';
+                if (digit < 0 || digit >= 10)
+                    break;
+
                 exp_pow = 10 * exp_pow + digit;
                 c = call_get;
             }
@@ -705,6 +717,8 @@ handle_decl(num_chars) {
 
 handle_decl(ptr) {
     ptrdiff_t ptrd = 0;
+
+    call_consume_spaces;
 
     int c = call_get;
     if (c != 0)
@@ -740,23 +754,29 @@ handle_decl(ptr) {
 #define get_size_spec __get_size_spec(SCANF)
 #define handle_format __handle_fmt(SCANF)
 
-int get_size_spec(const CHAR **str) {
-    CHAR spec = *(*str);
+#define __hdl_size_spec_ret_start *fmt_char = *(*str)++;
+
+#define handle_size_spec_ret(name)  __hdl_size_spec_ret_start return spec_##name;
+#define handle_size_spec_double_ret(name)                       \
+    spec = *((*str)++);                                         \
+    *fmt_char = spec;                                           \
+    if (spec == #name[0]) {                                     \
+        __hdl_size_spec_ret_start                               \
+        return spec_##name##name;                               \
+    }                                                           \
+    else return spec_##name;
+
+int get_size_spec(const CHAR **str, CHAR *fmt_char) {
+    CHAR spec = *(*str - 1);
     switch (spec) {
         case 'h':
-            spec = *(*++str);
-            (*str)++;
-            if (spec == 'h') return spec_hh;
-            else return spec_h;
+        handle_size_spec_double_ret(h)
         case 'l':
-            spec = *(*++str);
-            (*str)++;
-            if (spec == 'l') return spec_ll;
-            else return spec_l;
-        case 'j': (*str)++; return spec_j;
-        case 'z': (*str)++; return spec_z;
-        case 't': (*str)++; return spec_t;
-        case 'L': (*str)++; return spec_L;
+        handle_size_spec_double_ret(l)
+        case 'j': handle_size_spec_ret(j)
+        case 'z': handle_size_spec_ret(z)
+        case 't': handle_size_spec_ret(t)
+        case 'L': handle_size_spec_ret(L)
         default: return spec_none;
     }
 }
@@ -798,16 +818,18 @@ int handle_format(scanf_args_t *scanf_args, const scanf_params_t *scanf_params) 
 // __nscanf - это основа для всех *scanf-функций.
 int __nscanf(scanf_args_t *scanf_args, const scanf_params_t *params) {
     int handled_args = 0;
-    while (scanf_args->format) {
-        CHAR fmt_char = *scanf_args->format++;
+    const CHAR *base_format = scanf_args->format;
+    CHAR fmt_char = *(scanf_args->format);
+    while (fmt_char) {
+        fmt_char = *(scanf_args->format++);
         if (fmt_char != '%') {
             CHAR buf_char = call_get;
             if (buf_char != fmt_char)
-                return EOF;
+                return -1;
             continue;
         }
 
-        fmt_char = *scanf_args->format++;
+        fmt_char = *(scanf_args->format++);
         if (fmt_char == '%') {
             CHAR buf_char = call_get;
             if (buf_char != '%')
@@ -819,7 +841,7 @@ int __nscanf(scanf_args_t *scanf_args, const scanf_params_t *params) {
 
         if (fmt_char == '*') {
             scanf_args->state.flags |= FMT_NO_WRITE;
-            fmt_char = *scanf_args->format++;
+            fmt_char = *(scanf_args->format++);
         }
 
         if (ISDIGIT(fmt_char)) {
@@ -827,21 +849,26 @@ int __nscanf(scanf_args_t *scanf_args, const scanf_params_t *params) {
             if (width <= 0)
                 return -1;
             scanf_args->state.max_width = width;
+            fmt_char = *(scanf_args->format++);
         }
 
-        int size_spec = get_size_spec(&scanf_args->format);
+        int size_spec = get_size_spec(&scanf_args->format, &fmt_char);
         scanf_args->state.size_spec = size_spec;
 
-        int fmt_spec = *scanf_args->format++;
+        int fmt_spec = fmt_char;
         scanf_args->state.fmt_spec = fmt_spec;
+        fmt_char = *(scanf_args->format)++;
 
         int result = handle_format(scanf_args, params);
-        if (result < 0)
+        if (result < 0 && (FILE*)scanf_args->buffer == stdout) {
+            fputc('\n', stdout);
             return -1;
+        }
         if (result == 1)
             handled_args++;
     }
 
+    fputc('\n', stdout);
     return handled_args;
 }
 
@@ -854,7 +881,7 @@ int __nscanf(scanf_args_t *scanf_args, const scanf_params_t *params) {
 #define __fscanf(scanf)     concat(f, scanf)
 #define __scanf(scanf)      scanf
 
-int __vsscanf(SCANF)(const CHAR *restrict buffer, const CHAR *restrict format, va_list args) {
+int __vsscanf(SCANF)(const CHAR * buffer, const CHAR * format, va_list args) {
     scanf_args_t scanf_args;
     scanf_args.buffer = (void*)buffer;
     scanf_args.format = format;
@@ -864,7 +891,7 @@ int __vsscanf(SCANF)(const CHAR *restrict buffer, const CHAR *restrict format, v
     return __nscanf(&scanf_args, &SSCANF);
 }
 
-int __vfscanf(SCANF)(FILE *restrict buffer, const CHAR *restrict format, va_list args) {
+int __vfscanf(SCANF)(FILE * buffer, const CHAR * format, va_list args) {
     scanf_args_t scanf_args;
     scanf_args.buffer = buffer;
     scanf_args.format = format;
@@ -874,7 +901,7 @@ int __vfscanf(SCANF)(FILE *restrict buffer, const CHAR *restrict format, va_list
     return __nscanf(&scanf_args, &FSCANF);
 }
 
-int __vscanf(SCANF)(const CHAR *restrict format, va_list args) {
+int __vscanf(SCANF)(const CHAR * format, va_list args) {
     scanf_args_t scanf_args;
     scanf_args.buffer = stdin;
     scanf_args.format = format;
@@ -884,7 +911,7 @@ int __vscanf(SCANF)(const CHAR *restrict format, va_list args) {
     return __nscanf(&scanf_args, &FSCANF);
 }
 
-int __sscanf(SCANF)(const CHAR *restrict buffer, const CHAR *restrict format, ...) {
+int __sscanf(SCANF)(const CHAR * buffer, const CHAR * format, ...) {
     va_list args;
     va_start(args, format);
     scanf_args_t scanf_args;
@@ -898,7 +925,7 @@ int __sscanf(SCANF)(const CHAR *restrict buffer, const CHAR *restrict format, ..
     return result;
 }
 
-int __fscanf(SCANF)(FILE *restrict buffer, const CHAR *restrict format, ...) {
+int __fscanf(SCANF)(FILE * buffer, const CHAR * format, ...) {
     va_list args;
     va_start(args, format);
     scanf_args_t scanf_args;
@@ -912,7 +939,7 @@ int __fscanf(SCANF)(FILE *restrict buffer, const CHAR *restrict format, ...) {
     return result;
 }
 
-int __scanf(SCANF)(const CHAR *restrict format, ...) {
+int __scanf(SCANF)(const CHAR * format, ...) {
     va_list args;
     va_start(args, format);
     scanf_args_t scanf_args;

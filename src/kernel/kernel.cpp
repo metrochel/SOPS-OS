@@ -31,6 +31,8 @@
 #include "shell/shell.hpp"
 #include "cpu/gdt.hpp"
 
+#include "syscall/syscall.hpp"
+
 // Указатель на данные загрузчика
 BootLoaderData* bld;
 

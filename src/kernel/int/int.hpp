@@ -3,6 +3,9 @@
 #include "../io/io.hpp"
 #include "../util/nums.hpp"
 
+#define isr(name) __attribute__((interrupt)) void name([[maybe_unused]] IntFrame* frame)
+#define irq(irq_no) isr(irq##irq_no)
+
 struct IDT_Register {
     word size;
     byte* base;
@@ -29,95 +32,95 @@ inline void lidt(IDT_Register r) {
 }
 
 /// @brief Обработчик ошибки деления на 0 (прерывание 0x00)
-void zero_divide_err(IntFrame* frame);
+isr(zero_divide_err);
 
 /// @brief Обработчик ошибки переполнения (прерывание 0x01)
-void overflow_err(IntFrame* frame);
+isr(overflow_err);
 
 /// @brief Обработчик ошибки провала индекса (out-of-bounds) (прерывание 0x05)
-void bound_err(IntFrame* frame);
+isr(bound_err);
 
 /// @brief Обработчик ошибки неверной инструкции (прерывание 0x06)
-void invalid_opcode_err(IntFrame* frame);
+isr(invalid_opcode_err);
 
 /// @brief Обработчик ошибки недоступного устройства (прерывание 0x07)
-void dev_unavailable_err(IntFrame* frame);
+isr(dev_unavailable_err);
 
 /// @brief Обработчик двойного сбоя (прерывание 0x08)
-void double_fault(IntFrame* frame);
+isr(double_fault);
 
 /// @brief Обработчик ошибки неправильного переключения на процесс (прерывание 0x0A)
-void invalid_task_switch_err(IntFrame* frame);
+isr(invalid_task_switch_err);
 
 /// @brief Обработчик ошибки ненастоящего сегмента (прерывание 0x0B)
-void seg_not_present_err(IntFrame* frame);
+isr(seg_not_present_err);
 
 /// @brief Обработчик ошибки сегмента стека (прерывание 0x0C)
-void stack_seg_fault(IntFrame* frame);
+isr(stack_seg_fault);
 
 /// @brief Обработчик общей ошибки защиты (прерывание 0x0D)
-void general_prot_fault(IntFrame* frame);
+isr(general_prot_fault);
 
 /// @brief Обработчик ошибки страниц (прерывание 0x0E)
-void page_fault(IntFrame* frame);
+isr(page_fault);
 
 /// @brief Обработчик ошибки дробных чисел (прерывание 0x10)
-void float_exception(IntFrame* frame);
+isr(float_exception);
 
 /// @brief Обработчик ошибки нарушения ровнения (прерывание 0x11)
-void align_check(IntFrame* frame);
+isr(align_check);
 
 /// @brief Запрос-прерывание 0 - Таймер
-void irq0(IntFrame* frame);
+irq(0);
 
 /// @brief Запрос-прерывание 1 - Ввод с клавиатуры
-void irq1(IntFrame* frame);
+irq(1);
 
 /// @brief Запрос-прерывание 2 - Каскадное прерывание (не вызывается)
 /// @attention Маскировать IRQ 2 нельзя! Иначе IRQ 8-15 не будут вызываться!
-void irq2(IntFrame* frame);
+irq(2);
 
 /// @brief Запрос-прерывание 3 - Событие порта COM2
-void irq3(IntFrame* frame);
+irq(3);
 
 /// @brief Запрос-прерывание 4 - Событие порта COM1
-void irq4(IntFrame* frame);
+irq(4);
 
 /// @brief Запрос-прерывание 5 - Событие порта LPT2
-void irq5(IntFrame* frame);
+irq(5);
 
 /// @brief Запрос-прерывание 6 - Событие дискетного контроллера
-void irq6(IntFrame* frame);
+irq(6);
 
 /// @brief Запрос-прерывание 7 - Событие порта LPT1 / "Спонтанное" прерывание
-void irq7(IntFrame* frame);
+irq(7);
 
 /// @brief Запрос-прерывание 8 - Событие CMOS-часов
-void irq8(IntFrame* frame);
+irq(8);
 
 /// @brief Запрос-прерывание 9 - не используется (пока что)
-void irq9(IntFrame* frame);
+irq(9);
 
 /// @brief Запрос-прерывание 10 - не используется (пока что)
-void irq10(IntFrame* frame);
+irq(10);
 
 /// @brief Запрос-прерывание 11 - не используется (пока что)
-void irq11(IntFrame* frame);
+irq(11);
 
 /// @brief Запрос-прерывание 12 - Событие мыши PS/2
-void irq12(IntFrame* frame);
+irq(12);
 
 /// @brief Запрос-прерывание 13 - Событие математического сопроцессора
-void irq13(IntFrame* frame);
+irq(13);
 
 /// @brief Запрос-прерывание 14 - Событие главного диска ATA
-void irq14(IntFrame* frame);
+irq(14);
 
 /// @brief Запрос-прерывание 15 - Событие побочного диска ATA
-void irq15(IntFrame* frame);
+irq(15);
 
 /// @brief Обработчик системных вызовов (прерывание 0xC0)
-void syscallInt(IntFrame *frame);
+extern isr(syscall_int);
 
 /// @brief Выход из прерывания, вызванного главным PIC
 inline void int_exit_master() {
@@ -130,7 +133,7 @@ inline void int_exit_slave() {
     outb(0x20, 0x20);
 }
 
-void encode_idt_entry(void (*handlePtr)(IntFrame*), byte intNum, byte perms);
-void encode_idt_entry(void (*handlePtr)(IntFrame*), byte intNum);
+void encode_idt_entry(void (*handle)(IntFrame*), byte int_num, byte perms);
+void encode_idt_entry(void (*handle)(IntFrame*), byte int_num);
 
 #endif

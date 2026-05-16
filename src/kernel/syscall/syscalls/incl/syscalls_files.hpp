@@ -56,11 +56,6 @@ namespace syscalls {
     /// @return Размер файла, Б
     declare_syscall(get_file_size)
 
-    /// @brief Выделение числа под временный файл
-    /// @return Число от 0x00001 до 0xFFFFF или -1 в случае провала
-    /// @note Для формата временного файла см. src/libc/stdio.h.
-    declare_syscall(allocate_tmp_file)
-
     /// @brief Удаление файла
     /// @param ESI Название удаляемого файла
     /// @return 0 в случае успеха

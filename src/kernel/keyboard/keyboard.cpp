@@ -4,8 +4,6 @@
 #include "../graphics/glyphs.hpp"
 #include "../util/util.hpp"
 
-const dword maxInputSize = 0x200;
-
 bool cmdAwaitingResponse = false;
 bool releaseScancode = false;
 bool keyPunched = false;
@@ -33,6 +31,7 @@ byte getSymbol(byte keycode) {
     bool shift = ((kbStatus & KB_STATUS_SHIFT) && !(kbStatus & KB_STATUS_CAPSLOCK)) || (!(kbStatus & KB_STATUS_SHIFT) && kbStatus & KB_STATUS_CAPSLOCK);
     switch (keycode) {
         case KEYCODE_SPACEBAR: return ' ';
+        case KEYCODE_ENTER: return '\n';
         case KEYCODE_A:
             if (shift)
                 return 'A';
@@ -412,8 +411,11 @@ void kread(byte *in) {
     while (!inputFinished) {
         if (keyPunched && inputLen < maxInputSize) {
             byte keycode = keyBuffer & 0xFF;
-            if (keycode == KEYCODE_ENTER)
+            if (keycode == KEYCODE_ENTER) {
+                *in = 0;
                 inputFinished = true;
+                break;
+            }
             if (keycode == KEYCODE_BACKSPACE && inputLen) {
                 *(--in) = 0;
                 inputLen--;
@@ -455,4 +457,12 @@ word kreadkey() {
     while (!keyPunched) {io_wait();}
     inputAllowed = false;
     return keyBuffer;
+}
+
+byte kreadchar() {
+    word key = kreadkey();
+    byte c = getSymbol(key & 0xFF);
+    const char str[] = {(char)c, 0};
+    printStr(str, null, defaultTextCol, defaultBGCol, false);
+    return c;
 }

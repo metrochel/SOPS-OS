@@ -26,10 +26,6 @@
         negative = 1;                                                  \
         str++;                                                         \
     }                                                                  \
-    else {                                                             \
-        if (str_end) *str_end = (CHAR_T*)str;                          \
-        return 0;                                                      \
-    }                                                                  \
     if (base == 0) {                                                   \
         if (*str++ == '0') {                                           \
             base = 8;                                                  \

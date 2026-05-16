@@ -6,6 +6,9 @@
 #include "../../run/process.hpp"
 #include "../../dbg/dbg.hpp"
 #include "../../disk/disk.hpp"
+#include "../../str/str.hpp"
+#include "../../shell/shell.hpp"
+#include "../../memmgr/memmgr.hpp"
 
 #define handle(name)    __syscall_ext_hdl_decl(name)
 
@@ -26,8 +29,25 @@ inline File* get_file_pointer(word pid, word desc) {
 }
 
 handle(open_file) {
-    char *path = (char*)arg1;
+    const char *relative_path = (const char*)arg1;
     byte mode = arg2;
+
+    char *path;
+    if (*relative_path == '/') {
+        path = (char*)relative_path;
+    } else {
+        dword path_sz = strlen(current_dir);
+        if (*(current_dir + path_sz - 1) == '/') {
+            path = (char*)kmalloc(path_sz + 1);
+            strcpy(current_dir, path);
+        } else {
+            strconcat(current_dir, "/", path);
+        }
+        char *tmp_path = path;
+        strconcat(tmp_path, relative_path, path);
+        kfree(tmp_path);
+    }
+
     byte drive = determineDriveNo(path);
 
     Process p = getProcessData(pid);
@@ -46,9 +66,16 @@ handle(open_file) {
         return RUNTIME_ERROR_FILE_MAX_REACHED;
     }
 
-    File *file_ptr = openFile(path, drive, mode);
+    union {
+        int number;
+        file_open_mode _mode;
+    } uni;
+    uni.number = mode;
+
+    File *file_ptr = openFile(path, drive, uni._mode);
     if (!file_ptr) {
         kdebug("ОШИБКА: Не удалось открыть файл\n");
+        kdebugwait();
         return RUNTIME_ERROR_FILE_OPEN_FAILURE;
     }
 
@@ -84,12 +111,20 @@ handle(close_file) {
 
 handle(read) {
     byte *out = (byte*)arg1;
-    dword data_size = (dword)arg2;
+    dword size = (dword)arg2;
     dword read_start = (dword)arg3;
     word desc = (word)arg4;
 
-    kdebug("Процесс %d считывает %d Б из файла № %d.\n", pid, data_size, desc);
+    kdebug("Процесс %d считывает %d Б из файла № %d.\n", pid, size, desc);
     kdebug("Выделенный буфер: %x.\n", out);
+
+    word owner_pid = getBlockOwnerPID((ptrint)out, size);
+    if (owner_pid != pid) {
+        kdebug("ОШИБКА: Процесс использует блок, не принадлежащий ему\n");
+        kdebug(owner_pid != maxword ?
+               "Блок принадлежит процессу %d.\n" : "Блок принадлежит нескольким процессам.\n", owner_pid);
+        return RUNTIME_ERROR_INVALID_ACCESS;
+    }
 
     File *file_ptr = get_file_pointer(pid, desc);
     if (!file_ptr) {
@@ -97,21 +132,43 @@ handle(read) {
         return 0;
     }
 
-    return file_ptr->read(read_start, data_size, out);
+    return file_ptr->read(read_start, size, out);
 }
 
 handle(read_char) {
-    return 0;
+    dword read_start = (dword)arg1;
+    word desc = (word)arg2;
+
+    kdebug("Процесс %d считывает символ из файла № %d.\n", pid, desc);
+
+    File *file_ptr = get_file_pointer(pid, desc);
+    if (!file_ptr) {
+        kdebug("ОШИБКА: Такого файла нет\n");
+        return 0;
+    }
+
+    byte c = 0;
+    dword read = file_ptr->read(read_start, 1, &c);
+    kdebug("Считанный символ: %c (%x).\n", c, c);
+    return read == 1 ? c : -1;
 }
 
 handle(write) {
     byte *in = (byte*)arg1;
     dword size = (dword)arg2;
-    _mb_unused dword write_start = (dword)arg3;
+    dword write_start = (dword)arg3;
     word desc = (word)arg4;
 
     kdebug("Процесс %d записывает %d Б в файл № %d.\n", pid, size, desc);
-    kdebug("Выделенный буфер: %x.\n", in);
+    kdebug("Данные находятся по адресу %x.\n", in);
+
+    word owner_pid = getBlockOwnerPID((ptrint)in, size);
+    if (owner_pid != pid) {
+        kdebug("ОШИБКА: Процесс использует блок, не принадлежащий ему\n");
+        kdebug(owner_pid != maxword ?
+            "Блок принадлежит процессу %d.\n" : "Блок принадлежит нескольким процессам.\n", owner_pid);
+        return RUNTIME_ERROR_INVALID_ACCESS;
+    }
 
     File *file_ptr = get_file_pointer(pid, desc);
     if (!file_ptr) {
@@ -123,7 +180,22 @@ handle(write) {
 }
 
 handle(write_char) {
-    return -1;
+    dword ch = (dword)arg1;
+    dword write_start = (dword)arg2;
+    dword desc = (dword)arg3;
+
+    kdebug("Процесс %d записывает символ \"%c\" (%x) в файл № %d.\n", pid, ch, ch, desc);
+    kdebugwait();
+
+    File *file_ptr = get_file_pointer(pid, desc);
+    if (!file_ptr) {
+        kdebug("ОШИБКА: Файла не существует\n");
+        return -1;
+    }
+
+    byte ch_str[5] = {BYTE0(ch), BYTE1(ch), BYTE2(ch), BYTE3(ch), 0};
+
+    return file_ptr->write(write_start, 1, ch_str);
 }
 
 handle(get_file_size) {
@@ -137,14 +209,16 @@ handle(get_file_size) {
     return ptr->size;
 }
 
-handle(allocate_tmp_file) {
-    return 0xABCDE;
-}
-
 handle(remove_file) {
+    /* TODO:
+     * Так как архитектура ядра идёт на перепись, сейчас нет смысла реализовывать эти вызовы.
+     */
     return -1;
 }
 
 handle(move_file) {
+    /* TODO:
+     * Так как архитектура ядра идёт на перепись, сейчас нет смысла реализовывать эти вызовы.
+     */
     return 0;
 }

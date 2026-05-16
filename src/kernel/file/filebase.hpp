@@ -6,6 +6,42 @@
 
 extern const dword defaultBufSize;
 
+// file_open_mode - это структура, описывающая режим открытия файла.
+struct file_open_mode {
+    int read_allow  : 1;
+    int write_allow : 1;
+    int append : 1;
+    int binary : 1;
+    int exclusive : 1;
+};
+
+// Режим открытия файла для папок
+const file_open_mode folder_open_mode = (file_open_mode){
+    .read_allow = 0,
+    .write_allow = 0,
+    .append = 0,
+    .binary = 0,
+    .exclusive = 0
+};
+
+// Режим открытия файла для исполняемых файлов
+const file_open_mode executable_open_mode = (file_open_mode){
+    .read_allow = 1,
+    .write_allow = 0,
+    .append = 0,
+    .binary = 1,
+    .exclusive = 0
+};
+
+// Режим открытия файла для чтения файла
+const file_open_mode read_open_mode = (file_open_mode){
+    .read_allow = 1,
+    .write_allow = 0,
+    .append = 0,
+    .binary = 1,
+    .exclusive = 0
+};
+
 // ### File
 // Класс, описывающий базовый файл.
 // Предоставляет функции чтения/записи, которые впоследствии
@@ -13,16 +49,19 @@ extern const dword defaultBufSize;
 // (FAT32, NTFS, EXT и др.)
 class File {
     public:
-        char *name;                 // Имя файла
-        byte attributes;            // Атрибуты файла
-        byte drive;                 // Номер диска с файлом
-        dword size;                 // Размер файла в байтах
-        Time creationDate;          // Дата создания файла
-        Time lastEditDate;          // Дата редактирования файла
+        char *name;                         // Имя файла
+        byte attributes;                    // Атрибуты файла
+        byte drive;                         // Номер диска с файлом
+        dword size;                         // Размер файла в байтах
+        Time creationDate;                  // Дата создания файла
+        Time lastEditDate;                  // Дата редактирования файла
 
-        byte *single_chars_buf;     // Буфер для односимвольных манипуляций
-        dword single_char_buf_idx;  // Индекс в буфере для односимвольных манипуляций
-        dword single_char_buf_pos;  // Положение буфера относительно начала файла
+        byte *single_chars_buf = nullptr;   // Буфер для односимвольных манипуляций
+        dword single_char_buf_idx = 0;      // Индекс в буфере для односимвольных манипуляций
+        dword single_char_buf_pos = 0;      // Положение буфера относительно начала файла
+        bool single_char_needs_update = 1;  // Флаг необходимости обновления буфера для односимвольных манипуляций
+
+        file_open_mode open_mode;           // Режим открытия файла
 
         /// @brief Создаёт файл на диске.
         virtual bool create();
@@ -52,6 +91,9 @@ class File {
         /// @return Размер записанного блока, Б
         /// @note Запись производится в конец файла.
         virtual dword write(dword write_size, byte *in);
+
+        /// @brief Сливает буфер односимвольных записей.
+        virtual dword flush_single_chars();
 
         /// @brief Переименовывает файл.
         /// @param newname Новое имя файла

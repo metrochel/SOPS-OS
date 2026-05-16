@@ -8,27 +8,29 @@
 
 #include "../util/nums.hpp"
 
-bool strcmp(char* str1, char* str2);
-byte strcmpS(char* str1, char* str2);
-byte strcmpS(char* str1, char* str2, bool caseInsensitive);
+bool strcmp(const char* str1, const char* str2);
+byte strcmpS(const char* str1, const char* str2);
+byte strcmpS(const char* str1, const char* str2, bool caseInsensitive);
 
-bool strstartswith(char* str, char* substr);
+bool strstartswith(const char* str, const char* substr);
 
-bool strendswith(char* str, char* substr);
+bool strendswith(const char* str, const char* substr);
 
-dword strcpy(char* str1, char* str2);
+dword strcpy(const char* str1, char* str2);
 
-dword strlen(char* str);
+dword strlen(const char* str);
 
 byte numasstr(dword num, char* str);
 
-char** strsplit(char* str, char* pattern);
+char** strsplit(const char* str, const char* pattern);
 
-void strconcat(char *str1, char *str2, char *&str);
+void strconcat(const char *str1, const char *str2, char *&str);
 
 void strskiplines(char *&str, dword lines);
 
-qword strhextoint(char *str);
-qword strdectoint(char *str);
+byte get_utf8_char_sz(const char *ptr);
+
+qword strhextoint(const char *str);
+qword strdectoint(const char *str);
 
 #endif

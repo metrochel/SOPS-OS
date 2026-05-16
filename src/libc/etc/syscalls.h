@@ -5,7 +5,15 @@
 //	функций, а не бесконечных __asm__.
 //
 
+#ifndef _SYSCALLS_INCL
+#define _SYSCALLS_INCL
+
 #include "syscall_macros.h"
+
+// Магическая точка останова (для Bochs).
+[[gnu::always_inline]] inline void magic_breakpoint() {
+    __asm__ volatile ("xchgw %bx, %bx");
+}
 
 #ifdef __x86_64__                   // Если система 64-битная...
 
@@ -53,12 +61,11 @@ typedef unsigned int syscall_arg_t;
 inline static long syscall0(syscall_arg_t code) {
 	int result[2];
 	__asm__ (
-		SET_CODE("%d2")
         SYSCALL_INT
         GET_RESULT("%d0", "%d1")
 		: "=m"(result[0]), "=m"(result[1])
-		: "m"(code)
-		: );
+		: "a"(code)
+		: "edx", "cc");
 	return *(long*)result;
 }
 
@@ -66,13 +73,11 @@ inline static long syscall0(syscall_arg_t code) {
 inline static long syscall1(int code, int arg1) {
     int result[2];
     __asm__ (
-        SET_CODE("%d2")
-        SET_ARG1("%d3")
         SYSCALL_INT
         GET_RESULT("%d0", "%d1")
         : "=m"(result[0]), "=m"(result[1])
-        : "m"(code), "m"(arg1)
-        : );
+        : "a"(code), "S"(arg1)
+        : "edx", "cc");
     return *(long*)result;
 }
 
@@ -80,14 +85,11 @@ inline static long syscall1(int code, int arg1) {
 inline static long syscall2(int code, int arg1, int arg2) {
     int result[2];
     __asm__ (
-        SET_CODE("%d2")
-        SET_ARG1("%d3")
-        SET_ARG2("%d4")
         SYSCALL_INT
         GET_RESULT("%d0", "%d1")
         : "=m"(result[0]), "=m"(result[1])
-        : "m"(code), "m"(arg1), "m"(arg2)
-        : );
+        : "a"(code), "S"(arg1), "D"(arg2)
+        : "edx", "cc");
     return *(long*)result;
 }
 
@@ -95,15 +97,11 @@ inline static long syscall2(int code, int arg1, int arg2) {
 inline static long syscall3(int code, int arg1, int arg2, int arg3) {
     int result[2];
     __asm__ (
-        SET_CODE("%d2")
-        SET_ARG1("%d3")
-        SET_ARG2("%d4")
-        SET_ARG3("%d5")
         SYSCALL_INT
         GET_RESULT("%d0", "%d1")
         : "=m"(result[0]), "=m"(result[1])
-        : "m"(code), "m"(arg1), "m"(arg2), "m"(arg3)
-        : );
+        : "a"(code), "S"(arg1), "D"(arg2), "c"(arg3)
+        : "edx", "cc");
     return *(long*)result;
 }
 
@@ -111,16 +109,11 @@ inline static long syscall3(int code, int arg1, int arg2, int arg3) {
 inline static long syscall4(int code, int arg1, int arg2, int arg3, int arg4) {
     int result[2];
     __asm__ (
-        SET_CODE("%d2")
-        SET_ARG1("%d3")
-        SET_ARG2("%d4")
-        SET_ARG3("%d5")
-        SET_ARG4("%d6")
         SYSCALL_INT
         GET_RESULT("%d0", "%d1")
         : "=m"(result[0]), "=m"(result[1])
-        : "m"(code), "m"(arg1), "m"(arg2), "m"(arg3), "m"(arg4)
-        : );
+        : "a"(code), "S"(arg1), "D"(arg2), "c"(arg3), "d"(arg4)
+        : "cc");
     return *(long*)result;
 }
 
@@ -128,16 +121,12 @@ inline static long syscall4(int code, int arg1, int arg2, int arg3, int arg4) {
 inline static long syscall5(int code, int arg1, int arg2, int arg3, int arg4, int arg5) {
     int result[2];
     __asm__ (
-        SET_CODE("%d2")
-        SET_ARG1("%d3")
-        SET_ARG2("%d4")
-        SET_ARG3("%d5")
-        SET_ARG4("%d6")
-        SET_ARG5("%d7")
         SYSCALL_INT
         GET_RESULT("%d0", "%d1")
         : "=m"(result[0]), "=m"(result[1])
-        : "m"(code), "m"(arg1), "m"(arg2), "m"(arg3), "m"(arg4), "m"(arg5)
-        : );
+        : "a"(code), "S"(arg1), "D"(arg2), "c"(arg3), "d"(arg4), "b"(arg5)
+        : "cc");
     return *(long*)result;
 }
+
+#endif

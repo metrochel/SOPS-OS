@@ -368,6 +368,8 @@ void kdebug(const char* text, ...) {
                 state = 22;
             else if (c == 's')
                 state = 67;
+            else if (c == 'c')
+                state = 69;
             else
                 state = 0;
         }
@@ -420,6 +422,10 @@ void kdebug(const char* text, ...) {
             case 67:
                 strarg = va_arg(l, const char*);
                 kdebug(strarg);
+                break;
+            case 69:
+                arg = va_arg(l, dword);
+                *comWriteBuffers[0]++ = arg;
                 break;
         }
         msg ++;

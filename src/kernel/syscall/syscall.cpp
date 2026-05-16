@@ -22,7 +22,9 @@ handle(invalid) {
     return -1;
 }
 
-#define handle_case(name) case __syscall_number_name(name): return __syscall_handle_name(name);
+#define handle_case(name) case __syscall_number_name(name): \
+    kdebug("Выбранный системный вызов: " #name ".\n");      \
+    return __syscall_handle_name(name);
 
 syscall_handle_t get_syscall_handle(dword syscall) {
     switch (syscall) {

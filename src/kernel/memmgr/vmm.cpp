@@ -48,8 +48,6 @@ void initVMM(byte *&memMgrPtr) {
     firstFree = blocksBase;
     kdebug("Разметка блоков установлена на адрес %x.\n", blocksBase);
 
-    kdebug("Инициализация менеджера виртуальной памяти завершена.\n");
-
     for (ptrint i = 0; i < 8; i++) {
         TableInfo idPageTable
         {maxword, true, blocks, blocks, PAGE_TABLE_COUNT};
@@ -162,6 +160,7 @@ byte *virtAlloc(dword amt, word pid) {
         ptrint maxBase = tableBase;
         MemBlock *maxBlock = nullptr;
         ptrint maxPageAddr = tableBase;
+        // logBlocks(i);
         while (block) {
             if (block->base + block->size > maxPageAddr)
                 maxPageAddr = block->base + block->size;
@@ -486,17 +485,18 @@ dword getVarSz(void *var) {
 }
 
 void logBlocks(dword pageTable) {
-    // kdebug("Таблица %d (%x):\n", pageTable, pageTable << 22);
+    kdebug("Таблица %d (%x):\n", pageTable, pageTable << 22);
     MemBlock *block = tables[pageTable].firstBlock;
     dword i = 1;
     while (block) {
-        // kdebug("Блок %d:\n", i);
-        // kdebug("\tПредыдущий блок: %x\n", block->prevBlock);
-        // kdebug("\tОснование: %x\n", block->base);
-        // kdebug("\tРазмер: %d Б (%x)\n", block->size, block->size);
-        // kdebug("\tЗанят ли? ");
-        // kdebug(block->occupied ? "Да\n" : "Нет\n");
-        // kdebug("\tСледующий блок: %x\n", block->nextBlock);
+        kdebug("Блок %d:\n", i);
+        kdebug("\tАдрес: %x\n", block);
+        kdebug("\tПредыдущий блок: %x\n", block->prevBlock);
+        kdebug("\tОснование: %x\n", block->base);
+        kdebug("\tРазмер: %d Б (%x)\n", block->size, block->size);
+        kdebug("\tЗанят ли? ");
+        kdebug(block->occupied ? "Да\n" : "Нет\n");
+        kdebug("\tСледующий блок: %x\n", block->nextBlock);
         i ++;
         block = block->nextBlock;
     }

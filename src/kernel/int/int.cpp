@@ -16,24 +16,19 @@
 IDT_Register *idtr;
 const byte irqOffset = 0x20;
 
-#define isr(name) __attribute__((interrupt)) void name([[maybe_unused]] IntFrame* frame)
-#define irq(irq_no) isr(irq##irq_no)
-
-extern isr(syscall_int);
-
-void encode_idt_entry(void (*handlePtr)(IntFrame*), byte intNum) {
-    encode_idt_entry(handlePtr, intNum, 0);
+void encode_idt_entry(void (*handle)(IntFrame*), byte int_num) {
+    encode_idt_entry(handle, int_num, 0);
 }
 
-void encode_idt_entry(void (*handlePtr)(IntFrame*), byte intNum, byte perms) {
-    word *entryPtr = (word*)(idtr->base) + 4 * intNum;
-    word offset1 = (dword)handlePtr & 0xFFFF;
+void encode_idt_entry(void (*handle)(IntFrame*), byte int_num, byte perms) {
+    word *entryPtr = (word*)(idtr->base) + 4 * int_num;
+    word offset1 = (dword)handle & 0xFFFF;
     *entryPtr++ = offset1;
     word selector = 0x8;
     *entryPtr++ = selector;
     word flags = 0x8E00 | ((word)perms << 13);
     *entryPtr++ = flags;
-    word offset2 = (dword)handlePtr >> 16;
+    word offset2 = (dword)handle >> 16;
     *entryPtr = offset2;
 }
 
@@ -110,7 +105,6 @@ isr(invalid_opcode_err) {
     resetSegmentRegs();
     kerror("\nОШИБКА: Невозможная инструкция\n");
     traceStack();
-    kdebugwait();
     magicBreakpoint();
 }
 
@@ -179,7 +173,7 @@ isr(page_fault) {
     resetSegmentRegs();
     dword faultAddr;
     dword errorCode = (dword)frame;
-    __asm__ ("mov %%cr2, %%eax; mov %%eax, %d0" : "=m"(faultAddr) : );
+    __asm__ ("mov %%cr2, %%eax; mov %%eax, %d0" : "=m"(faultAddr) :  : "%eax");
     kerror("ОШИБКА: Страничный сбой\n");
     kerror("Адрес сбоя: %x\n", faultAddr);
     kerror("Код ошибки: %b\n", errorCode);
@@ -188,9 +182,10 @@ isr(page_fault) {
     kerror((errorCode & 2) ? "записи\n" : "чтения\n");
     if ((errorCode & 1) == 0)
         kerror("Сбой вызван несуществующей страницей\n");
+    kerror("Сбой вызван при CPL = %d\n", (errorCode & 4) ? 3 : 0);
 
-    magicBreakpoint();
     traceStack();
+    magicBreakpoint();
     enableInts();
     while (true) {__asm__("nop");}
 }

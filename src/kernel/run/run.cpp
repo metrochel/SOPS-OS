@@ -38,6 +38,8 @@ dword runExecutable(FAT32_File executable, char *args, char *path) {
     kdebug("\tРазмер метки таблицы секций: %d Б\n", hdr.shEntrySize);
     kdebug("\tКоличество меток таблицы секций: %d\n", hdr.shEntryCount);
 
+    kdebugwait();
+
     if (!hdr.sectionHeaderOff) {
         kdebug("ОШИБКА: Нет таблицы секций\n");
         kdebug("Исполнение файла отменено.");
@@ -433,10 +435,9 @@ dword runLoadableELF(byte *file, word pid, char *args) {
         "xor %%edx, %%edx;"
         "xor %%ebp, %%ebp;"
         "sti;"
-        "xchgw %%bx, %%bx;"
         "iret;"
         "exit:"
-        "movl %%eax, %d0"
+        "movl %%esi, %d0"
         : "=m"(exitCode), "=m"(tss.esp0), "=m"(tss.ss0)
         : "m"(entryPoint), "m"(stack), "m"(argv), "m"(argc), "m"(exitFunc)
         :

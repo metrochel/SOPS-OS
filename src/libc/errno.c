@@ -4,4 +4,4 @@
  *
  */
 
-int errno = 0;
+int __errno = 0;

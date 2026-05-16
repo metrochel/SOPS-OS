@@ -23,7 +23,8 @@ void initDisks() {
     disks[0] = firstDisk;
 }
 
-byte determineDriveNo(char *path) {
+byte determineDriveNo(const char *path) {
+    if (*path == '/') return 0;
     if (*path != '{') return maxbyte;
 
     path++;

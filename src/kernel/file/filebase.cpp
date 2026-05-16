@@ -32,6 +32,12 @@ dword File::write(dword write_size, byte *in) {
     return write(size, write_size, in);
 }
 
+dword File::flush_single_chars() {
+    kdebug("ОШИБКА: Не указала файловая система\n");
+    kdebug("Слив буфера невозможен.\n");
+    return 0;
+}
+
 void File::rename(char *newname) {
     kdebug("ОШИБКА: Не указана файловая система\n");
     kdebug("Переименование файла невозможно.\n");

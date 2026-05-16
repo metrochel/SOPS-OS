@@ -13,6 +13,7 @@
 #include "../include/wchar.h"
 #include "../include/string.h"
 #include "../etc/intmanip.h"
+#include "../etc/syscalls.h"
 #include <stdint.h>
 
 #define concat(a, b) a##b
@@ -23,9 +24,9 @@
 #define _PUT_FUNCS
 
 typedef enum {
+    spec_none = 0,
     spec_hh,
     spec_h,
-    spec_none,
     spec_l,
     spec_ll,
     spec_j,
@@ -58,10 +59,12 @@ typedef int (*put_func_t)(put_args(CHAR));
 /* === put-функции === */
 
 
-CHAR f_put_buf[128];
+CHAR f_put_buf[129] = {};
 int f_putbuf_index = 0;
 
 void flush_f_put_buf(FILE *stream) {
+    if (f_putbuf_index < (sizeof f_put_buf / sizeof ((CHAR)0)) - 1)
+        f_put_buf[f_putbuf_index] = 0;
     fwrite(f_put_buf, f_putbuf_index, 1, stream);
     f_putbuf_index = 0;
 }
@@ -107,7 +110,7 @@ int f_put(put_args(CHAR)) {
     if (c == 0)
         return 0;
     FILE *stream = *(FILE**)buf;
-    if (f_putbuf_index == sizeof f_put_buf) {
+    if (f_putbuf_index == (sizeof f_put_buf / sizeof ((CHAR)0)) - 1) {
         flush_f_put_buf(stream);
     }
     f_put_buf[f_putbuf_index++] = c;
@@ -125,7 +128,7 @@ int wide_f_put(put_args(CHAR)) {
     wchar_t wc;
     int sz = mbtowc(&wc, (CHAR*)&charbuf, 4);
     if (sz != MBC_INVALID) {
-        if ((int)(f_putbuf_index - sizeof f_put_buf) < sz) {
+        if ((int)(f_putbuf_index - (sizeof f_put_buf - 1)) < sz) {
             flush_f_put_buf(stream);
         }
         f_put_buf[f_putbuf_index++] = BYTE0(wc);
@@ -179,21 +182,25 @@ int wide_f_put(put_args(CHAR)) {
 
 #define put_int(number)                                             \
     int precision = state->precision;                               \
+    int negative = 0;                                               \
     if (precision == -1)                                            \
         precision = va_arg(*args, int);                             \
     else if (precision == -2)                                       \
         precision = 1;                                              \
     if (!precision && !number)                                      \
         return 0;                                                   \
+    if (number < 0) {                                               \
+        negative = 1;                                               \
+        number = -number;                                           \
+    }                                                               \
     if (state->flags & FMT_ALWAYS_SIGN && number > 0) {             \
         call_put('+');                                              \
     }                                                               \
-    else if (state->flags & FMT_PREPEND_SPACE && number >= 0) {     \
+    else if (state->flags & FMT_PREPEND_SPACE && !negative) {       \
         call_put(' ');                                              \
     }                                                               \
     CHAR buf[precision + 50] = {};                                  \
     CHAR *ptr = buf + precision + 49;                               \
-    int sgn = number < 0 ? 1 : 0;                                   \
     int len = 0;                                                    \
     while (number) {                                                \
         *ptr-- = (number % 10) + '0';                               \
@@ -204,10 +211,11 @@ int wide_f_put(put_args(CHAR)) {
         *ptr-- = '0';                                               \
         len ++;                                                     \
     }                                                               \
-    if (sgn) {                                                      \
+    if (negative) {                                                 \
         *ptr-- = '-';                                               \
         len ++;                                                     \
     }                                                               \
+    ptr++;                                                          \
     put_w_padding(len, for (int i = 0; i < len; i++) {              \
         call_put(*ptr++);                                           \
     });
@@ -266,6 +274,7 @@ int wide_f_put(put_args(CHAR)) {
         *buf-- = '0';                                               \
         len ++;                                                     \
     }                                                               \
+    buf++;                                                          \
     put_w_padding(len, for (int i = 0; i < len; i++) {              \
         call_put(*buf++);                                           \
     });
@@ -286,7 +295,7 @@ int wide_f_put(put_args(CHAR)) {
     int is_zero = number == 0;                                      \
     while (number) {                                                \
         CHAR digit = number & 0x0F;                                 \
-        if (digit < 10) {                                           \
+        if (digit >= 10) {                                          \
             if (caps) digit = 'A' + digit - 10;                     \
             else digit = 'a' + digit - 10;                          \
         } else {                                                    \
@@ -307,6 +316,7 @@ int wide_f_put(put_args(CHAR)) {
         *buf-- = '0';                                               \
         len++;                                                      \
     }                                                               \
+    buf++;                                                          \
     put_w_padding(len, for (int i = 0; i < len; i++) {              \
         call_put(*buf++);                                           \
     });
@@ -323,7 +333,7 @@ int wide_f_put(put_args(CHAR)) {
 #define NANSTRU "NAN"
 #endif
 
-#define put_float(number)                                           \
+#define put_float(number) \
     if (isnan(number)) {                                            \
         const CHAR *nanstr = NANSTRL;                               \
         if (caps) {                                                 \
@@ -349,32 +359,34 @@ int wide_f_put(put_args(CHAR)) {
         precision = va_arg(*args, int);                             \
     else if (precision == -2)                                       \
         precision = 6;                                              \
-    __typeof__(number) max_pow = 1;                                 \
-    while (max_pow < number)                                        \
-        max_pow *= 10;                                              \
-    max_pow /= 10;                                                  \
     if (number < 0) {                                               \
         call_put('-');                                              \
         number = -number;                                           \
     }                                                               \
-    while (number > 1) {                                            \
-        CHAR digit = '0' + (int)(number / max_pow);                 \
+    __typeof__(number) max_pow = 1;                                 \
+    while (max_pow <= number)                                       \
+        max_pow *= 10;                                              \
+    if (max_pow > 1) max_pow /= 10;                                 \
+    while (max_pow >= 1) {                                          \
+        int idigit = (int)(number / max_pow);                       \
+        CHAR digit = '0' + idigit;                                  \
         call_put(digit);                                            \
-        number = fmod(number, max_pow);                             \
+        number -= max_pow * idigit;                                 \
         max_pow /= 10;                                              \
     }                                                               \
-    if (precision == 0) {                                           \
+    if (precision <= 0) {                                           \
         if (state->flags & FMT_ALTERNATE)                           \
             call_put('.');                                          \
     } else {                                                        \
         max_pow = pow(10, precision - 1);                           \
-        number *= max_pow;                                          \
-        number *= 10;                                               \
+        number *= 10 * max_pow;                                     \
         number = round(number);                                     \
+        call_put('.');                                              \
         for (int i = 0; i < precision; i++) {                       \
-            CHAR digit = '0' + (int)(number / max_pow);             \
+            int idigit = (int)(number / max_pow);                   \
+            CHAR digit = '0' + idigit;                              \
             call_put(digit);                                        \
-            number = fmod(number, max_pow);                         \
+            number -= max_pow * idigit;                             \
             max_pow /= 10;                                          \
         }                                                           \
     }
@@ -397,13 +409,14 @@ int wide_f_put(put_args(CHAR)) {
     call_put('0');                                                      \
     call_put(caps ? 'X' : 'x');                                         \
     while (number > 1) {                                                \
-        CHAR digit = '0' + (int)(number / max_pow);                     \
+        int idigit = (int)(number / max_pow);                           \
+        CHAR digit = '0' + idigit;                                      \
         if (digit >= 0x3A) {                                            \
             digit += 7;                                                 \
             if (!caps) digit += 0x20;                                   \
         }                                                               \
         call_put(digit);                                                \
-        number = fmod(number, max_pow);                                 \
+        number -= max_pow *= idigit;                                    \
         max_pow /= 16;                                                  \
     }                                                                   \
     if (precision == 0) {                                               \
@@ -413,17 +426,17 @@ int wide_f_put(put_args(CHAR)) {
         call_put('.');                                                  \
         if (precision > 0) {                                            \
             max_pow = pow(16, precision - 1);                           \
-            number *= max_pow;                                          \
-            number *= 16;                                               \
+            number *= 16 * max_pow;                                     \
             number = round(number);                                     \
             for (int i = 0; i < precision; i++) {                       \
-                CHAR digit = '0' + (int)(number / max_pow);             \
+                int idigit = (int)(number / max_pow);                   \
+                CHAR digit = '0' + idigit;                              \
                 if (digit >= 0x3A) {                                    \
                     digit += 7;                                         \
                     if (!caps) digit += 0x20;                           \
                 }                                                       \
                 call_put(digit);                                        \
-                number = fmod(number, max_pow);                         \
+                number -= max_pow * idigit;                             \
                 max_pow /= 16;                                          \
             }                                                           \
         } else {                                                        \
@@ -480,10 +493,10 @@ int wide_f_put(put_args(CHAR)) {
     size_t *chars_count, put_func_t put, int caps)
 
 #define __handle_decl(name, the_printf) \
-    inline int concat3(handle_##name##_, the_printf,_fmtspec) __handle_args
+    [[gnu::always_inline]] inline int concat3(handle_##name##_, the_printf,_fmtspec) __handle_args
 
 #define __handle_decl_caps(name, the_printf)  \
-    inline int concat3(handle_##name##_, the_printf,_fmtspec) __handle_args_caps
+    [[gnu::always_inline]] inline int concat3(handle_##name##_, the_printf,_fmtspec) __handle_args_caps
 
 #define handle_decl(name)      __handle_decl(name, PRINTF)
 #define handle_decl_caps(name) __handle_decl_caps(name, PRINTF)
@@ -807,6 +820,8 @@ handle_decl_caps(exp_flt) {
 
         return 0;
     }
+
+    return -1;
 }
 
 handle_decl_caps(exp16_flt) {
@@ -857,7 +872,7 @@ handle_decl_caps(exp16_flt) {
         return 0;
     }
 
-    if (state->size_spec == spec_L) {                                                        // Уточнение размера "L"
+    if (state->size_spec == spec_L) {
         double number = va_arg(*args, long double);
 
         int exponent = 0;

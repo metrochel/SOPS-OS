@@ -19,7 +19,7 @@ struct StackFrame {
 /// @brief Создаёт точку останова для Bochs-а.
 inline void magicBreakpoint() {
     kdebugwait();
-    __asm__ ("xchgw %bx, %bx");
+    __asm__ volatile ("xchgw %bx, %bx");
 }
 
 inline ptrint getReturnAddress(byte depth) {

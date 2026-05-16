@@ -7,6 +7,7 @@
 
 // Тут тоже будет микро-спагетти, по большому счёту из-за одной структуры - FILE.
 #ifndef _STDIO_INCL
+#define _STDIO_INCL
 
 #include <etc/decl.h>
 #include <etc/FILE.h>
@@ -51,12 +52,16 @@
 
 BEGIN_DECLS
 
-// Резервированный поток, отвечающий за стандартный вывод.
-extern FILE *stdout;
-// Резервированный поток, отвечающий за стандартный ввод.
-extern FILE *stdin;
-// Резервированный поток, отвечающий за стандартный вывод ошибки.
-extern FILE *stderr;
+// Резервированный поток, отвечающий за стандартный вывод
+#define stdout  (&__stdout)
+// Резервированный поток, отвечающий за стандартный ввод
+#define stdin   (&__stdin)
+// Резервированный поток, отвечающий за стандартную ошибку
+#define stderr  (&__stderr)
+
+extern FILE __stdin;
+extern FILE __stdout;
+extern FILE __stderr;
 
 // Открывает файл по имени `filename` в режиме `mode`.
 FILE* fopen(const char* filename, const char* mode);

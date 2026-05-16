@@ -32,30 +32,32 @@ Process registerProcess() {
     if (!pid)
         return {};
 
+    Process *process_ptr = processData + pid;
+
     Process p = processData[pid];
     memset(&p, sizeof(Process), 0);
     p.pid = pid;
 
-    stdin_file stdin(processData + pid);
-    stdout_file stdout(processData + pid);
-    stderr_file stderr(processData + pid);
+    stdin_file stdin(process_ptr);
+    stdout_file stdout(process_ptr);
+    stderr_file stderr(process_ptr);
 
     stdin_file *stdin_ptr = (stdin_file*)kmalloc(sizeof stdin);
     if (!stdin_ptr)
         return {};
-    *stdin_ptr = stdin;
+    memcpy((byte*)&stdin, (byte*)stdin_ptr, sizeof stdin);
     p.stdin = stdin_ptr;
 
     stdout_file *stdout_ptr = (stdout_file*)kmalloc(sizeof stdout);
     if (!stdout_ptr)
         return {};
-    *stdout_ptr = stdout;
+    memcpy((byte*)&stdout, (byte*)stdout_ptr, sizeof stdout);
     p.stdout = stdout_ptr;
 
     stderr_file *stderr_ptr = (stderr_file*)kmalloc(sizeof stderr);
     if (!stderr_ptr)
         return {};
-    *stderr_ptr = stderr;
+    memcpy((byte*)&stderr, (byte*)stderr_ptr, sizeof stderr);
     p.stderr = stderr_ptr;
 
     p.parent = nullptr;

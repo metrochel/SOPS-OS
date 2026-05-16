@@ -5,6 +5,8 @@
 //  - Временная консольная оболочка до того момента, пока не выйдем в графику.
 //
 
+extern const char *current_dir;
+
 /// @brief Основная функция оболочки.
 void shellMain(byte drive);
 

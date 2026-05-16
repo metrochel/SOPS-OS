@@ -37,7 +37,7 @@
 #define KB_STATUS_CAPSLOCK      8
 #define KB_STATUS_NUMLOCK       16
 
-extern const dword maxInputSize;
+inline const dword maxInputSize = 0x200;
 
 // Флаг; установлен, если команда воспринята
 extern bool cmdACKd;
@@ -87,5 +87,9 @@ void kread(byte* in);
 /// @return - Низший байт - код нажатой клавиши
 /// @return - Высший байт - статус клавиатуры во время нажатия
 word kreadkey();
+
+/// @brief Считывает один символ с клавиатуры.
+/// @return Считанный символ
+byte kreadchar();
 
 #endif

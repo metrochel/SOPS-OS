@@ -10,7 +10,7 @@ void initFiles() {
 
 }
 
-File *openFile(char *path, byte driveNo, byte mode) {
+File *openFile(char *path, byte driveNo, file_open_mode mode) {
     kdebug("Получен запрос на открытие файла ");
     kdebug(path);
     kdebug(" на диске %d.\n", driveNo);
@@ -24,21 +24,21 @@ File *openFile(char *path, byte driveNo, byte mode) {
         return nullptr;
     }
 
-    File *file_ptr;
+    File *file_ptr = nullptr;
 
     if (disks[driveNo].filesystem == FAT32) {
         kdebug("Файловая система диска %d - FAT32.\n", driveNo);
-        FAT32_File f(path, driveNo, (mode & 7) == FILE_MODE_WRITE || (mode & 7) == FILE_MODE_APPEND, false);
-        if (!f || (f.name && (mode & FILE_MODE_FLAG_EX))) {
+        FAT32_File f(path, driveNo, mode.write_allow || mode.append, false, mode);
+        if (!f || (f.name && mode.exclusive)) {
             return nullptr;
         }
-        File *file_ptr = (File*)kmalloc(sizeof(FAT32_File));
+        file_ptr = (File*)kmalloc(sizeof(FAT32_File));
         memcpy((byte*)&f, (byte*)file_ptr, sizeof(FAT32_File));
     } else {
         return nullptr;
     }
 
-    if ((mode & 7) == FILE_MODE_WRITE) {
+    if (mode.write_allow && file_ptr) {
         file_ptr->clear();
     }
 
@@ -144,7 +144,8 @@ bool createFolder(char *path, byte drive, bool force) {
             }
 
             if (*pathComponents && force) {
-                FAT32_File element(ipath, FAT_FILEATTR_DIRECTORY, drive, 0, kgettime(), dirStart);
+                FAT32_File element(ipath, FAT_FILEATTR_DIRECTORY, drive, 0,
+                                   kgettime(), dirStart, folder_open_mode);
                 element.create();
                 directoryCluster = element.startCluster;
             }
@@ -158,7 +159,8 @@ bool createFolder(char *path, byte drive, bool force) {
             strcpy(*pathComponents, name);
         }
 
-        FAT32_File folder(name, FAT_FILEATTR_DIRECTORY, drive, 0, kgettime(), directoryCluster);
+        FAT32_File folder(name, FAT_FILEATTR_DIRECTORY, drive, 0,
+                          kgettime(), directoryCluster, folder_open_mode);
 
         folder.startCluster = allocateCluster(drive);
         setCluster(drive, folder.startCluster, FAT_CLUSTER_EOF);

@@ -46,6 +46,7 @@ int atexit(void (*func)(void)) {
         *atexit_funcs = func;
         return 0;
     }
+
     atexit_func_t *new_atexit_funcs = realloc(atexit_funcs, sizeof func * (++atexit_func_cnt));
     if (!new_atexit_funcs) {
         atexit_func_cnt --;

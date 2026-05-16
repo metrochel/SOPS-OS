@@ -69,7 +69,11 @@ wchar_t* wcstok(wchar_t *str, const wchar_t *delim, wchar_t **str_end) {
         return NULL;
 
     str[cspn - 1] = 0;
-    __wcstok_internal_state = str + cspn;
+
+    size_t new_int_size = wcslen(str + cspn);
+    __wcstok_internal_state = realloc(__wcstok_internal_state, (new_int_size + 1) * sizeof ((wchar_t)0));
+    wcscpy(__wcstok_internal_state, str + cspn);
+    __wcstok_internal_state[new_int_size] = 0;
     if (str_end) *str_end = str + cspn;
     return str;
 }

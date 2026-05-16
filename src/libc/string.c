@@ -69,7 +69,11 @@ char* STRTOK_FUNC(char *str, const char *delim) {
         return NULL;
 
     str[cspn - 1] = 0;
-    __strtok_internal_state = str + cspn;
+
+    size_t new_int_size = strlen(str + cspn);
+    __strtok_internal_state = realloc(__strtok_internal_state, new_int_size + 1);
+    strcpy(__strtok_internal_state, str + cspn);
+    __strtok_internal_state[new_int_size] = 0;
     return str;
 }
 

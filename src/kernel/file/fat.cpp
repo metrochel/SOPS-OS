@@ -159,7 +159,7 @@ FAT32_File::~FAT32_File() {
     if (this->name) kfree(this->name);
 }
 
-FAT32_File::FAT32_File(dword cluster, word offset, byte driveNo) {
+FAT32_File::FAT32_File(dword cluster, word offset, byte driveNo, file_open_mode mode) {
     if (!fatInit) {
         name = nullptr;
         return;
@@ -209,6 +209,7 @@ FAT32_File::FAT32_File(dword cluster, word offset, byte driveNo) {
         extractShortName(*entries, name);
         this->directoryCluster = cluster;
         this->dirEntryOffset = offset + lfnCount;
+        open_mode = mode;
         return;
     }
 
@@ -228,11 +229,14 @@ FAT32_File::FAT32_File(dword cluster, word offset, byte driveNo) {
     this->dirEntryOffset = offset + lfnCount;
 
     single_chars_buf = kmalloc(defaultBufSize);
-    single_char_buf_idx = 0;
-    single_char_buf_pos = 0;
+    single_char_buf_idx = maxdword;
+    single_char_buf_pos = maxdword;
+
+    open_mode = mode;
 }
 
-FAT32_File::FAT32_File(char *name, byte attr, byte drive, dword size, Time creationDate, dword directoryCluster) {
+FAT32_File::FAT32_File(char *name, byte attr, byte drive, dword size, Time creationDate,
+                       dword directoryCluster, file_open_mode mode) {
     char *fname = (char*)kmalloc(strlen(name) + 1);
     strcpy(name, fname);
     this->name = fname;
@@ -245,11 +249,12 @@ FAT32_File::FAT32_File(char *name, byte attr, byte drive, dword size, Time creat
     this->drive = drive;
     this->dirEntryOffset  = maxword;
     single_chars_buf = kmalloc(defaultBufSize);
-    single_char_buf_idx = 0;
-    single_char_buf_pos = 0;
+    single_char_buf_idx = maxdword;
+    single_char_buf_pos = maxdword;
+    open_mode = mode;
 }
 
-FAT32_File::FAT32_File(char *path, byte driveNo, bool forceFile, bool forceFolders) {
+FAT32_File::FAT32_File(char *path, byte driveNo, bool forceFile, bool forceFolders, file_open_mode mode) {
     kdebug("Начато создание File по пути ");
     kdebug(path);
     kdebug(".\n");
@@ -341,7 +346,8 @@ FAT32_File::FAT32_File(char *path, byte driveNo, bool forceFile, bool forceFolde
             kdebug("Элемент ");
             kdebug(ipath);
             kdebug(" создаётся.\n");
-            FAT32_File element(ipath, !*pathComponents ? 0 : FAT_FILEATTR_DIRECTORY, driveNo, 0, kgettime(), dirStart);
+            FAT32_File element(ipath, !*pathComponents ? 0 : FAT_FILEATTR_DIRECTORY, driveNo,
+                               0, kgettime(), dirStart, folder_open_mode);
             element.create();
             if (!*pathComponents) {
                 startCluster = element.startCluster;
@@ -367,6 +373,7 @@ FAT32_File::FAT32_File(char *path, byte driveNo, bool forceFile, bool forceFolde
             name = fname;
             kfree(_pathComponents);
             kfree(nameBuf);
+            open_mode = mode;
             return;
         }
     }
@@ -425,16 +432,34 @@ FAT32_File::FAT32_File(char *path, byte driveNo, bool forceFile, bool forceFolde
     kfree(nameBuf);
 
     single_chars_buf = kmalloc(defaultBufSize);
-    single_char_buf_idx = 0;
-    single_char_buf_pos = 0;
+    single_char_buf_idx = maxdword;
+    single_char_buf_pos = maxdword;
+
+    open_mode = mode;
 }
 
 dword FAT32_File::read(byte *out) {
-    if (!fatInit) return false;
-    if (!*this) return false;
+    if (!*this) {
+        kdebug("ОШИБКА: Чтение из несуществующего файла по адресу %x\n", this);
+        return -1;
+    }
+
+
     kdebug("Начато считывание файла ");
     kdebug((const char*)this->name);
     kdebug(".\n");
+
+    if (!fatInit) {
+        kdebug("ОШИБКА: FAT32 не инициализирована\n");
+        kdebug("Чтение из файла невозможно.\n");
+        return -1;
+    }
+    if (!open_mode.read_allow) {
+        kdebug("ОШИБКА: Режим открытия не позволяет чтение\n");
+        kdebug("Чтение из файла невозможно.\n");
+        return -1;
+    }
+
     kdebug("Первый кластер файла: %d.\n", this->startCluster);
     dword clus = startCluster;
     dword _clus = getCluster(drive, clus);
@@ -453,31 +478,66 @@ dword FAT32_File::read(byte *out) {
 }
 
 dword FAT32_File::read(dword read_start, dword read_size, byte *out) {
-    if (!fatInit) return false;
-    if (!*this) return false;
-    if (!out) return false;
+    if (!*this) {
+        kdebug("ОШИБКА: Чтение из несуществующего файла по адресу %x\n", this);
+        return -1;
+    }
+
     kdebug("Начато считывание куска из файла ");
     kdebug(this->name);
     kdebug(" с %d байта размером %d Б.\n", read_start, read_size);
 
-    if (read_size == 1) {
+    if (!fatInit) {
+        kdebug("ОШИБКА: FAT32 не инициализирована\n");
+        kdebug("Чтение невозможно.\n");
+        return -1;
+    }
+
+    if (!out) {
+        kdebug("ОШИБКА: Не выделен буфер для чтения\n");
+        kdebug("Чтение невозможно.\n");
+        return -1;
+    }
+
+    if (!open_mode.read_allow) {
+        kdebug("ОШИБКА: Режим открытия не позволяет чтение\n");
+        kdebug("Чтение невозможно.\n");
+        return -1;
+    }
+
+    if (read_size == 1 && single_chars_buf) {
         kdebug("Производится однобайтовое чтение.\n");
-        if (read_start - single_char_buf_pos < defaultBufSize) {
-            dword idx = read_start - single_char_buf_pos;
+        dword idx = (read_start % defaultBufSize) - single_char_buf_pos;
+        if (idx < defaultBufSize && !single_char_needs_update) {
             kdebug("Обновление буфера не требуется.\n");
-            kdebug("Считывается %d-й символ из буфера.", idx);
+            kdebug("Считывается %d-й символ из буфера.\n", idx);
             *out = single_chars_buf[idx];
             return 1;
         }
 
         kdebug("Необходимо обновление буфера.\n");
-        dword read_chars = read(read_start, defaultBufSize, single_chars_buf);
-        if (read_chars != defaultBufSize) {
+        dword need_to_read = defaultBufSize;
+        if (read_start + need_to_read > size) {
+            need_to_read = size - read_start;
+        }
+        dword buf_read_start = (read_start / defaultBufSize) * defaultBufSize;
+        dword read_chars = read(buf_read_start, need_to_read, single_chars_buf);
+        if (read_chars != need_to_read) {
             kdebug("ОШИБКА: Обновление буфера не удалось\n");
             single_char_buf_pos = maxdword;
+            single_char_needs_update = true;
             return 0;
         }
-        *out = single_chars_buf[0];
+        kdebug("Буфер обновлён успешно.\n");
+
+        single_char_buf_pos = buf_read_start;
+        single_char_buf_idx = read_start - buf_read_start;
+        kdebug("Новые параметры буфера:\n");
+        kdebug("  Положение: %x\n", single_char_buf_pos);
+        kdebug("  Индекс: %x\n", single_char_buf_idx);
+
+        *out = single_chars_buf[single_char_buf_idx++];
+        single_char_needs_update = false;
         return 1;
     }
 
@@ -498,27 +558,34 @@ dword FAT32_File::read(dword read_start, dword read_size, byte *out) {
     if (skippedClusters) return 0;
 
     kdebug("Чтение начинается с кластера %d.\n", clus);
-    kdebug("%d\n", drive);
+
     byte clusterBuf[clustersize(this->drive)];
     memset(clusterBuf, clustersize(this->drive), 0);
-    readCluster(this->drive, clus, clusterBuf);
+
+    try_read_cluster(this->drive, clus, clusterBuf, 0)
+
     dword clusStartSize = clustersize(this->drive) - (read_start % clustersize(this->drive));
     if (clusStartSize >= read_size) {
         memcpy(clusterBuf + read_start % clustersize(this->drive), out, read_size);
-        return true;
+        kdebug("Чтение успешно завершено.");
+        return read_size;
     }
+
     memcpy(clusterBuf + (read_start % clustersize(this->drive)), out, clusStartSize);
     out += clusStartSize;
+
     dword _size = read_size - clusStartSize;
     clus = _clus;
     _clus = getCluster(this->drive, _clus);
     dword read_sz = 0;
     while (!is_eof(clus) && _size > clustersize(drive)) {
         kdebug("Считывается кластер %d.\n", clus);
+
         try_read_cluster(drive, clus, out, read_sz)
         out += clustersize(drive);
         read_sz += clustersize(drive);
         _size -= clustersize(drive);
+
         clus = _clus;
         _clus = getCluster(drive, _clus);
     }
@@ -531,31 +598,33 @@ dword FAT32_File::read(dword read_start, dword read_size, byte *out) {
 }
 
 dword FAT32_File::write(dword write_start, dword write_size, byte *in) {
-    if (!fatInit) return false;
-    if (!*this) return false;
-    if (!in) return false;
+    if (!fatInit) return -1;
+    if (!*this) return -1;
+    if (!in) return -1;
+    if (!open_mode.write_allow) return -1;
     kdebug("Начата запись %d байтов данных в файл ", write_size);
     kdebug(name);
     kdebug(".\n");
+    kdebug("\"%s\"\n", in);
 
-    if (write_size == 1) {
-        kdebug("Производится однобайтовая запись.\n");
-
-        if (single_char_buf_idx == defaultBufSize) {
-            kdebug("Буфер переполнен. Производится слив.\n");
-            dword written_chars = write(single_char_buf_pos, defaultBufSize, single_chars_buf);
-            if (written_chars != defaultBufSize) {
-                kdebug("ОШИБКА: Не удалось слить буфер\n");
-                single_char_buf_pos = maxdword;
-                return 0;
-            }
-            single_char_buf_idx = 0;
-            single_char_buf_pos += defaultBufSize;
-        }
-
-        single_chars_buf[single_char_buf_idx++] = *in;
-        return 1;
-    }
+//    if (write_size == 1) {
+//        kdebug("Производится однобайтовая запись.\n");
+//
+//        if (single_char_buf_idx == defaultBufSize) {
+//            kdebug("Буфер переполнен. Производится слив.\n");
+//            dword written_chars = write(single_char_buf_pos, defaultBufSize, single_chars_buf);
+//            if (written_chars != defaultBufSize) {
+//                kdebug("ОШИБКА: Не удалось слить буфер\n");
+//                single_char_buf_pos = maxdword;
+//                return 0;
+//            }
+//            single_char_buf_idx = 0;
+//            single_char_buf_pos += defaultBufSize;
+//        }
+//
+//        single_chars_buf[single_char_buf_idx++] = *in;
+//        return 1;
+//    }
 
     if (write_start + write_size > size) {
         kdebug("Запись требует расширения файла.\n");
@@ -596,18 +665,23 @@ dword FAT32_File::write(dword write_start, dword write_size, byte *in) {
 
     try_read_cluster(drive, clus, clusterBuf, 0);
     kdebug("Считывается кластер %d.\n", clus);
+
     word offset = write_start % clustersize(drive);
     word fillSize = clustersize(drive) - offset;
     kdebug("Прописывается %d Б.\n", _size);
     memcpy(in, clusterBuf + offset, _size);
     try_write_cluster(drive, clus, clusterBuf, 0);
     kdebug("Запись успешно завершена.\n");
+
     dword write_sz = 0;
     if (_size < fillSize) {
         size += _size;
         updateDirEntry(this);
+        if (size  < defaultBufSize)
+            single_char_needs_update = true;
         return _size;
     }
+
     kdebug("Прописывается %d Б.\n", fillSize);
     memcpy(in, clusterBuf + offset, fillSize);
     _size -= fillSize;
@@ -640,10 +714,14 @@ dword FAT32_File::write(dword write_start, dword write_size, byte *in) {
 
     if (write_start + write_size > size)
         size = write_start + write_size;
+
     lastEditDate = kgettime();
     updateDirEntry(this);
 
     kdebug("Запись успешно завершена.\n");
+    if (size  < defaultBufSize)
+        single_char_needs_update = true;
+
     return write_sz;
 }
 
@@ -666,6 +744,7 @@ void FAT32_File::clear() {
     }
     size = 0;
     updateDirEntry(this);
+    single_char_needs_update = true;
 }
 
 bool dirNameExists(byte *name, dword dirCluster, byte drive) {
@@ -1010,7 +1089,6 @@ bool readCluster(byte driveNo, dword clusterNo, byte *out) {
     dword clusSect = firstClusSect + (clusterNo - 2) * clusSize;
 
     dword sects = readSectors(out, clusSect, clusSize, driveNo);
-    kdebug("%d %d\n", sects, clusSize);
     return sects == clusSize;
 }
 

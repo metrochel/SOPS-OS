@@ -23,21 +23,27 @@ int ISALPHA(CHAR c) {
 }
 
 int ISLOWER(CHAR c) {
-    return ('a' <= c && c <= 'z') || STRCHR(LOWERCASE, c);
+    int result = ('a' <= c && c <= 'z');
+    if (!LOWERCASE) return result;
+    return result || STRCHR(LOWERCASE, c);
 }
 
 int ISUPPER(CHAR c) {
-    return ('A' <= c && c <= 'Z') || STRCHR(UPPERCASE, c);
+    int result = ('A' <= c && c <= 'Z');
+    if (!UPPERCASE) return result;
+    return result || STRCHR(UPPERCASE, c);
 }
 
 int ISDIGIT(CHAR c) {
-    return ('0' <= c && c <= '9') || STRCHR(DIGITS, c);
+    int result = ('0' <= c && c <= '0');
+    if (!DIGITS) return result;
+    return result || STRCHR(DIGITS, c);
 }
 
 int ISXDIGIT(CHAR c) {
-    return ('0' <= c && c <= '9')
-    || ('a' <= c && c <= 'f') || ('A' <= c && c <= 'F')
-    || STRCHR(XDIGITS, c);
+    int result = ('0' <= c && c <= '9') || ('a' <= c && c <= 'f') || ('A' <= c && c <= 'F');
+    if (!XDIGITS) return result;
+    return result || STRCHR(XDIGITS, c);
 }
 
 int ISCNTRL(CHAR c) {
@@ -45,12 +51,15 @@ int ISCNTRL(CHAR c) {
 }
 
 int ISPUNCT(CHAR c) {
-    return STRCHR((SMALL_CHAR*)".,/<>?;':\"[]{}-=_+~!@#$%^&*()`|\\\t", c)
-    || STRCHR(PUNCTS, c);
+    int result = STRCHR((SMALL_CHAR*)".,/<>?;':\"[]{}-=_+~!@#$%^&*()`|\\\t", c) != NULL;
+    if (!PUNCTS) return result;
+    return result || STRCHR(PUNCTS, c);
 }
 
 int ISGRAPH(CHAR c) {
-    return ISALNUM(c) || STRCHR(OTHER_PRINTS, c);
+    int result = ISALNUM(c);
+    if (!OTHER_PRINTS) return result;
+    return result || STRCHR(OTHER_PRINTS, c);
 }
 
 int ISSPACE(CHAR c) {

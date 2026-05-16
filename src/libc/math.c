@@ -327,13 +327,13 @@ decl
     _FLT n = txy;                                   \
     _FLT result;                                    \
     if (fabs##_EXT(xy - txy) == 0.5) {              \
-        result = x - n * y;                         \
+        result = y - n * x;                         \
         if (result / 2 == trunc##_EXT(result / 2)) {\
             n = txy + 1;                            \
             result = x - n * y;                     \
         }                                           \
     } else                                          \
-        result = x - n * y;                         \
+        result = y - n * x;                         \
     return result;                                  \
 }
 
@@ -495,17 +495,19 @@ decl_math_funcl(func_ret, nan, func_args, func_code)
 #define func_ret(_FLT) _FLT
 #define func_name __int_pow
 #define func_args(_FLT) (_FLT x, long long y)
-#define func_code(_FLT, _EXT) { \
-    _FLT xy = 1;                \
-    while (y) {                 \
-        if (y & 1) {            \
-            xy *= x;            \
-            y --;               \
-        }                       \
-        x *= x;                 \
-        y >>= 1;                \
-    }                           \
-    return xy;                  \
+#define func_code(_FLT, _EXT) {                     \
+    if (y < 0)                                      \
+        return 1.0##_EXT / __int_pow##_EXT(x, -y);  \
+    _FLT xy = 1;                                    \
+    while (y) {                                     \
+        if (y & 1) {                                \
+            xy *= x;                                \
+            y --;                                   \
+        }                                           \
+        x *= x;                                     \
+        y >>= 1;                                    \
+    }                                               \
+    return xy;                                      \
 }
 
 decl
@@ -1480,8 +1482,8 @@ decl_math_funcl(func_ret, trunc, func_args, func_code)
 #define func_code(_FLT, _EXT) { \
     _FLT tx = trunc(x);         \
     if (x == tx)                \
-        return x;               \
-    if (x < 0)                  \
+        return tx;              \
+    if (signbit(x))             \
         return tx - 1;          \
     return tx;                  \
 }
@@ -1502,7 +1504,7 @@ decl
     _FLT tx = trunc(x);         \
     if (x == tx)                \
         return tx;              \
-    if (x > 0)                  \
+    if (!signbit(tx))           \
         return tx + 1;          \
     return tx;                  \
 }
@@ -1521,9 +1523,9 @@ decl
 #define func_args(_FLT) (_FLT x)
 #define func_code(_FLT, _EXT) {                 \
     if (__signbit##_EXT(x))                     \
-        return ceil(x + 0.5);                   \
+        return ceil(x - 0.5);                   \
     else                                        \
-        return floor(x - 0.5);                  \
+        return floor(x + 0.5);                  \
 }
 
 decl
@@ -1540,9 +1542,9 @@ decl
     if (x < (_FLT)LONG_MIN)                     \
         return LONG_MIN;                        \
     if (__signbit##_EXT(x))                     \
-        return (long)ceil(x + 0.5);             \
+        return (long)ceil(x - 0.5);             \
     else                                        \
-        return (long)floor(x - 0.5);            \
+        return (long)floor(x + 0.5);            \
 }
 
 decl
@@ -1559,9 +1561,9 @@ decl
     if (x < (_FLT)LLONG_MIN)                    \
         return LLONG_MIN;                       \
     if (__signbit##_EXT(x))                     \
-        return (long long)ceil(x + 0.5);        \
+        return (long long)ceil(x - 0.5);        \
     else                                        \
-        return (long long)floor(x - 0.5);       \
+        return (long long)floor(x + 0.5);       \
 }
 
 decl

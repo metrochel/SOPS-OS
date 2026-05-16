@@ -4,15 +4,15 @@
 #include "../graphics/glyphs.hpp"
 #include "../memmgr/memmgr.hpp"
 
-bool strcmp(char* str1, char* str2) {
+bool strcmp(const char* str1, const char* str2) {
     return strcmpS(str1, str2) == 0x80;
 }
 
-byte strcmpS(char* str1, char* str2) {
+byte strcmpS(const char* str1, const char* str2) {
     return strcmpS(str1, str2, false);
 }
 
-byte strcmpS(char* str1, char* str2, bool caseInsensitive) {
+byte strcmpS(const char* str1, const char* str2, bool caseInsensitive) {
     byte s1 = *str1;
     byte s2 = *str2;
     if (s1 >= 0x61 && s1 < 0x7B && caseInsensitive)
@@ -48,7 +48,7 @@ byte strcmpS(char* str1, char* str2, bool caseInsensitive) {
     return 0x80;
 }
 
-bool strstartswith(char* str, char* substr) {
+bool strstartswith(const char* str, const char* substr) {
     while (*substr != 0) {
         if (*str != *substr)
             return false;
@@ -58,7 +58,7 @@ bool strstartswith(char* str, char* substr) {
     return true;
 }
 
-dword strcpy(char* str1, char* str2) {
+dword strcpy(const char* str1, char* str2) {
     dword len = 0;
     while (*str1 != 0) {
         *str2 = *str1;
@@ -70,7 +70,7 @@ dword strcpy(char* str1, char* str2) {
     return len;
 }
 
-dword strlen(char* str) {
+dword strlen(const char* str) {
     dword len = 0;
     while (*str != 0) {
         len ++;
@@ -98,7 +98,7 @@ byte numasstr(dword num, char* out) {
     return digits;
 }
 
-char** strsplit(char *str, char *pattern) {
+char** strsplit(const char *str, const char *pattern) {
     dword stlen = strlen(str);
     dword plen = strlen(pattern);
     dword possibleFits = stlen / plen;
@@ -127,26 +127,24 @@ void strskiplines(char *&str, dword lines) {
     while (*str && count < lines) {
         if (*str == 0x0A)
             count++;
-        *str++;
+        str++;
     }
 }
 
-void strconcat(char *str1, char *str2, char*& outstr) {
+void strconcat(const char *str1, const char *str2, char*& outstr) {
     dword len1 = strlen(str1);
     dword len2 = strlen(str2);
     outstr = (char*)kmalloc(len1 + len2 + 1);
     outstr[len1 + len2] = 0;
     strcpy(str1, outstr);
     strcpy(str2, outstr + len1);
-    kfree(str1);
-    kfree(str2);
 }
 
 inline bool isHexDigit(char d) {
     return (d >= '0' && d <= '9') || (d >= 'A' && d <= 'F') || (d >= 'a' && d <= 'f');
 }
 
-qword strhextoint(char *str) {
+qword strhextoint(const char *str) {
     qword ret = 0;
     if (*str == '0' && *(str+1) == 'x')
         str += 2;
@@ -173,7 +171,7 @@ inline bool isDecimalDigit(char c) {
     return (c >= '0') && (c <= '9');
 }
 
-qword strdectoint(char *str) {
+qword strdectoint(const char *str) {
     qword ret = 0;
     while (isDecimalDigit(*str)) {
         byte digit = (*str++) - 0x30;
@@ -181,4 +179,18 @@ qword strdectoint(char *str) {
         ret += digit;
     }
     return ret;
+}
+
+#define utf8_follow_char(c) ((c & 0b11000000) == 0b11000000)
+
+byte get_utf8_char_sz(const char *str) {
+    if ((*str & 0x80) == 0)
+        return 1;
+    if ((*str & 0xE0) == 0xC0)
+        return utf8_follow_char(str[1]);
+    if ((*str & 0xF0) == 0xE0)
+        return utf8_follow_char(str[1]) && utf8_follow_char(str[2]);
+    if ((*str & 0xF8) == 0xF0)
+        return utf8_follow_char(str[1]) && utf8_follow_char(str[2]) && utf8_follow_char(str[3]);
+    return 0;
 }

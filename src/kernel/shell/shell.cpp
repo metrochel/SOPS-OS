@@ -12,12 +12,16 @@ dword directoryCluster;
 byte drive;
 char nameBuf[13*64];
 
+const char *current_dir = path;
+
 void shellMain(byte driveNo) {
     byte *stdin = (byte*)0x9300;
     memset(path, 1000, 0);
+    memset(stdin, maxInputSize, 0);
     path[0] = '/';
     drive = driveNo;
     directoryCluster = root(drive);
+    kdebug("%d %d\n", clustersize(drive), directoryCluster);
     while (true) {
         kprint("\n");
         kprint(path);
@@ -132,7 +136,7 @@ void shellMain(byte driveNo) {
             continue;
         }
 
-        FAT32_File executable(fileEntryPos.cluster, fileEntryPos.offset, drive);
+        FAT32_File executable(fileEntryPos.cluster, fileEntryPos.offset, drive, executable_open_mode);
         dword exitCode = runExecutable(executable, (char*)stdin, path);
 
         if (exitCode >= 0xFFFFFFF0) {
@@ -177,7 +181,7 @@ void shellMain(byte driveNo) {
             continue;
         }
 
-        kprint("Программа завершилась с кодом %x.\n", exitCode);
+        kprint("\nПрограмма завершилась с кодом %x.\n", exitCode);
     }
 }
 
@@ -484,7 +488,7 @@ void cmdCat(char *fname) {
 		fname = newFname;
 		fnameChanged = true;
 	}
-	File *file = openFile(fname, drive, FILE_MODE_READ);
+	File *file = openFile(fname, drive, read_open_mode);
 	if (!file) {
 		kerror("ОШИБКА: Не удалось открыть файл ");
 		kerror(fname);
@@ -493,9 +497,9 @@ void cmdCat(char *fname) {
 		return;
 	}
 	dword fileSz = file->size;
-	char *buf = (char*)kmalloc(fileSz + 1);
+	byte *buf = kmalloc(fileSz + 1);
+	file->read(buf);
 	buf[fileSz] = 0;
-	file->read((byte*)buf);
-	kprint(buf);
+	kprint((const char*)buf);
 	if (fnameChanged) kfree(fname);
 }

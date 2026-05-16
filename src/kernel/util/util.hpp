@@ -31,24 +31,24 @@ class CPUContext {
     public:
         static CPUContext store() {
             CPUContext ctx;
-            __asm__ volatile (" \
-                movl %%eax, %d0; \
-                movl %%ebx, %d1; \
-                movl %%ecx, %d2; \
-                movl %%edx, %d3; \
-                movl %%esi, %d4; \
-                movl %%edi, %d5; \
-                movl %%esp, %d6; \
-                movl %%ebp, %d7; \
-                pushf; \
-                popl %d8; \
-                movw %%cs, %w9; \
-                movw %%ds, %w10; \
-                movw %%ss, %w11; \
-                movw %%es, %w12; \
-                movw %%fs, %w13; \
-                movw %%gs, %w14;"
-                : 
+            __asm__ (
+                "movl %%eax, %d0;"
+                "movl %%ebx, %d1;"
+                "movl %%ecx, %d2;"
+                "movl %%edx, %d3;"
+                "movl %%esi, %d4;"
+                "movl %%edi, %d5;"
+                "movl %%esp, %d6;"
+                "movl %%ebp, %d7;"
+                "pushf;"
+                "popl %d8;"
+                "movw %%cs, %w9;"
+                "movw %%ds, %w10;"
+                "movw %%ss, %w11;"
+                "movw %%es, %w12;"
+                "movw %%fs, %w13;"
+                "movw %%gs, %w14;"
+                :
                     "=m"(ctx.eax), "=m"(ctx.ebx), "=m"(ctx.ecx), "=m"(ctx.edx), 
                     "=m"(ctx.esi), "=m"(ctx.edi), 
                     "=m"(ctx.esp), "=m"(ctx.ebp),
