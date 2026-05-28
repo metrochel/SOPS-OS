@@ -8,9 +8,9 @@
 
 #include <stdarg.h>
 
-#include "../util/nums.hpp"
+#include "../libk/nums.hpp"
 #include "../memmgr/memmgr.hpp"
-#include "../util/util.hpp"
+#include "../libk/util.hpp"
 #include "../io/com.hpp"
 
 #define ones defBlockRevision > 1 ? maxqword : maxdword

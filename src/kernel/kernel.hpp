@@ -6,7 +6,7 @@
 //  Содержит описания основных структур, используемых ядром
 //
 #include "graphics/graphics.hpp"
-#include "util/nums.hpp"
+#include "libk/nums.hpp"
 
 // ### BootLoaderData
 // Структура с данными, полученными в загрузчике.

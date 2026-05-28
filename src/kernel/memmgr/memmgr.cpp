@@ -1,6 +1,6 @@
 #include "memmgr.hpp"
 #include "../kernel.hpp"
-#include "../util/util.hpp"
+#include "../libk/util.hpp"
 #include "../io/com.hpp"
 #include "../run/process.hpp"
 

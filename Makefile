@@ -66,7 +66,6 @@ all: $(BUILDDIR) $(DISKFILE) $(BINSDIR) $(BOOTBINS) $(KERNELBIN) $(SYSROOT) all-
 	dd if=$(BINSDIR)/boot.bin of=$(DISKFILE) bs=1 seek=90 conv=notrunc; \
 	dd if=$(BINSDIR)/boot2.bin of=$(DISKFILE) bs=512 seek=2 conv=notrunc; \
 	dd if=$(KERNELBIN) of=$(DISKFILE) bs=512 seek=10 conv=notrunc; \
-	$(CCROSSCOMPILER) sysroot/test.c -o sysroot/test;	\
 	mcopy -pmso -i $(DISKFILE) $(SYSROOT)/* :: ;
 	
 #

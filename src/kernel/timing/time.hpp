@@ -6,7 +6,7 @@
 #ifndef _TIME_INCL
 #define _TIME_INCL
 
-#include "../util/nums.hpp"
+#include "../libk/nums.hpp"
 
 // ### Время
 // Класс, содержащий в себе описание о неком моменте времени.

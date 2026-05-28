@@ -7,7 +7,7 @@
 #ifndef _SYSCALL_BASE_INCL
 #define _SYSCALL_BASE_INCL
 
-#include "../util/nums.hpp"
+#include "../libk/nums.hpp"
 
 // Ошибка неверного доступа
 #define RUNTIME_ERROR_INVALID_ACCESS        0xFFFFFFFE

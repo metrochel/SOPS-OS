@@ -3,7 +3,7 @@
 //
 //  - Используется для управления питанием компонентов ПК.
 //
-#include "../util/nums.hpp"
+#include "../libk/nums.hpp"
 #include "acpitables.hpp"
 #include "aml.hpp"
 #include "sci.hpp"

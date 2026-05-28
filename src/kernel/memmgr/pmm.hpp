@@ -5,7 +5,7 @@
 //
 //  - Распределяет физическую память процессам.
 //
-#include "../util/nums.hpp"
+#include "../libk/nums.hpp"
 #include "paging.hpp"
 
 // ### MemMapEntry

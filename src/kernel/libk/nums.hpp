@@ -35,6 +35,9 @@ typedef qword ptrint;
 typedef dword ptrint;
 #endif
 
+// `size_t` - это число, достаточное, чтобы указать размер чего-либо.
+typedef unsigned long long size_t;
+
 // Размер указателя
 #define ptrsize sizeof(ptrint)
 

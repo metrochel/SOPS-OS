@@ -7,7 +7,7 @@
 #ifndef _PAGING_INCL
 #define _PAGING_INCL
 
-#include "../util/nums.hpp"
+#include "../libk/nums.hpp"
 
 #define PAGING_BASE         0x101000
 #define PAGE_SIZE           0x1000

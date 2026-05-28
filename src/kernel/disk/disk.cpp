@@ -1,7 +1,7 @@
 #include "disk.hpp"
 #include "../memmgr/memmgr.hpp"
 #include "../io/com.hpp"
-#include "../util/util.hpp"
+#include "../libk/util.hpp"
 #include "../dbg/dbg.hpp"
 #include "../str/str.hpp"
 

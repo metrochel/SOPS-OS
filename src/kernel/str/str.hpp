@@ -6,7 +6,7 @@
 #ifndef _STR_INCL
 #define _STR_INCL
 
-#include "../util/nums.hpp"
+#include "../libk/nums.hpp"
 
 bool strcmp(const char* str1, const char* str2);
 byte strcmpS(const char* str1, const char* str2);

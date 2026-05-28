@@ -3,7 +3,7 @@
 
 #include <stdarg.h>
 #include "graphics.hpp"
-#include "../util/nums.hpp"
+#include "../libk/nums.hpp"
 // ======================================== Работа с текстом ============================================
 
 #define LF 0x0A

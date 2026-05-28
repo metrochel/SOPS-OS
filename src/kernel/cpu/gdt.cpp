@@ -1,6 +1,6 @@
 #include "gdt.hpp"
 #include "../graphics/glyphs.hpp"
-#include "../util/util.hpp"
+#include "../libk/util.hpp"
 #include "../dbg/dbg.hpp"
 
 GDT_TSS tss = {};

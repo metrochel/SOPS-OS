@@ -2,7 +2,7 @@
 #include "../pci/pci.hpp"
 #include "../memmgr/paging.hpp"
 #include "../io/com.hpp"
-#include "../util/util.hpp"
+#include "../libk/util.hpp"
 
 const dword prdt1start = 0x9500;
 const dword prdt2start = 0x9700;

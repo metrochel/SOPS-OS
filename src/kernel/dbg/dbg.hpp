@@ -6,7 +6,7 @@
 #ifndef _DBG_INCL
 #define _DBG_INCL
 
-#include "../util/nums.hpp"
+#include "../libk/nums.hpp"
 #include "../io/com.hpp"
 
 // ### StackFrame

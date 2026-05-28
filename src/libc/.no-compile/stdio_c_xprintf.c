@@ -5,6 +5,7 @@
  * 
  */
 
+#include <stdint.h>
 #include "../include/stdio.h"
 #include "../include/stdlib.h"
 #include "../include/stddef.h"
@@ -14,7 +15,6 @@
 #include "../include/string.h"
 #include "../etc/intmanip.h"
 #include "../etc/syscalls.h"
-#include <stdint.h>
 
 #define concat(a, b) a##b
 #define concat3(a, b, c) a##b##c

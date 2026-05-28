@@ -4,7 +4,7 @@
 
 #ifndef _PIC_INCL
 #define _PIC_INCL
-#include "../util/nums.hpp"
+#include "../libk/nums.hpp"
 #include "../io/io.hpp"
 
 #define PIC1_CMD    0x20

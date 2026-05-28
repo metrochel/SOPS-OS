@@ -59,29 +59,29 @@ class CPUContext {
         }
 
         inline void restore() {
-            __asm__ volatile (" \
-                movw %w9,  %%ax; \
-                movw %%ax, %%ds; \
-                movw %w10, %%ax; \
-                movw %%ax, %%ss; \
-                movw %w11, %%ax; \
-                movw %%ax, %%es; \
-                movw %w12, %%ax; \
-                movw %%ax, %%fs; \
-                movw %w13, %%ax; \
-                movw %%ax, %%gs; \
-                movl %d0, %%eax; \
-                movl %d1, %%ebx; \
-                movl %d2, %%ecx; \
-                movl %d3, %%edx; \
-                movl %d4, %%esi; \
-                movl %d5, %%edi; \
-                push %d8;        \
-                popf;            \
-                push %d6;        \
-                pop %%eax;       \
-                movl %%eax, %%esp; \
-                movl %d7, %%ebp;"
+            __asm__ volatile (
+                "movw %w9,  %%ax;"
+                "movw %%ax, %%ds;"
+                "movw %w10, %%ax;"
+                "movw %%ax, %%ss;"
+                "movw %w11, %%ax;"
+                "movw %%ax, %%es;"
+                "movw %w12, %%ax;"
+                "movw %%ax, %%fs;"
+                "movw %w13, %%ax;"
+                "movw %%ax, %%gs;"
+                "movl %d0, %%eax;"
+                "movl %d1, %%ebx;"
+                "movl %d2, %%ecx;"
+                "movl %d3, %%edx;"
+                "movl %d4, %%esi;"
+                "movl %d5, %%edi;"
+                "push %d8;"
+                "popf;"
+                "push %d6;"
+                "pop %%eax;"
+                "movl %%eax, %%esp;"
+                "movl %d7, %%ebp;"
                 : : 
                     "m"(this->eax), "m"(this->ebx), "m"(this->ecx), "m"(this->edx), 
                     "m"(this->esi), "m"(this->edi), 
@@ -116,7 +116,7 @@ inline void swap(char* a, char* b) {
 /// @param mem Указатель на обрабатываемый участок
 /// @param count Число изменяемых байтов
 /// @param val Новое значение
-inline void memset(void *mem, dword count, byte val) {
+inline void memset(auto *mem, dword count, byte val) {
     byte *ptr = (byte*)mem;
     for (dword i = 0; i < count; i++) {
         ptr[i] = val;
@@ -124,16 +124,20 @@ inline void memset(void *mem, dword count, byte val) {
 }
 
 /// @brief Копирует N Б памяти с указателя A на указатель B.
-inline void memcpy(byte* a, byte* b, dword n) {
+inline void memcpy(auto* a, auto* b, dword n) {
+    byte *aptr = (byte*)a;
+    byte *bptr = (byte*)b;
     for (dword i = 0; i < n; i++) {
-        *b++ = *a++;
+        *bptr++ = *aptr++;
     }
 }
 
 /// @brief Сравнивает N Б памяти на указателях A и B.
-inline byte memcmp(byte *a, byte *b, dword n) {
+inline byte memcmp(auto *a, auto *b, dword n) {
+    byte *aptr = (byte*)a;
+    byte *bptr = (byte*)b;
     for (dword i = 0; i < n; i++) {
-        if (a[i] != b[i])
+        if (aptr[i] != bptr[i])
             return false;
     }
     return true;
@@ -143,18 +147,21 @@ inline byte memcmp(byte *a, byte *b, dword n) {
 /// @returns `0x00` - блок A меньше блока B;
 /// @returns `0x80` - блоки A и B равны;
 /// @returns `0xFF` - блок A больше блока B
-inline byte memcmpS(byte *a, byte* b, dword n) {
+inline byte memcmpS(auto *a, auto* b, dword n) {
+    byte *aptr = (byte*)a;
+    byte *bptr = (byte*)b;
     for (dword i = 0; i < n; i++) {
-        if (a[i] > b[i]) return 0xFF;
-        if (a[i] < b[i]) return 0x00;
+        if (aptr[i] > bptr[i]) return 0xFF;
+        if (aptr[i] < bptr[i]) return 0x00;
     }
     return 0x80;
 }
 
-inline void memshiftleft(byte *ptr, dword dataSize, dword shift) {
-    memset(ptr, shift, 0);
+inline void memshiftleft(auto *ptr, dword dataSize, dword shift) {
+    byte *bptr = (byte*)ptr;
+    memset(bptr, shift, 0);
     for (dword i = shift; i < dataSize; i++) {
-        ptr[i-shift] = ptr[i];
+        bptr[i-shift] = bptr[i];
     }
 }
 

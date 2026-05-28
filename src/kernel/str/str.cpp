@@ -1,6 +1,6 @@
 #include "str.hpp"
 #include "../io/com.hpp"
-#include "../util/util.hpp"
+#include "../libk/util.hpp"
 #include "../graphics/glyphs.hpp"
 #include "../memmgr/memmgr.hpp"
 

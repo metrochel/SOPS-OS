@@ -1,7 +1,7 @@
 #include "fat.hpp"
 #include "../io/com.hpp"
 #include "../disk/disk.hpp"
-#include "../util/util.hpp"
+#include "../libk/util.hpp"
 #include "../memmgr/memmgr.hpp"
 #include "../str/str.hpp"
 

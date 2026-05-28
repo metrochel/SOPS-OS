@@ -3,7 +3,7 @@
 #include "pmm.hpp"
 #include "../io/com.hpp"
 #include "../run/process.hpp"
-#include "../util/util.hpp"
+#include "../libk/util.hpp"
 
 const dword tablesCount = 1024;
 

@@ -8,7 +8,7 @@
 #ifndef _GRAPHICS_INCL
 #define _GRAPHICS_INCL
 
-#include "../util/nums.hpp"
+#include "../libk/nums.hpp"
 
 // ============================================== Основы ============================
 

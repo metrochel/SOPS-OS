@@ -3,7 +3,7 @@
 //
 //  - Структуры, удобно хранящие в себе таблицы ACPI.
 //
-#include "../util/nums.hpp"
+#include "../libk/nums.hpp"
 
 // ### RSDP
 // Root System Description Pointer - штука, которая, по сути, откроет для нас ACPI.

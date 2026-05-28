@@ -9,7 +9,7 @@
 #include "../timing/cmos.hpp"
 #include "../timing/time.hpp"
 #include "../dbg/dbg.hpp"
-#include "../util/util.hpp"
+#include "../libk/util.hpp"
 #include "../syscall/syscall.hpp"
 #include "../run/process.hpp"
 

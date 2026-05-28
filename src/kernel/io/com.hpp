@@ -8,7 +8,7 @@
 #ifndef _COM_INCL
 #define _COM_INCL
 
-#include "../util/nums.hpp"
+#include "../libk/nums.hpp"
 
 // Максимальная скорость обмена данными
 #define COM_MAX_BAUD_RATE           115200

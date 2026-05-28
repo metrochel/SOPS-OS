@@ -6,7 +6,7 @@
 #ifndef _PIT_INCL
 #define _PIT_INCL
 
-#include "../util/nums.hpp"
+#include "../libk/nums.hpp"
 #include "../io/io.hpp"
 
 #define PIT_CHANNEL_0_PORT  0x40

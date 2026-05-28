@@ -2,7 +2,7 @@
 #include "io.hpp"
 #include "../graphics/glyphs.hpp"
 #include "../str/str.hpp"
-#include "../util/util.hpp"
+#include "../libk/util.hpp"
 #include <stdarg.h>
 
 byte *comReadBuffers[]  = {nullptr, nullptr, nullptr, nullptr};

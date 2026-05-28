@@ -5,7 +5,7 @@
 //
 //  - Позволяет изменять Таблицу Глобальных Дескрипторов (ТГД или GDT).
 //
-#include "../util/nums.hpp"
+#include "../libk/nums.hpp"
 
 #define tssEntry gdtr.base[9]
 

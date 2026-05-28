@@ -1,6 +1,6 @@
 #include "ps2.hpp"
 #include "../graphics/glyphs.hpp"
-#include "../util/util.hpp"
+#include "../libk/util.hpp"
 
 bool firstPortAvailable = false;
 bool secondPortAvailable = false;

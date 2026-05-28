@@ -8,7 +8,7 @@
 #include "../../dbg/dbg.hpp"
 #include "../../memmgr/memmgr.hpp"
 #include "../../run/process.hpp"
-#include "../../util/util.hpp"
+#include "../../libk/util.hpp"
 
 #define handle(name) __syscall_ext_hdl_decl(name)
 

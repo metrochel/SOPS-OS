@@ -6,7 +6,7 @@
 #ifndef _MEMMGR_INCL
 #define _MEMMGR_INCL
 
-#include "../util/nums.hpp"
+#include "../libk/nums.hpp"
 #include "paging.hpp"
 #include "pmm.hpp"
 #include "vmm.hpp"

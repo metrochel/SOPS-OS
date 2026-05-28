@@ -7,7 +7,7 @@
 #ifndef _KCODE_INCL
 #define _KCODE_INCL
 
-#include "../util/nums.hpp"
+#include "../libk/nums.hpp"
 
 #define KEYCODE_SPACEBAR 0
 #define KEYCODE_A 1

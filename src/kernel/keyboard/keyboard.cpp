@@ -2,7 +2,7 @@
 #include "keycodes.hpp"
 #include <stdarg.h>
 #include "../graphics/glyphs.hpp"
-#include "../util/util.hpp"
+#include "../libk/util.hpp"
 
 bool cmdAwaitingResponse = false;
 bool releaseScancode = false;

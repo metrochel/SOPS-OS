@@ -7,7 +7,7 @@
 #ifndef _PCI_INCL
 #define _PCI_INCL
 
-#include "../util/nums.hpp"
+#include "../libk/nums.hpp"
 #include "../io/io.hpp"
 #include "../graphics/glyphs.hpp"
 

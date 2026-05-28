@@ -5,7 +5,7 @@
 //
 //  - Управляет процессами: создаёт и удаляет их, приостанавливает и возобновляет и так далее.
 //
-#include "../util/nums.hpp"
+#include "../libk/nums.hpp"
 #include "../file/file.hpp"
 #include "stdio.hpp"
 

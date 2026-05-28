@@ -8,7 +8,7 @@
 
 #include "ide.hpp"
 #include "../io/io.hpp"
-#include "../util/nums.hpp"
+#include "../libk/nums.hpp"
 
 #define DISK_TYPE_NONE   0
 #define DISK_TYPE_ATA    1
