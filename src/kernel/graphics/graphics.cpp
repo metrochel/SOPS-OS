@@ -1,66 +1,152 @@
 #include "graphics.hpp"
-#include "../kernel.hpp"
+#include "glyphs/glyphs.hpp"
+#include "adapters/vbe.hpp"
 #include "../memmgr/memmgr.hpp"
+#include "../kernel.hpp"
 #include "../libk/util.hpp"
 
-byte *frameBufferPtr;
-word pitch;
-byte bpp;
+/// Перевод текстовых координат в графические
+#define ttg_x(x) ((x) * 16)
+/// Перевод текстовых координат в графические
+#define ttg_y(y) ((y) * 24)
 
-byte redmask;
-byte redshift;
-byte greenmask;
-byte greenshift;
-byte bluemask;
-byte blueshift;
-byte reservedmask;
-byte reservedshift;
+#define is_newline(symb) ((symb) == 0x0A)
 
-Character *textBuffer;
-Character *auxTextBuffer;
-dword textBufferBankSize;
+using namespace graphics;
 
-void initGraphics() {
-    pitch = bld->VBEInfo.Pitch;
-    frameBufferPtr = (byte*)(0xFC000000 + (bld->VBEInfo.FrameBuffer & 0xFFF));
-    bpp = bld->VBEInfo.BPP;
-    redmask = bld->VBEInfo.RedMaskSize;
-    redshift = bld->VBEInfo.RedPos;
-    greenmask = bld->VBEInfo.GreenMaskSize;
-    greenshift = bld->VBEInfo.GreenPos;
-    bluemask = bld->VBEInfo.BlueMaskSize;
-    blueshift = bld->VBEInfo.BluePos;
-    screenWidth = bld->VBEInfo.Width;
-    screenHeight = bld->VBEInfo.Height;
+ostream cout, cwrn, cerr;
+
+dword graphics::text_cur_x = 1;
+dword graphics::text_cur_y = 1;
+
+dword graphics::screen_width, graphics::screen_height;
+dword graphics::text_screen_width, graphics::text_screen_height;
+
+#define usable_text_width (graphics::text_screen_width - 2 * text_border)
+#define usable_text_height (graphics::text_screen_height - 2 * text_border)
+#define usable_text_surface (usable_text_width * usable_text_height)
+
+const adapter_funcs* graphics::cur_adapter_funcs = nullptr;
+adapter graphics::cur_adapter = none;
+
+character *graphics::screen_chars, *graphics::viewport;
+
+dword graphics::compute_pixoff(dword x, dword y) {
+    return cur_adapter_funcs->compute_pixoff(x, y);
 }
 
-/// @brief Кодирует цвет RGB в воспринимаемое видеокартой число.
-/// @param r Красный канал
-/// @param g Зелёный канал
-/// @param b Синий канал
-/// @return Цвет в формате числа
-dword encodeRGB(float r, float g, float b) {
-    dword encCol = 0;
-    encCol += (byte)(r * ((1 << redmask) - 1)) << redshift;
-    encCol += (byte)(g * ((1 << greenmask) - 1)) << greenshift;
-    encCol += (byte)(b * ((1 << bluemask) - 1)) << blueshift;
-
-    return encCol;
+void graphics::putpixel(dword x, dword y, dword col) {
+    cur_adapter_funcs->putpixel(x, y, col);
 }
 
-void putpixel(word x, word y, dword col) {
-    dword offset = y * pitch + (x * (bpp/8));
-    putpixel(offset, col);
+void graphics::fill(dword x, dword y, dword width, dword height, dword col) {
+    cur_adapter_funcs->fill(x, y, width, height, col);
 }
 
-void putrect(word x1, word y1, word x2, word y2, dword col) {
-    dword offset = y1 * pitch + x1*(bpp/8);
-    for (dword y = y1; y <= y2; y++) {
-        for (dword x = x1; x <= x2; x++) {
-            putpixel(offset, col);
-            offset += bpp/8;
-        }
-        offset += pitch;
-        offset -= (x2-x1+1) * (bpp/8);
+void graphics::blit(dword x, dword y, dword width, dword height, dword *cols) {
+    cur_adapter_funcs->blit(x, y, width, height, cols);
+}
+
+void graphics::putglyph(const glyph &g, dword x, dword y, dword fg_col, dword bg_col) {
+    cur_adapter_funcs->putglyph(g, x, y, fg_col, bg_col);
+}
+
+void graphics::reg_char(dword ch, dword fg_col, dword bg_col, dword x, dword y) {
+    viewport[y * usable_text_width + x] = { ch, fg_col, bg_col };
+}
+
+void graphics::scroll() {
+    character *vp_pre_update = viewport;
+    viewport += usable_text_width;
+    if (viewport - screen_chars >= text_screen_width * text_screen_height) {
+        memcpy(viewport, screen_chars, usable_text_surface * sizeof((character){}));
+        viewport = screen_chars;
     }
+    refresh_text(vp_pre_update);
+}
+
+void graphics::refresh_text(character *vp_pre_update) {
+    for (dword i = 0; i <= usable_text_height; i++) {
+        for (dword j = 0; j <= usable_text_width; j++) {
+            dword idx = i * usable_text_width + j;
+            if (viewport[idx].code != vp_pre_update[idx].code
+            ||  viewport[idx].fg_col != vp_pre_update[idx].fg_col
+            ||  viewport[idx].bg_col != vp_pre_update[idx].bg_col)
+            {
+                character &ch = viewport[idx];
+                const glyph &g = glyph_from_symbol(ch.code);
+                putglyph(g, ttg_x(j), ttg_y(i), ch.fg_col, ch.bg_col);
+            }
+        }
+    }
+}
+
+void graphics::graphical_put(dword symb, dword fg_col, dword bg_col) {
+    if (is_newline(symb)) {
+        text_cur_x = text_border;
+        text_cur_y ++;
+
+        if (text_cur_y >= text_screen_height - text_border) {
+            scroll();
+            text_cur_y--;
+        }
+
+        return;
+    }
+
+    const glyph &g = glyph_from_symbol(symb);
+
+    dword x = ttg_x(text_cur_x);
+    dword y = ttg_y(text_cur_y);
+
+    reg_char(symb, fg_col, bg_col, text_cur_x, text_cur_y);
+    putglyph(g, x, y, fg_col, bg_col);
+
+    text_cur_x++;
+
+    if (text_cur_x >= text_screen_width - text_border) {
+        text_cur_x = text_border;
+        text_cur_y++;
+    }
+
+    if (text_cur_y >= text_screen_height - text_border) {
+        scroll();
+        text_cur_y--;
+    }
+}
+
+void cout_put(dword ch) {
+    graphical_put(ch, default_fg_col, default_bg_col);
+}
+
+void cwrn_put(dword ch) {
+    graphical_put(ch, warn_fg_col, warn_bg_col);
+}
+
+void cerr_put(dword ch) {
+    graphical_put(ch, error_fg_col, error_bg_col);
+}
+
+void graphics::init() {
+    vbe_mode_info *vbe = &(bld->VBEInfo);
+    init_vbe(vbe);
+
+    cur_adapter = vbe_linear_framebuf;
+    cur_adapter_funcs = &vbe::get_adapter_funcs();
+
+    cout = ostream(cout_put);
+    cwrn = ostream(cwrn_put);
+    cerr = ostream(cerr_put);
+
+    text_screen_width = screen_width / glyph_width;
+    text_screen_height = screen_height / glyph_height;
+
+    screen_chars = (character*)kmalloc(sizeof ((character){}) * 2 * usable_text_surface);
+
+    if (!screen_chars) {
+        // TODO: бросать исключение
+        return;
+    }
+
+    viewport = screen_chars;
 }

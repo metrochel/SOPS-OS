@@ -7,6 +7,8 @@
 
 #include "../include/iostream.hpp"
 
+/* === istream === */
+
 #define right_shift_op_decl(type)                   \
     istream& istream::operator>>(type& number) {    \
         qword no = read_uint();                     \
@@ -21,7 +23,7 @@ right_shift_op_decl(qword)
 
 #undef right_shift_op_decl
 
-istream& istream::operator>>(int &ch) {
+istream& istream::operator>>(char &ch) {
     ch = (int)read_char();
     return *this;
 }
@@ -31,10 +33,17 @@ istream& istream::operator>>(string& str) {
     return *this;
 }
 
-istream& istream::operator>>(stream::data_modifier mod) {
-    set_modifier(mod);
+istream& istream::operator>>(intmod mod) {
+    set_int_modifier(mod);
     return *this;
 }
+
+istream& istream::operator=(const istream&& ref) {
+    get = ref.get;
+    return *this;
+}
+
+/* === ostream === */
 
 #define left_shift_op_decl(type)                \
     ostream& ostream::operator<<(type num) {    \
@@ -49,7 +58,17 @@ left_shift_op_decl(qword)
 
 #undef left_shift_op_decl
 
-ostream& ostream::operator<<(int ch) {
+ostream& ostream::operator<<(int num) {
+    stream::write_int(num);
+    return *this;
+}
+
+ostream& ostream::operator<<(intmod mod) {
+    stream::set_int_modifier(mod);
+    return *this;
+}
+
+ostream& ostream::operator<<(char ch) {
     write_char(ch);
     return *this;
 }
@@ -62,4 +81,16 @@ ostream& ostream::operator<<(const char *str) {
 ostream& ostream::operator<<(const string& str) {
     write_str(str);
     return *this;
+}
+
+ostream& ostream::operator=(const ostream&& ref) {
+    put = ref.put;
+    return *this;
+}
+
+/* === iostream === */
+
+iostream& iostream::operator=(const iostream&& ref) {
+    istream::get = ref.istream::get;
+    ostream::put = ref.ostream::put;
 }

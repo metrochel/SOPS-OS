@@ -1,5 +1,5 @@
 #include "gdt.hpp"
-#include "../graphics/glyphs.hpp"
+#include "../graphics_old/glyphs.hpp"
 #include "../libk/util.hpp"
 #include "../dbg/dbg.hpp"
 

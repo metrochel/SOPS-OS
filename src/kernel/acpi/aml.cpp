@@ -1,7 +1,7 @@
 #include "aml.hpp"
 #include "../str/str.hpp"
 #include "../dbg/dbg.hpp"
-#include "../graphics/glyphs.hpp"
+#include "../graphics/glyphs/glyphs.hpp"
 #include <stdarg.h>
 
 const dword parsingPathBase = 0x13000;

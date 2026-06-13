@@ -177,7 +177,7 @@ $(KERNELOBJ): $(KERNEL_CPP_SRC) $(KERNEL_ASM_SRC) $(OBJSDIR_KERNEL)
 #	Компоновка ядра
 #
 $(KERNELBIN): $(KERNELOBJ) $(BUILDDIR_ETC)
-	$(CCROSSCOMPILER) -T $(LINKERSCRIPT) -o $(KERNELBIN) -ffreestanding -O2 -nostdlib -Xlinker -Map=$(BUILDDIR_ETC)/kernel.map $(KERNELOBJ)
+	$(CCROSSCOMPILER) -T $(LINKERSCRIPT) -o $(KERNELBIN) -lgcc -ffreestanding -O2 -nostdlib -Xlinker -Map=$(BUILDDIR_ETC)/kernel.map $(KERNELOBJ)
 
 #===================================================== Libc =========================================================
 

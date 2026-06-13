@@ -1,6 +1,6 @@
 #include "int.hpp"
 #include "pic.hpp"
-#include "../graphics/glyphs.hpp"
+#include "../graphics_old/glyphs.hpp"
 #include "../io/com.hpp"
 #include "../memmgr/memmgr.hpp"
 #include "../keyboard/keyboard.hpp"

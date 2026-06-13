@@ -1,6 +1,6 @@
 #include "acpi.hpp"
 #include "../memmgr/paging.hpp"
-#include "../graphics/glyphs.hpp"
+#include "../graphics_old/glyphs.hpp"
 #include "../io/io.hpp"
 #include "../int/pic.hpp"
 #include "../pci/pci.hpp"

@@ -1,7 +1,7 @@
 #include "str.hpp"
 #include "../io/com.hpp"
 #include "../libk/util.hpp"
-#include "../graphics/glyphs.hpp"
+#include "../graphics_old/glyphs.hpp"
 #include "../memmgr/memmgr.hpp"
 
 bool strcmp(const char* str1, const char* str2) {

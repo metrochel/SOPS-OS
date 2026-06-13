@@ -2,7 +2,7 @@
 #define _GLYPHS_INCL
 
 #include <stdarg.h>
-#include "graphics.hpp"
+#include "graphics_old.hpp"
 #include "../libk/nums.hpp"
 // ======================================== Работа с текстом ============================================
 
@@ -36,9 +36,8 @@ extern dword errorTextCol;
 // Цвет заднего фона ошибки
 extern dword errorBGCol;
 
-// Символ
 struct Glyph {
-    word lines[24];      // Бит-поля, отмечающие пикселы символа
+    word lines[24];      /// Бит-поля, отмечающие пикселы символа
 } __attribute__((packed));
 
 /// @brief Инициализирует работу с текстом.

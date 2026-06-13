@@ -9,7 +9,7 @@
 
 #include "../libk/nums.hpp"
 #include "../io/io.hpp"
-#include "../graphics/glyphs.hpp"
+#include "../graphics_old/glyphs.hpp"
 
 #define PCI_CONFIG_ADDRESS                  0xCF8
 #define PCI_CONFIG_DATA                     0xCFC

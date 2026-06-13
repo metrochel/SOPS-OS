@@ -1,7 +1,7 @@
 #include "run.hpp"
 #include "process.hpp"
 #include "../memmgr/memmgr.hpp"
-#include "../graphics/glyphs.hpp"
+#include "../graphics_old/glyphs.hpp"
 #include "../io/com.hpp"
 #include "../libk/util.hpp"
 #include "../str/str.hpp"

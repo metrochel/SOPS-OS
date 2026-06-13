@@ -21,12 +21,67 @@ stream::stream(put_func_t put, get_func_t get) : put(put), get(get),
     unget_buf((dword*)kmalloc(sizeof((dword)0) * unget_buf_sz))
 {}
 
-void stream::write_char(dword c) {
+void stream::write_char(byte c) {
+    // Процедура write_char будет выводить символ в соответствии с UTF-8,
+    // то есть в функцию put должен попадать полный символ, а не его кусочки.
+
+    byte *dbg_ptr = (byte*)0x9500;
+    static byte index = 0;
+
+    // Если функция put не определена...
     if (!put) {
         // TODO: бросать исключение
         return;
     }
 
+    // Если символ не соответствует UTF-8, хотя должен...
+    if ((c >> 6 != 0b10) && write_bytes_remaining) {
+        // TODO: бросать исключение
+        return;
+    }
+
+    // Если символ является частью цепочки байтов символа в UTF-8...
+    if (write_bytes_remaining) {
+        write_buffer[write_bytes_remaining - 1] = c;
+        write_bytes_remaining--;
+        if (write_bytes_remaining == 0) {
+            dword ch = write_buffer[0] | (write_buffer[1] << 8) | (write_buffer[2] << 16) | (write_buffer[3] << 24);
+            put(ch);
+            write_buffer[0] = write_buffer[1] = write_buffer[2] = write_buffer[3] = 0;
+        }
+        return;
+    }
+
+    // Если символ начинает цепочку байтов символа UTF-8...
+    if (c & 0x80) {
+//        buffer[0] = buffer[1] = buffer[2] = buffer[3] = 0;
+        // Если должен последовать 1 байт...
+        if ((c >> 5) == 0b110) {
+            write_bytes_remaining = 1;
+            write_buffer[1] = c;
+            return;
+        }
+
+        // Если должно последовать 2 байта...
+        if ((c >> 4) == 0b1110) {
+            write_bytes_remaining = 2;
+            write_buffer[2] = c;
+            return;
+        }
+
+        // Если должно последовать 3 байта...
+        if ((c >> 3) == 0b11110) {
+            write_bytes_remaining = 3;
+            write_buffer[3] = c;
+            return;
+        }
+
+        // Иначе получилась нечисть какая-то, валим отсюда
+        // TODO: бросать исключение
+        return;
+    }
+
+    // Если символ является простым символом ASCII, то вывести его.
     put(c);
 }
 
@@ -69,22 +124,22 @@ void stream::unget(dword ch) {
 
 void stream::write_dec_uint(qword num) {
     dword length = 32;
-    dword array[length];
+    dword buffer[length];
 
     qword div = 1;
     while (div <= num) div *= 10;
     div /= 10;
 
-    dword index = length - 1;
+    dword index = 0;
     while (num) {
         dword digit = num / div;
-        array[index--] = '0' + digit;
+        buffer[index++] = '0' + digit;
         num %= div;
         div /= 10;
     }
 
-    while (index < length) {
-        write_char(array[index++]);
+    for (int i = 0; i < index; i++) {
+        write_char(buffer[i]);
     }
 }
 
@@ -95,7 +150,7 @@ void stream::write_bin_uint(qword num) {
     }
 
     byte bits = 0;
-    while ((1 << bits) <= num)
+    while (((qword)1 << bits) <= num)
         bits++;
 
     put('0');
@@ -115,7 +170,7 @@ void stream::write_oct_uint(qword num) {
     }
 
     byte triplets = 0;
-    while ((1 << (3 * triplets)) <= num) {
+    while (((qword)1 << (3 * triplets)) <= num) {
         triplets++;
     }
 
@@ -136,7 +191,7 @@ void stream::write_hex_uint(qword num) {
     }
 
     byte quads = 0;
-    while ((1 << (4 * quads)) <= num) {
+    while (((qword)1 << (4 * quads)) <= num) {
         quads++;
     }
 
@@ -217,9 +272,13 @@ void stream::set_modifier(stream::data_modifier new_mod) {
     modifier = new_mod;
 }
 
+void stream::set_int_modifier(intmod new_mod) {
+    modifier.int_mod = new_mod;
+}
+
 void stream::write_uint(qword num) {
-    switch (modifier) {
-        case normal:
+    switch (modifier.int_mod) {
+        case dec:
             write_dec_uint(num);
             return;
         case bin:
@@ -259,8 +318,8 @@ void stream::write_str(const string& str) {
 }
 
 qword stream::read_uint() {
-    switch (modifier) {
-        case normal: return read_dec_uint();
+    switch (modifier.int_mod) {
+        case dec: return read_dec_uint();
         case bin: return read_bin_uint();
         case oct: return read_oct_uint();
         case hex: return read_hex_uint();

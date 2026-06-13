@@ -1,6 +1,6 @@
 #include "com.hpp"
 #include "io.hpp"
-#include "../graphics/glyphs.hpp"
+#include "../graphics_old/glyphs.hpp"
 #include "../str/str.hpp"
 #include "../libk/util.hpp"
 #include <stdarg.h>

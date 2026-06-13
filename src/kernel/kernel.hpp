@@ -6,6 +6,7 @@
 //  Содержит описания основных структур, используемых ядром
 //
 #include "graphics/graphics.hpp"
+#include "graphics/adapters/vbe.hpp"
 #include "libk/nums.hpp"
 
 // ### BootLoaderData
@@ -15,7 +16,7 @@ struct BootLoaderData {
     char CPUID_Vendor[12];      // Имя производителя процессора
     dword CPUID_Flags1;         // Флаги ЦП-1
     dword CPUID_Flags2;         // Флаги ЦП-2
-    VBEModeInfo VBEInfo;        // Информация о графическом режиме
+    graphics::vbe_mode_info VBEInfo;        // Информация о графическом режиме
     word MemMapEntriesCount;    // Количество меток в разметке памяти
 } __attribute__((packed));
 

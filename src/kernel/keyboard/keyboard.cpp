@@ -1,7 +1,7 @@
 #include "keyboard.hpp"
 #include "keycodes.hpp"
 #include <stdarg.h>
-#include "../graphics/glyphs.hpp"
+#include "../graphics_old/glyphs.hpp"
 #include "../libk/util.hpp"
 
 bool cmdAwaitingResponse = false;

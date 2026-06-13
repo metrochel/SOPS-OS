@@ -1,5 +1,5 @@
 #include "pit.hpp"
-#include "../graphics/glyphs.hpp"
+#include "../graphics_old/glyphs.hpp"
 
 word computeCounter(dword mcs) {
     if (mcs < 50) {

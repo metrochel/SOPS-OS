@@ -4,7 +4,7 @@
 
 #include "incl/syscalls_graphics.hpp"
 
-#include "../../graphics/glyphs.hpp"
+#include "../../graphics_old/glyphs.hpp"
 #include "../../dbg/dbg.hpp"
 #include "../../memmgr/memmgr.hpp"
 #include "../../run/process.hpp"

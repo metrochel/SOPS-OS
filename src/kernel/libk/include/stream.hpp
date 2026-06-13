@@ -10,6 +10,13 @@
 #include "../nums.hpp"
 #include "string.hpp"
 
+enum intmod {
+    dec = 0,
+    bin,
+    oct,
+    hex
+};
+
 /// @c stream - это поток данных. Позволяет запись и чтение.
 class stream {
 public:
@@ -22,11 +29,8 @@ public:
     typedef dword (*get_func_t)();
 
     /// @c data_modifier - это перечень допустимых модификаторов для чтения/записи данных.
-    typedef enum {
-        normal = 0,
-        bin,
-        oct,
-        hex,
+    typedef struct {
+        intmod int_mod;
     } data_modifier;
 
     /// @brief Создаёт поток с функцией записи @c put.
@@ -45,6 +49,11 @@ private:
     dword *const unget_buf;
     /// Индекс в буфере возвращённых символов
     dword unget_idx = 0;
+
+    /// Буфер вывода для функции @c write_char
+    byte write_buffer[4] = {0, 0, 0, 0};
+    /// Количество оставшихся символов для @c write_char
+    byte write_bytes_remaining = 0;
 
     /// @brief Возвращает символ @c ch в поток.
     /// @param ch Возвращаемый символ
@@ -78,7 +87,7 @@ private:
 
 protected:
     /// Текущий модификатор вывода
-    data_modifier modifier = normal;
+    data_modifier modifier = { dec };
 
     /// Функция записи в данный поток
     put_func_t put;
@@ -87,6 +96,9 @@ protected:
 
     /// @brief Изменяет модификатор данных.
     void set_modifier(data_modifier new_mod);
+
+    /// @brief Изменяет модификатор численных данных.
+    void set_int_modifier(intmod new_mod);
 
     /// @brief Записывает в поток беззнаковое число.
     /// @param num Число
@@ -98,7 +110,7 @@ protected:
 
     /// @brief Записывает в поток символ.
     /// @param c Символ
-    void write_char(dword c);
+    void write_char(byte c);
 
     /// @brief Записывает в поток строку.
     /// @param str Строка

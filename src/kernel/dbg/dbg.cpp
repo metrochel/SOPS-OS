@@ -1,5 +1,5 @@
 #include "dbg.hpp"
-#include "../graphics/glyphs.hpp"
+#include "../graphics_old/glyphs.hpp"
 #include "../file/file.hpp"
 #include "../io/com.hpp"
 #include "../memmgr/memmgr.hpp"
