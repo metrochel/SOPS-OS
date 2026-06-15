@@ -7,7 +7,7 @@
 #ifndef _GLYPHS_INCL
 #define _GLYPHS_INCL
 
-#include "../../libk/nums.hpp"
+#include "libk/nums.hpp"
 
 #define declare_glyph(name) extern const glyph name
 

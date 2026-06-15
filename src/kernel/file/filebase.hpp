@@ -1,8 +1,8 @@
 #ifndef _FILE_BASE_INCL
 #define _FILE_BASE_INCL
 
-#include "../libk/nums.hpp"
-#include "../timing/time.hpp"
+#include "libk/nums.hpp"
+#include "timing/time.hpp"
 
 extern const dword defaultBufSize;
 

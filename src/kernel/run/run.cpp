@@ -1,12 +1,12 @@
 #include "run.hpp"
 #include "process.hpp"
-#include "../memmgr/memmgr.hpp"
-#include "../graphics_old/glyphs.hpp"
-#include "../io/com.hpp"
-#include "../libk/util.hpp"
-#include "../str/str.hpp"
-#include "../dbg/dbg.hpp"
-#include "../cpu/gdt.hpp"
+#include "memmgr/memmgr.hpp"
+#include "graphics_old/glyphs.hpp"
+#include "io_old/com_old.hpp"
+#include "libk/util.hpp"
+#include "str/str.hpp"
+#include "dbg/dbg.hpp"
+#include "cpu/gdt.hpp"
 
 dword runExecutable(FAT32_File executable, char *args, char *path) {
     kdebug("Начат запуск программы ");

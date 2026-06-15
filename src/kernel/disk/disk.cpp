@@ -1,9 +1,9 @@
 #include "disk.hpp"
-#include "../memmgr/memmgr.hpp"
-#include "../io/com.hpp"
-#include "../libk/util.hpp"
-#include "../dbg/dbg.hpp"
-#include "../str/str.hpp"
+#include "memmgr/memmgr.hpp"
+#include "io_old/com_old.hpp"
+#include "libk/util.hpp"
+#include "dbg/dbg.hpp"
+#include "str/str.hpp"
 
 const dword maxDisks = 100;
 

@@ -1,11 +1,11 @@
 #include "shell.hpp"
-#include "../graphics_old/glyphs.hpp"
-#include "../keyboard/keyboard.hpp"
-#include "../timing/time.hpp"
-#include "../str/str.hpp"
-#include "../acpi/acpi.hpp"
-#include "../file/file.hpp"
-#include "../run/run.hpp"
+#include "graphics_old/glyphs.hpp"
+#include "keyboard/keyboard.hpp"
+#include "timing/time.hpp"
+#include "str/str.hpp"
+#include "acpi/acpi.hpp"
+#include "file/file.hpp"
+#include "run/run.hpp"
 
 char path[1000];
 dword directoryCluster;

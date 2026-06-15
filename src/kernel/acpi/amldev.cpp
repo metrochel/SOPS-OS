@@ -1,5 +1,5 @@
 #include "aml.hpp"
-#include "../str/str.hpp"
+#include "str/str.hpp"
 
 qword evaluateDeviceObj(dword *path, byte len, const char *objName, ...) {
     clearVarPath();

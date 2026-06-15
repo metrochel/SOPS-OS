@@ -2,7 +2,7 @@
 #include "../libk/util.hpp"
 #include "../run/process.hpp"
 #include "../kernel.hpp"
-#include "../io/com.hpp"
+#include "../io_old/com_old.hpp"
 
 byte *pageFramesMap = nullptr;
 qword mapLen = 0;

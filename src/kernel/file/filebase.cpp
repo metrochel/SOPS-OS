@@ -1,6 +1,6 @@
 #include "filebase.hpp"
-#include "../disk/disk.hpp"
-#include "../io/com.hpp"
+#include "disk/disk.hpp"
+#include "io_old/com_old.hpp"
 
 const dword defaultBufSize = 0x1000;
 

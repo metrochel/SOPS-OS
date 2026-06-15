@@ -1,7 +1,7 @@
 #ifndef _INT_INCL
 #define _INT_INCL
-#include "../io/io.hpp"
-#include "../libk/nums.hpp"
+#include "io_old/io.hpp"
+#include "libk/nums.hpp"
 
 #define isr(name) __attribute__((interrupt)) void name([[maybe_unused]] IntFrame* frame)
 #define irq(irq_no) isr(irq##irq_no)

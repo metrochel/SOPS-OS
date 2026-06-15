@@ -10,7 +10,7 @@
 #include "stream.hpp"
 
 /// @c istream - это класс потока ввода.
-class istream : public stream {
+class istream : virtual public stream {
 public:
     /// @brief Создаёт новый поток ввода с функцией чтения @c get.
     /// @param get Функция чтения
@@ -29,7 +29,7 @@ public:
 };
 
 /// @c ostream - это класс потока вывода.
-class ostream : public stream {
+class ostream : virtual public stream {
 public:
     /// @brief Создаёт новый поток вывода с функцией чтения @c put.
     /// @param put Функция записи
@@ -55,9 +55,9 @@ class iostream : public istream, public ostream {
     /// @param put Функция записи
     /// @param get Функция чтения
     iostream(stream::get_func_t get, stream::put_func_t put)
-        : istream(get), ostream(put) {}
+        : stream(put, get), istream(get), ostream(put) {}
 
-    iostream() : istream(), ostream() {}
+    iostream() : stream(nullptr, nullptr), istream(), ostream() {}
 
     iostream& operator=(const iostream&&);
 };

@@ -8,10 +8,10 @@
 
 #include <stdarg.h>
 
-#include "../libk/nums.hpp"
-#include "../memmgr/memmgr.hpp"
-#include "../libk/util.hpp"
-#include "../io/com.hpp"
+#include "libk/nums.hpp"
+#include "memmgr/memmgr.hpp"
+#include "libk/util.hpp"
+#include "io_old/com_old.hpp"
 
 #define ones defBlockRevision > 1 ? maxqword : maxdword
 #define recret recDepth--; return

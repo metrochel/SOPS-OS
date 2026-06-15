@@ -7,7 +7,7 @@
 #ifndef _GRAPHICS_TYPEDEFS_INCL
 #define _GRAPHICS_TYPEDEFS_INCL
 
-#include "../../libk/nums.hpp"
+#include "libk/nums.hpp"
 #include "../glyphs/glyphs.hpp"
 
 namespace graphics {
@@ -18,6 +18,7 @@ namespace graphics {
     };
 
     typedef dword (*compute_pixoff_t)(dword, dword);
+    typedef dword (*encode_col_t)(byte, byte, byte);
     typedef void (*putpixel_t)(dword, dword, dword);
     typedef void (*fill_t)(dword, dword, dword, dword, dword);
     typedef void (*blit_t)(dword, dword, dword, dword, dword*);
@@ -26,6 +27,7 @@ namespace graphics {
     /// @c adapter_funcs - это набор функций, достаточных для работы графического адаптера с системой.
     struct adapter_funcs {
         compute_pixoff_t compute_pixoff;    /// Функция @c compute_pixoff
+        encode_col_t encode_col;            /// Функция @c encode_col
         putpixel_t putpixel;                /// Функция @c putpixel
         fill_t fill;                        /// Функция @c fill
         blit_t blit;                        /// Функция @c blit

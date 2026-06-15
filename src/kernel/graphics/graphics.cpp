@@ -14,13 +14,17 @@
 
 using namespace graphics;
 
-ostream cout, cwrn, cerr;
+graph_ostream cout, cwrn, cerr;
 
 dword graphics::text_cur_x = 1;
 dword graphics::text_cur_y = 1;
 
 dword graphics::screen_width, graphics::screen_height;
 dword graphics::text_screen_width, graphics::text_screen_height;
+
+dword graphics::default_fg_col, graphics::default_bg_col;
+dword graphics::warn_fg_col, graphics::warn_bg_col;
+dword graphics::error_fg_col, graphics::error_bg_col;
 
 #define usable_text_width (graphics::text_screen_width - 2 * text_border)
 #define usable_text_height (graphics::text_screen_height - 2 * text_border)
@@ -33,6 +37,10 @@ character *graphics::screen_chars, *graphics::viewport;
 
 dword graphics::compute_pixoff(dword x, dword y) {
     return cur_adapter_funcs->compute_pixoff(x, y);
+}
+
+dword graphics::encode_col(byte r, byte g, byte b) {
+    return cur_adapter_funcs->encode_col(r, g, b);
 }
 
 void graphics::putpixel(dword x, dword y, dword col) {
@@ -81,7 +89,7 @@ void graphics::refresh_text(character *vp_pre_update) {
     }
 }
 
-void graphics::graphical_put(dword symb, dword fg_col, dword bg_col) {
+void graph_ostream::graphical_put(dword symb, void *obj) {
     if (is_newline(symb)) {
         text_cur_x = text_border;
         text_cur_y ++;
@@ -94,10 +102,16 @@ void graphics::graphical_put(dword symb, dword fg_col, dword bg_col) {
         return;
     }
 
+    static void **dbg_ptr = (void**)0x9510;
+    *dbg_ptr++ = obj;
+
     const glyph &g = glyph_from_symbol(symb);
 
     dword x = ttg_x(text_cur_x);
     dword y = ttg_y(text_cur_y);
+
+    dword fg_col = ((graph_ostream*)obj)->fg_col;
+    dword bg_col = ((graph_ostream*)obj)->bg_col;
 
     reg_char(symb, fg_col, bg_col, text_cur_x, text_cur_y);
     putglyph(g, x, y, fg_col, bg_col);
@@ -115,18 +129,6 @@ void graphics::graphical_put(dword symb, dword fg_col, dword bg_col) {
     }
 }
 
-void cout_put(dword ch) {
-    graphical_put(ch, default_fg_col, default_bg_col);
-}
-
-void cwrn_put(dword ch) {
-    graphical_put(ch, warn_fg_col, warn_bg_col);
-}
-
-void cerr_put(dword ch) {
-    graphical_put(ch, error_fg_col, error_bg_col);
-}
-
 void graphics::init() {
     vbe_mode_info *vbe = &(bld->VBEInfo);
     init_vbe(vbe);
@@ -134,12 +136,26 @@ void graphics::init() {
     cur_adapter = vbe_linear_framebuf;
     cur_adapter_funcs = &vbe::get_adapter_funcs();
 
-    cout = ostream(cout_put);
-    cwrn = ostream(cwrn_put);
-    cerr = ostream(cerr_put);
-
     text_screen_width = screen_width / glyph_width;
     text_screen_height = screen_height / glyph_height;
+
+    default_fg_col = encode_col(255, 255, 255);
+    default_bg_col = encode_col(0, 0, 0);
+
+    warn_fg_col = encode_col(255, 255, 0);
+    warn_bg_col = encode_col(128, 128, 0);
+
+    error_fg_col = encode_col(255, 0, 0);
+    error_bg_col = encode_col(128, 0, 0);
+
+    cout = graph_ostream(default_fg_col, default_bg_col);
+    cwrn = graph_ostream(warn_fg_col, warn_bg_col);
+    cerr = graph_ostream(error_fg_col, error_bg_col);
+
+    static graph_ostream **dbg_ptr = (graph_ostream**)0x9500;
+    *dbg_ptr++ = &cout;
+    *dbg_ptr++ = &cwrn;
+    *dbg_ptr++ = &cerr;
 
     screen_chars = (character*)kmalloc(sizeof ((character){}) * 2 * usable_text_surface);
 

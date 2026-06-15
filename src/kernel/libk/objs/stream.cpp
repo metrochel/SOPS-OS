@@ -9,6 +9,9 @@
 
 #define is_line_stop(ch) ((ch) == 0 || (ch) == '\n')
 
+// FIXME: Я не знаю, почему, но когда передаётся указатель на объект, он смещён на 1 байт. Узнать, почему, и исправить.
+#define stupid_1_byte_correction(ptr) ((void*)((byte*)(ptr) + 1))
+
 stream::stream(put_func_t put) : put(put), get(nullptr),
     unget_buf((dword*)kmalloc(sizeof((dword)0) * unget_buf_sz))
     {}
@@ -25,7 +28,6 @@ void stream::write_char(byte c) {
     // Процедура write_char будет выводить символ в соответствии с UTF-8,
     // то есть в функцию put должен попадать полный символ, а не его кусочки.
 
-    byte *dbg_ptr = (byte*)0x9500;
     static byte index = 0;
 
     // Если функция put не определена...
@@ -46,7 +48,7 @@ void stream::write_char(byte c) {
         write_bytes_remaining--;
         if (write_bytes_remaining == 0) {
             dword ch = write_buffer[0] | (write_buffer[1] << 8) | (write_buffer[2] << 16) | (write_buffer[3] << 24);
-            put(ch);
+            put(ch, stupid_1_byte_correction(this));
             write_buffer[0] = write_buffer[1] = write_buffer[2] = write_buffer[3] = 0;
         }
         return;
@@ -82,7 +84,7 @@ void stream::write_char(byte c) {
     }
 
     // Если символ является простым символом ASCII, то вывести его.
-    put(c);
+    put(c, stupid_1_byte_correction(this));
 }
 
 dword stream::read_char() {
@@ -105,7 +107,7 @@ dword stream::read_char() {
         return unget_buf[--unget_idx];
     }
 
-    return get();
+    return get(stupid_1_byte_correction(this));
 }
 
 void stream::unget(dword ch) {
@@ -145,7 +147,7 @@ void stream::write_dec_uint(qword num) {
 
 void stream::write_bin_uint(qword num) {
     if (!num) {
-        put('0');
+        write_char('0');
         return;
     }
 
@@ -153,8 +155,8 @@ void stream::write_bin_uint(qword num) {
     while (((qword)1 << bits) <= num)
         bits++;
 
-    put('0');
-    put('b');
+    write_char('0');
+    write_char('b');
 
     while (bits) {
         byte digit = (num >> (bits - 1)) & 1;
@@ -165,7 +167,7 @@ void stream::write_bin_uint(qword num) {
 
 void stream::write_oct_uint(qword num) {
     if (!num) {
-        put('0');
+        write_char('0');
         return;
     }
 
@@ -174,8 +176,8 @@ void stream::write_oct_uint(qword num) {
         triplets++;
     }
 
-    put('0');
-    put('o');
+    write_char('0');
+    write_char('o');
 
     while (triplets) {
         byte digit = (num >> (3 * (triplets - 1))) & 7;
@@ -186,7 +188,7 @@ void stream::write_oct_uint(qword num) {
 
 void stream::write_hex_uint(qword num) {
     if (!num) {
-        put('0');
+        write_char('0');
         return;
     }
 
@@ -195,8 +197,8 @@ void stream::write_hex_uint(qword num) {
         quads++;
     }
 
-    put('0');
-    put('x');
+    write_char('0');
+    write_char('x');
 
     while (quads) {
         byte digit = (num >> (4 * (quads - 1))) & 0xF;

@@ -1,6 +1,6 @@
 #include "time.hpp"
-#include "../str/str.hpp"
-#include "../io/io.hpp"
+#include "str/str.hpp"
+#include "io_old/io.hpp"
 
 Time systime = {0,0,0,0,0,0,0};
 

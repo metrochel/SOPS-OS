@@ -93,4 +93,5 @@ ostream& ostream::operator=(const ostream&& ref) {
 iostream& iostream::operator=(const iostream&& ref) {
     istream::get = ref.istream::get;
     ostream::put = ref.ostream::put;
+    return *this;
 }

@@ -1,5 +1,5 @@
 #include "acpi.hpp"
-#include "../graphics/glyphs/glyphs.hpp"
+#include "graphics_old/glyphs.hpp"
 
 __attribute__((interrupt)) void sciHandler(IntFrame *frame) {
     kdebug("Возникло SCI.\n");

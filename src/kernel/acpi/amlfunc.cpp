@@ -1,9 +1,9 @@
 #include "aml.hpp"
-#include "../io/io.hpp"
-#include "../pci/pci.hpp"
-#include "../str/str.hpp"
-#include "../timing/time.hpp"
-#include "../dbg/dbg.hpp"
+#include "io_old/io.hpp"
+#include "pci/pci.hpp"
+#include "str/str.hpp"
+#include "timing/time.hpp"
+#include "dbg/dbg.hpp"
 
 const TermArg errorArg = {maxqword, maxqword};
 const TermArg continueArg = {0xAAAAAAAA, 0x55555555};

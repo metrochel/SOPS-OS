@@ -1,7 +1,7 @@
 #include "graphics_old.hpp"
-#include "../kernel.hpp"
-#include "../memmgr/memmgr.hpp"
-#include "../libk/util.hpp"
+#include "kernel.hpp"
+#include "memmgr/memmgr.hpp"
+#include "libk/util.hpp"
 
 byte *frameBufferPtr;
 word pitch;

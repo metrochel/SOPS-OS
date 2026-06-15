@@ -7,7 +7,7 @@
 #ifndef _IO_INCL
 #define _IO_INCL
 
-#include "../libk/nums.hpp"
+#include "libk/nums.hpp"
 
 /// @brief Считывает байт с порта.
 /// @param port Порт

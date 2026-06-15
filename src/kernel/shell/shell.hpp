@@ -1,4 +1,4 @@
-#include "../libk/nums.hpp"
+#include "libk/nums.hpp"
 //
 //  Оболочка
 //

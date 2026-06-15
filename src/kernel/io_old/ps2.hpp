@@ -7,8 +7,8 @@
 #ifndef _PS2_INCL
 #define _PS2_INCL
 
-#include "../libk/nums.hpp"
-#include "../io/io.hpp"
+#include "libk/nums.hpp"
+#include "io.hpp"
 
 #define PS2_DATA                    0x60
 #define PS2_STATUS                  0x64

@@ -17,6 +17,7 @@ const vbe_mode_info *graphics::vbe::vbe_info;
 #define decl_adapter_funcs_for_bpp(bpp) \
     const graphics::adapter_funcs graphics::vbe::vbe_adapter_funcs_##bpp = { \
         &vbe_compute_pixoff_##bpp,      \
+        &vbe_encode_col_##bpp,          \
         &vbe_putpixel_##bpp,            \
         &vbe_fill_##bpp,                \
         &vbe_blit_##bpp,                \
@@ -51,6 +52,18 @@ decl_inline_func(32, dword, maxdword)
 template<byte bpp>
 inline dword template_vbe_compute_pixoff(dword x, dword y) {
     return y * vbe_info->pitch + x * bpp;
+}
+
+inline dword template_vbe_encode_col(byte r, byte g, byte b) {
+    byte conv_r = ((double)r / 256.0) * (1 << vbe_info->red_mask_size);
+    byte conv_g = ((double)g / 256.0) * (1 << vbe_info->green_mask_size);
+    byte conv_b = ((double)b / 256.0) * (1 << vbe_info->blue_mask_size);
+
+    dword red_shifted = (dword)conv_r << vbe_info->red_pos;
+    dword green_shifted = (dword)conv_g << vbe_info->green_pos;
+    dword blue_shifted = (dword)conv_b << vbe_info->blue_pos;
+
+    return red_shifted | green_shifted | blue_shifted;
 }
 
 template<typename T, size_t mask, byte bpp>
@@ -114,6 +127,9 @@ inline void template_vbe_putglyph(const graphics::glyph &g, dword x, dword y, dw
     dword graphics::vbe::vbe_compute_pixoff_##bpp(dword x, dword y) {                                               \
         return template_vbe_compute_pixoff<bpp / 8>(x, y);                                                          \
     }                                                                                                               \
+    dword graphics::vbe::vbe_encode_col_##bpp(byte r, byte g, byte b) {                                             \
+        return template_vbe_encode_col(r, g, b);                                                                    \
+    }                                                                                                               \
     void graphics::vbe::vbe_putpixel_##bpp (dword x, dword y, dword col) {                                          \
         template_vbe_putpixel<type, mask, bpp / 8>(x, y, col);                                                      \
     }                                                                                                               \
@@ -136,6 +152,10 @@ declare_funcs_for_bpp(32, dword, maxdword)
 
 dword graphics::vbe::vbe_compute_pixoff_general(dword x, dword y) {
     return y * vbe_info->pitch + x * (bpp / 8);
+}
+
+dword graphics::vbe::vbe_encode_col_general(byte r, byte g, byte b) {
+    return template_vbe_encode_col(r, g, b);
 }
 
 force_inline void graphics::vbe::inline_putpixel_general(dword offset, dword col) {

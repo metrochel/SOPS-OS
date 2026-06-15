@@ -4,11 +4,11 @@
 
 #include "incl/syscalls_graphics.hpp"
 
-#include "../../graphics_old/glyphs.hpp"
-#include "../../dbg/dbg.hpp"
-#include "../../memmgr/memmgr.hpp"
-#include "../../run/process.hpp"
-#include "../../libk/util.hpp"
+#include "graphics_old/glyphs.hpp"
+#include "dbg/dbg.hpp"
+#include "memmgr/memmgr.hpp"
+#include "run/process.hpp"
+#include "libk/util.hpp"
 
 #define handle(name) __syscall_ext_hdl_decl(name)
 

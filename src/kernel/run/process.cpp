@@ -1,8 +1,8 @@
 #include "process.hpp"
-#include "../libk/util.hpp"
-#include "../memmgr/memmgr.hpp"
-#include "../graphics_old/glyphs.hpp"
-#include "../io/com.hpp"
+#include "libk/util.hpp"
+#include "memmgr/memmgr.hpp"
+#include "graphics_old/glyphs.hpp"
+#include "io_old/com_old.hpp"
 
 Process *processData = nullptr;
 

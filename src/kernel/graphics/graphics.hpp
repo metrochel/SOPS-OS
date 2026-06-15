@@ -30,19 +30,19 @@ namespace graphics {
     inline const dword text_border = 1;
 
     /// Цвет для обычного текста. Используется при выводе через @c cout.
-    inline const dword default_fg_col = 0xFFFFFF;
+    extern dword default_fg_col;
     /// Цвет для заднего фона обычного текста. Используется при выводе через @c cout.
-    inline const dword default_bg_col = 0x000000;
+    extern dword default_bg_col;
 
     /// Цвет для обычного текста. Используется при выводе через @c cwrn.
-    inline const dword warn_fg_col = 0xFFFF00;
+    extern dword warn_fg_col;
     /// Цвет для заднего фона обычного текста. Используется при выводе через @c cwrn.
-    inline const dword warn_bg_col = 0x787800;
+    extern dword warn_bg_col;
 
     /// Цвет для обычного текста. Используется при выводе через @c cerr.
-    inline const dword error_fg_col = 0xFF0000;
+    extern dword error_fg_col;
     /// Цвет для заднего фона обычного текста. Используется при выводе через @c cerr.
-    inline const dword error_bg_col = 0x780000;
+    extern dword error_bg_col;
 
     /// @c character - это структура, описывающая некоторый символ на экране.
     struct character {
@@ -62,6 +62,13 @@ namespace graphics {
     /// @return Аппаратно-зависимый сдвиг
     /// @note Если вычисленный сдвиг находится за пределами экрана, то вернётся @c maxdword.
     extern dword compute_pixoff(dword x, dword y);
+
+    /// @brief Кодирует цвет из красной, зелёной и синей компонент.
+    /// @param r Красная компонента цвета
+    /// @param g Зелёная компонента цвета
+    /// @param b Синяя компонента цвета
+    /// @return Закодированный цвет
+    extern dword encode_col(byte r, byte g, byte b);
 
     /// @brief Раскрашивает определённый пиксел в данный цвет.
     /// @param x Абсцисса пиксела
@@ -110,17 +117,32 @@ namespace graphics {
     extern void init();
 }
 
+class graph_ostream : public ostream {
+    static void graphical_put(dword symb, void *ptr);
+
+    dword fg_col;
+    dword bg_col;
+
+public:
+    graph_ostream() : stream(), ostream() {}
+    graph_ostream(dword fg, dword bg) :
+        stream(graphical_put, nullptr), ostream(graphical_put),
+        fg_col(fg), bg_col(bg)
+        {
+        }
+};
+
 /// @c cout - это поток стандартного вывода.
 /// Запись в него будет выводить данные на экран посредством функции @c graphical_put.
-extern ostream cout;
+extern graph_ostream cout;
 
 /// @c cwrn - это поток вывода предупреждений.
 /// Запись в него будет выводить данные на экран посредством функции @c graphical_put.
-extern ostream cwrn;
+extern graph_ostream cwrn;
 
 /// @c cerr - это поток вывода ошибок.
 /// Запись в него будет выводить данные на экран посредством функции @c graphical_put.
-extern ostream cerr;
+extern graph_ostream cerr;
 
 
 #endif //_GRAPHICS_INCL

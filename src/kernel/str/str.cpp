@@ -1,8 +1,8 @@
 #include "str.hpp"
-#include "../io/com.hpp"
-#include "../libk/util.hpp"
-#include "../graphics_old/glyphs.hpp"
-#include "../memmgr/memmgr.hpp"
+#include "io_old/com_old.hpp"
+#include "libk/util.hpp"
+#include "graphics_old/glyphs.hpp"
+#include "memmgr/memmgr.hpp"
 
 bool strcmp(const char* str1, const char* str2) {
     return strcmpS(str1, str2) == 0x80;

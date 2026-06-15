@@ -19,9 +19,9 @@ BOOTSRC			:=$(sort $(wildcard $(SRCDIR)/boot/*.asm))
 BOOTBINS		:=$(patsubst $(SRCDIR)/boot/%.asm, $(BUILDDIR)/bins/%.bin, $(BOOTSRC))
 
 OBJSDIR_KERNEL  :=$(OBJSDIR)/kernel
-KERNELSRCDIR	:=$(SRCDIR)/kernel
-KERNEL_CPP_SRC 	:=$(KERNELSRCDIR)/kernel.cpp $(wildcard $(KERNELSRCDIR)/*/*.cpp) $(wildcard $(KERNELSRCDIR)/*/*/*.cpp)
-KERNEL_ASM_SRC	:=$(wildcard $(KERNELSRCDIR)/*/*.asm)
+KERNEL_SRC_DIR	:=$(SRCDIR)/kernel
+KERNEL_CPP_SRC 	:=$(KERNEL_SRC_DIR)/kernel.cpp $(wildcard $(KERNEL_SRC_DIR)/*/*.cpp) $(wildcard $(KERNEL_SRC_DIR)/*/*/*.cpp)
+KERNEL_ASM_SRC	:=$(wildcard $(KERNEL_SRC_DIR)/*/*.asm)
 KERNELSRC		:=$(KERNEL_ASM_SRC) $(KERNEL_CPP_SRC)
 KERNEL_CPP_OBJ  :=$(foreach cpp, $(KERNEL_CPP_SRC), $(OBJSDIR_KERNEL)/$(patsubst %.cpp,%.o,$(notdir $(cpp))))
 KERNEL_ASM_OBJ	:=$(foreach asm, $(KERNEL_ASM_SRC), $(OBJSDIR_KERNEL)/$(patsubst %.asm,%.o,$(notdir $(asm))))
@@ -54,7 +54,7 @@ PYTHON				:=python
 
 BUILDUTILS			:=buildutils
 SYSCALLMACRO_SCRIPT	:=$(BUILDUTILS)/make_syscall_macros.py
-SYSCALLMACRO_INFILES:=$(KERNELSRCDIR)/syscall/syscall.hpp $(wildcard $(KERNELSRCDIR)/syscall/syscalls/incl/*.hpp)
+SYSCALLMACRO_INFILES:=$(KERNEL_SRC_DIR)/syscall/syscall.hpp $(wildcard $(KERNELSRCDIR)/syscall/syscalls/incl/*.hpp)
 SYSCALLMACRO_OUTFILE:=$(LIBC_SRC_DIR)/etc/syscall_macros.h
 
 #========================================== Основные цели ===================================================
@@ -153,37 +153,49 @@ assemble_boot_source =$(ASSEMBLER) -f bin $(1) -o $(patsubst src/boot/%.asm, $(B
 #
 #	Сборка исходных файлов загрузчика
 #
-$(BOOTBINS): $(BOOTSRC) 
-	$(foreach bsrc, $(BOOTSRC), $(shell $(call assemble_boot_source, $(bsrc))))
+$(BINSDIR)/%.bin : $(SRCDIR)/boot/%.asm | $(BINSDIR) ; \
+    $(ASSEMBLER) -f bin $< -o $@ ;
 
 #==================================================== Ядро ========================================================
-
-compile_kernel_cpp_source = $(CXXCROSSCOMPILER) -c $(1) -o $(OBJSDIR_KERNEL)/$(subst .cpp,.o,$(notdir $(1))) -ffreestanding \
-	-O2 -lgc++ -Wall -Wextra -Wno-write-strings \
-	$(if $(filter-out src/kernel/graphics/text.cpp,$(1)),,-Wno-multichar) -fno-exceptions -fno-rtti \
-	$(if $(filter-out src/kernel/int/int.cpp,$(1)),,-mgeneral-regs-only) \
-	$(if $(filter-out src/kernel/acpi/sci.cpp,$(1)),,-mgeneral-regs-only)
-
-assemble_kernel_asm_source = $(ASSEMBLER) $(1) -o $(OBJSDIR_KERNEL)/$(subst .asm,.o,$(notdir $(1))) -f elf
 
 #
 #	Компиляция файлов ядра
 #
-$(KERNELOBJ): $(KERNEL_CPP_SRC) $(KERNEL_ASM_SRC) $(OBJSDIR_KERNEL)
-	$(foreach asm, $(KERNEL_ASM_SRC), $(shell $(call assemble_kernel_asm_source, $(asm))))	\
-	$(foreach cpp, $(KERNEL_CPP_SRC), $(shell $(call compile_kernel_cpp_source,  $(cpp))))
+
+$(OBJSDIR_KERNEL)/%.o : $(KERNEL_SRC_DIR)/%.cpp | $(OBJSDIR_KERNEL) ; \
+    $(CXXCROSSCOMPILER) -c $< -o $@ -ffreestanding \
+	-O2 -lgc++ -Wall -Wextra -Wno-write-strings \
+	$(if $(filter-out src/kernel/graphics/text.cpp,$<),,-Wno-multichar) -fno-exceptions -fno-rtti \
+	$(if $(filter-out src/kernel/int/int.cpp,$<),,-mgeneral-regs-only) \
+	$(if $(filter-out src/kernel/acpi/sci.cpp,$<),,-mgeneral-regs-only)  \
+	-I$(KERNEL_SRC_DIR) ;
+
+$(OBJSDIR_KERNEL)/%.o : $(KERNEL_SRC_DIR)/*/%.cpp | $(OBJSDIR_KERNEL) ; \
+    $(CXXCROSSCOMPILER) -c $< -o $@ -ffreestanding \
+	-O2 -lgc++ -Wall -Wextra -Wno-write-strings \
+	$(if $(filter-out src/kernel/graphics/text.cpp,$<),,-Wno-multichar) -fno-exceptions -fno-rtti \
+	$(if $(filter-out src/kernel/int/int.cpp,$<),,-mgeneral-regs-only) \
+	$(if $(filter-out src/kernel/acpi/sci.cpp,$<),,-mgeneral-regs-only)  \
+	-I$(KERNEL_SRC_DIR) ;
+
+$(OBJSDIR_KERNEL)/%.o : $(KERNEL_SRC_DIR)/*/*/%.cpp | $(OBJSDIR_KERNEL) ; \
+    $(CXXCROSSCOMPILER) -c $< -o $@ -ffreestanding \
+	-O2 -lgc++ -Wall -Wextra -Wno-write-strings \
+	$(if $(filter-out src/kernel/graphics/text.cpp,$<),,-Wno-multichar) -fno-exceptions -fno-rtti \
+	$(if $(filter-out src/kernel/int/int.cpp,$<),,-mgeneral-regs-only) \
+	$(if $(filter-out src/kernel/acpi/sci.cpp,$<),,-mgeneral-regs-only)  \
+	-I$(KERNEL_SRC_DIR) ;
+
+$(OBJSDIR_KERNEL)/%.o : $(KERNEL_SRC_DIR)/*/%.asm | $(OBJSDIR_KERNEL) ; \
+    $(ASSEMBLER) -f elf32 $< -o $@
 
 #
 #	Компоновка ядра
 #
-$(KERNELBIN): $(KERNELOBJ) $(BUILDDIR_ETC)
+$(KERNELBIN): $(KERNELOBJ) | $(BUILDDIR_ETC)
 	$(CCROSSCOMPILER) -T $(LINKERSCRIPT) -o $(KERNELBIN) -lgcc -ffreestanding -O2 -nostdlib -Xlinker -Map=$(BUILDDIR_ETC)/kernel.map $(KERNELOBJ)
 
 #===================================================== Libc =========================================================
-
-assemble_i386_libc_source = $(ASSEMBLER) $(1) -o $(OBJSDIR_LIBC)/$(subst .asm,.o,$(notdir $(1))) -f elf ;
-
-compile_c_libc_source = $(CCROSSCOMPILER) -c $(1) -o $(OBJSDIR_LIBC)/$(subst .c,.o,$(notdir $(1)));
 
 #
 #	Файл с макросами для системных вызовов
@@ -194,15 +206,21 @@ $(SYSCALLMACRO_OUTFILE): $(SYSCALLMACRO_INFILES)
 #
 #	Сборка 32-битных ассемблерных файлов libc
 #
-$(LIBC_ASM32_OBJ): $(LIBC_ASM32_SRC) $(OBJSDIR_LIBC)
-	$(foreach asm32, $(LIBC_ASM32_SRC), $(shell $(call assemble_i386_libc_source, $(asm32))))
+$(OBJSDIR_LIBC)/%.o : $(LIBC_SRC_DIR)/*/%.asm | $(OBJSDIR_LIBC) ; \
+    $(ASSEMBLER) -f elf32 $< -o $@
 
 #
 #	Сборка C-файлов libc
 #
-$(LIBC_C_OBJ): $(LIBC_C_SRC) $(OBJSDIR_LIBC) $(SYSCALLMACRO_OUTFILE)
-	$(foreach src, $(LIBC_C_SRC), $(shell $(call compile_c_libc_source, $(src))))
+$(OBJSDIR_LIBC)/%.o : $(LIBC_SRC_DIR)/%.c | $(SYSCALLMACRO_OUTFILE) $(OBJSDIR_LIBC) ; \
+	$(CCROSSCOMPILER) -c $< -o $@ ;
+	
+$(OBJSDIR_LIBC)/%.o : $(LIBC_SRC_DIR)/etc/%.c | $(SYSCALLMACRO_OUTFILE) $(OBJSDIR_LIBC) ; \
+    $(CCROSSCOMPILER) -c $< -o $@ ;
 
+$(OBJSDIR_LIBC)/%.o : $(LIBC_SRC_DIR)/formatters/%.c | $(SYSCALLMACRO_OUTFILE) $(OBJSDIR_LIBC) ; \
+    $(CCROSSCOMPILER) -c $< -o $@ ;
+    
 #
 #   Сборка файла библиотеки libc
 #

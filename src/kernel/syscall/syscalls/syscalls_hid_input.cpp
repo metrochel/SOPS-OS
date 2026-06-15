@@ -3,10 +3,10 @@
  */
 
 #include "incl/syscalls_hid_input.hpp"
-#include "../../keyboard/keyboard.hpp"
-#include "../../dbg/dbg.hpp"
-#include "../../run/process.hpp"
-#include "../../str/str.hpp"
+#include "keyboard/keyboard.hpp"
+#include "dbg/dbg.hpp"
+#include "run/process.hpp"
+#include "str/str.hpp"
 
 #define handle(name)    __syscall_ext_hdl_decl(name)
 

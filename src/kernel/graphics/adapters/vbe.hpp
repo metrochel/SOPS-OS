@@ -7,7 +7,7 @@
 #ifndef _VBE_INCL
 #define _VBE_INCL
 
-#include "../../libk/nums.hpp"
+#include "libk/nums.hpp"
 #include "../helpers/macros.hpp"
 #include "../helpers/typedefs.hpp"
 

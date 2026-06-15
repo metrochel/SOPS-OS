@@ -6,7 +6,7 @@
 //  - Библиотека для запуска пользовательских программ.
 //
 
-#include "../file/fat.hpp"
+#include "file/fat.hpp"
 
 #define ELF_MAGIC                   0x464C457F
 

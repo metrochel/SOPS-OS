@@ -1,8 +1,8 @@
 #include <stdarg.h>
 #include "glyphs.hpp"
-#include "../io/com.hpp"
-#include "../memmgr/memmgr.hpp"
-#include "../libk/util.hpp"
+#include "io_old/com_old.hpp"
+#include "memmgr/memmgr.hpp"
+#include "libk/util.hpp"
 
 word textCurX = 1;
 word textCurY = 1;

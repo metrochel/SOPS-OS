@@ -13,6 +13,7 @@
 /// Этот макрос нужен, чтобы значительно проще объявлять функции для адаптеров.
 #define decl_graphics_funcs(mod, prefix, suffix) \
     mod dword prefix##_compute_pixoff_##suffix (dword x, dword y);                                      \
+    mod dword prefix##_encode_col_##suffix (byte r, byte g, byte b);                                    \
     mod void prefix##_putpixel_##suffix (dword x, dword y, dword col);                                  \
     mod void prefix##_fill_##suffix (dword x, dword y, dword width, dword height, dword col);           \
     mod void prefix##_blit_##suffix (dword x, dword y, dword width, dword height, dword *cols);         \

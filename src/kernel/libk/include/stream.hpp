@@ -24,14 +24,18 @@ public:
     const dword unget_buf_sz = 256;
 
     /// @c put_func_t - это тип функции, записывающей один символ для данного потока.
-    typedef void (*put_func_t)(dword);
+    /// @note Второй аргумент функции put - указатель на сам объект, то есть @c this.
+    typedef void (*put_func_t)(dword, void*);
     /// @c get_func_t - это тип функции, считывающей один символ для данного потока.
-    typedef dword (*get_func_t)();
+    /// @note Аргумент функции get - указатель на сам объект, то есть @c this.
+    typedef dword (*get_func_t)(void*);
 
     /// @c data_modifier - это перечень допустимых модификаторов для чтения/записи данных.
     typedef struct {
         intmod int_mod;
     } data_modifier;
+
+    stream() : put(nullptr), get(nullptr), unget_buf(nullptr) {}
 
     /// @brief Создаёт поток с функцией записи @c put.
     /// @param put Функция записи

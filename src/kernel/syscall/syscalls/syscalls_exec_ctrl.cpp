@@ -3,12 +3,12 @@
  */
 
 #include "incl/syscalls_exec_ctrl.hpp"
-#include "../../run/process.hpp"
-#include "../../memmgr/memmgr.hpp"
-#include "../../timing/time.hpp"
-#include "../../dbg/dbg.hpp"
-#include "../../libk/util.hpp"
-#include "../../run/process.hpp"
+#include "run/process.hpp"
+#include "memmgr/memmgr.hpp"
+#include "timing/time.hpp"
+#include "dbg/dbg.hpp"
+#include "libk/util.hpp"
+#include "run/process.hpp"
 
 #define handle(name)        __syscall_ext_hdl_decl(name)
 

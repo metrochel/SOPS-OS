@@ -1,7 +1,7 @@
 #include "vmm.hpp"
 #include "paging.hpp"
 #include "pmm.hpp"
-#include "../io/com.hpp"
+#include "../io_old/com_old.hpp"
 #include "../run/process.hpp"
 #include "../libk/util.hpp"
 

@@ -1,8 +1,8 @@
-#include "com.hpp"
+#include "com_old.hpp"
 #include "io.hpp"
-#include "../graphics_old/glyphs.hpp"
-#include "../str/str.hpp"
-#include "../libk/util.hpp"
+#include "graphics_old/glyphs.hpp"
+#include "str/str.hpp"
+#include "libk/util.hpp"
 #include <stdarg.h>
 
 byte *comReadBuffers[]  = {nullptr, nullptr, nullptr, nullptr};

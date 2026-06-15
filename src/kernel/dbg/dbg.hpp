@@ -6,8 +6,8 @@
 #ifndef _DBG_INCL
 #define _DBG_INCL
 
-#include "../libk/nums.hpp"
-#include "../io/com.hpp"
+#include "libk/nums.hpp"
+#include "io_old/com_old.hpp"
 
 // ### StackFrame
 // Структура для трассировки стека.

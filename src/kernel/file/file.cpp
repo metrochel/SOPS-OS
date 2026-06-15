@@ -1,10 +1,10 @@
 #include "file.hpp"
-#include "../disk/disk.hpp"
-#include "../memmgr/memmgr.hpp"
-#include "../libk/util.hpp"
-#include "../io/com.hpp"
-#include "../dbg/dbg.hpp"
-#include "../str/str.hpp"
+#include "disk/disk.hpp"
+#include "memmgr/memmgr.hpp"
+#include "libk/util.hpp"
+#include "io_old/com_old.hpp"
+#include "dbg/dbg.hpp"
+#include "str/str.hpp"
 
 void initFiles() {
 

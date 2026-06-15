@@ -1,10 +1,10 @@
 #include "acpi.hpp"
-#include "../memmgr/paging.hpp"
-#include "../graphics_old/glyphs.hpp"
-#include "../io/io.hpp"
-#include "../int/pic.hpp"
-#include "../pci/pci.hpp"
-#include "../dbg/dbg.hpp"
+#include "memmgr/paging.hpp"
+#include "graphics_old/glyphs.hpp"
+#include "io_old/io.hpp"
+#include "int/pic.hpp"
+#include "pci/pci.hpp"
+#include "dbg/dbg.hpp"
 
 FADT *fadt;
 FACS *facs;

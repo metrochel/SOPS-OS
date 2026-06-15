@@ -5,8 +5,8 @@
 //
 //  - Управляет процессами: создаёт и удаляет их, приостанавливает и возобновляет и так далее.
 //
-#include "../libk/nums.hpp"
-#include "../file/file.hpp"
+#include "libk/nums.hpp"
+#include "file/file.hpp"
 #include "stdio.hpp"
 
 // Резервированный PID для ядра

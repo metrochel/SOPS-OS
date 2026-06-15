@@ -7,8 +7,8 @@
 #define _CMOS_INCL
 
 #include "time.hpp"
-#include "../io/io.hpp"
-#include "../libk/nums.hpp"
+#include "io_old/io.hpp"
+#include "libk/nums.hpp"
 
 #define CMOS_REGISTER_SELECT 0x70
 #define CMOS_REGISTER        0x71

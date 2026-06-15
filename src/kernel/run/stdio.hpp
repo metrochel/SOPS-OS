@@ -8,8 +8,8 @@
 #ifndef _STDIO_INCL
 #define _STDIO_INCL
 
-#include "../file/file.hpp"
-#include "../keyboard/keyboard.hpp"
+#include "file/file.hpp"
+#include "keyboard/keyboard.hpp"
 
 struct Process;
 

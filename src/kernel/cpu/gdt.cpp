@@ -1,7 +1,7 @@
 #include "gdt.hpp"
-#include "../graphics_old/glyphs.hpp"
-#include "../libk/util.hpp"
-#include "../dbg/dbg.hpp"
+#include "graphics_old/glyphs.hpp"
+#include "libk/util.hpp"
+#include "dbg/dbg.hpp"
 
 GDT_TSS tss = {};
 

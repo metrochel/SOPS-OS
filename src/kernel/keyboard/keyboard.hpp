@@ -8,7 +8,7 @@
 #define _KB_INCL
 
 #include "../libk/nums.hpp"
-#include "../io/ps2.hpp"
+#include "../io_old/ps2.hpp"
 
 #define KB_BUF_BASE             0x9000
 #define KB_CMD_BUF_BASE         0x9008

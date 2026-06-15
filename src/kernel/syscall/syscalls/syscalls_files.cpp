@@ -3,12 +3,12 @@
  */
 
 #include "incl/syscalls_files.hpp"
-#include "../../run/process.hpp"
-#include "../../dbg/dbg.hpp"
-#include "../../disk/disk.hpp"
-#include "../../str/str.hpp"
-#include "../../shell/shell.hpp"
-#include "../../memmgr/memmgr.hpp"
+#include "run/process.hpp"
+#include "dbg/dbg.hpp"
+#include "disk/disk.hpp"
+#include "str/str.hpp"
+#include "shell/shell.hpp"
+#include "memmgr/memmgr.hpp"
 
 #define handle(name)    __syscall_ext_hdl_decl(name)
 

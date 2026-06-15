@@ -1,10 +1,10 @@
 #include "dbg.hpp"
-#include "../graphics_old/glyphs.hpp"
-#include "../file/file.hpp"
-#include "../io/com.hpp"
-#include "../memmgr/memmgr.hpp"
-#include "../str/str.hpp"
-#include "../libk/util.hpp"
+#include "graphics_old/glyphs.hpp"
+#include "file/file.hpp"
+#include "io_old/com_old.hpp"
+#include "memmgr/memmgr.hpp"
+#include "str/str.hpp"
+#include "libk/util.hpp"
 
 const dword kernelSymbolsSize = 0x10000;
 const dword kernelMapSize = 0x2000;

@@ -1,9 +1,9 @@
 #include "fat.hpp"
-#include "../io/com.hpp"
-#include "../disk/disk.hpp"
-#include "../libk/util.hpp"
-#include "../memmgr/memmgr.hpp"
-#include "../str/str.hpp"
+#include "io_old/com_old.hpp"
+#include "disk/disk.hpp"
+#include "libk/util.hpp"
+#include "memmgr/memmgr.hpp"
+#include "str/str.hpp"
 
 bool fatInit = false;
 

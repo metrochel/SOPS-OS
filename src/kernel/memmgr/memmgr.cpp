@@ -1,7 +1,7 @@
 #include "memmgr.hpp"
 #include "../kernel.hpp"
 #include "../libk/util.hpp"
-#include "../io/com.hpp"
+#include "../io_old/com_old.hpp"
 #include "../run/process.hpp"
 
 const ptrint memMgrDataStart = 0xB0000000;
