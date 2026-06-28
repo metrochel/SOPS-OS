@@ -216,10 +216,10 @@ const glyph& graphics::glyph_from_symbol(dword symb) {
     if ('0' <= symb && symb <= '9')
         return glyph_from_symb_digit(symb);
 
-    dword *dbg_ptr = (dword*)0x9510;
-    dbg_ptr[0] = 'А';
-    dbg_ptr[1] = symb;
-    dbg_ptr[2] = 'Я';
+//    dword *dbg_ptr = (dword*)0x9510;
+//    dbg_ptr[0] = 'А';
+//    dbg_ptr[1] = symb;
+//    dbg_ptr[2] = 'Я';
 
     if ('А' <= symb && symb <= 'Я' || symb == 'Ё')
         return glyph_from_symb_cyrillic_upper(symb);

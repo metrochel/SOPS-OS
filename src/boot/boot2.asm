@@ -1409,13 +1409,7 @@ prot_mode_entry_point:
     jc boot_error
 
     ; Переход на ядро
-    ; EBP сбрасывается для трассировки стека.
-    xor ebp, ebp
-    ; Вместо JMP используется CALL, чтобы в случае возврата из ядра
-    ; процессор не улетел Бог знает куда, а вернулся сюда
-    ; и застыл.
-    call dword [ENTRYPOINT]
-    jmp  _halt
+    jmp dword [ENTRYPOINT]
 
 ;
 ;   Обработчик ошибок
@@ -1433,6 +1427,7 @@ boot_error:
     stosd
     cli
 _halt:
+    hlt
     jmp _halt
 
 

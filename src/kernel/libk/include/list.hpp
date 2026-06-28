@@ -66,10 +66,10 @@ public:
 
     /// Возвращает итератор в начале.
     /// @return Неизменный итератор, установленный в начало строки
-    const_iterator begin() const { return array; }
+    iterator begin() const { return array; }
     /// Возвращает итератор в конце.
     /// @return Неизменный итератор, установленный в конец строки
-    const_iterator end() const { return array + len - 1; }
+    iterator end() const { return array + len - 1; }
 
     T& operator[](int index);
     const T& operator[](int index) const;

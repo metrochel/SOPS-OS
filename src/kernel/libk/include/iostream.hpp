@@ -11,11 +11,11 @@
 
 /// @c istream - это класс потока ввода.
 class istream : virtual public stream {
+protected:
+    /// @brief Создаёт новый поток ввода.
+    istream() {}
 public:
-    /// @brief Создаёт новый поток ввода с функцией чтения @c get.
-    /// @param get Функция чтения
-    istream(stream::get_func_t get) : stream(get) {}
-    istream() : stream(nullptr, nullptr) {}
+    virtual void put(dword ch) override;
 
     istream& operator>>(byte &number);
     istream& operator>>(word &number);
@@ -30,11 +30,11 @@ public:
 
 /// @c ostream - это класс потока вывода.
 class ostream : virtual public stream {
+protected:
+    /// @brief Создаёт новый поток вывода.
+    ostream() {}
 public:
-    /// @brief Создаёт новый поток вывода с функцией чтения @c put.
-    /// @param put Функция записи
-    ostream(stream::put_func_t put) : stream(put) {}
-    ostream() : stream(nullptr, nullptr) {}
+    virtual dword get() override;
 
     ostream& operator<<(byte number);
     ostream& operator<<(word number);
@@ -51,14 +51,10 @@ public:
 
 /// @c iostream - это класс потока, способного как считывать, так и выводить данные.
 class iostream : public istream, public ostream {
-    /// @brief Создаёт новый поток ввода/вывода с функцией чтения @c get и функцией записи @c put.
-    /// @param put Функция записи
-    /// @param get Функция чтения
-    iostream(stream::get_func_t get, stream::put_func_t put)
-        : stream(put, get), istream(get), ostream(put) {}
-
-    iostream() : stream(nullptr, nullptr), istream(), ostream() {}
-
+protected:
+    /// @brief Создаёт новый поток ввода/вывода.
+    iostream() {}
+public:
     iostream& operator=(const iostream&&);
 };
 

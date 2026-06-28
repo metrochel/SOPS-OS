@@ -9,32 +9,16 @@
 
 #define is_line_stop(ch) ((ch) == 0 || (ch) == '\n')
 
-// FIXME: Я не знаю, почему, но когда передаётся указатель на объект, он смещён на 1 байт. Узнать, почему, и исправить.
-#define stupid_1_byte_correction(ptr) ((void*)((byte*)(ptr) + 1))
-
-stream::stream(put_func_t put) : put(put), get(nullptr),
-    unget_buf((dword*)kmalloc(sizeof((dword)0) * unget_buf_sz))
-    {}
-
-stream::stream(get_func_t get) : put(nullptr), get(get),
-    unget_buf((dword*)kmalloc(sizeof((dword)0) * unget_buf_sz))
-{}
-
-stream::stream(put_func_t put, get_func_t get) : put(put), get(get),
-    unget_buf((dword*)kmalloc(sizeof((dword)0) * unget_buf_sz))
-{}
+stream::stream() {
+    unget_buf = (dword*)(kmalloc(unget_buf_sz));
+    modifier.int_mod = intmod::dec;
+}
 
 void stream::write_char(byte c) {
     // Процедура write_char будет выводить символ в соответствии с UTF-8,
     // то есть в функцию put должен попадать полный символ, а не его кусочки.
 
     static byte index = 0;
-
-    // Если функция put не определена...
-    if (!put) {
-        // TODO: бросать исключение
-        return;
-    }
 
     // Если символ не соответствует UTF-8, хотя должен...
     if ((c >> 6 != 0b10) && write_bytes_remaining) {
@@ -48,7 +32,7 @@ void stream::write_char(byte c) {
         write_bytes_remaining--;
         if (write_bytes_remaining == 0) {
             dword ch = write_buffer[0] | (write_buffer[1] << 8) | (write_buffer[2] << 16) | (write_buffer[3] << 24);
-            put(ch, stupid_1_byte_correction(this));
+            put(ch);
             write_buffer[0] = write_buffer[1] = write_buffer[2] = write_buffer[3] = 0;
         }
         return;
@@ -84,15 +68,10 @@ void stream::write_char(byte c) {
     }
 
     // Если символ является простым символом ASCII, то вывести его.
-    put(c, stupid_1_byte_correction(this));
+    put(c);
 }
 
 dword stream::read_char() {
-    if (!get) {
-        // TODO: бросать исключение
-        return maxdword;
-    }
-
     if (unget_idx) {
         if (unget_idx >= unget_buf_sz) {
             // TODO: бросать исключение
@@ -107,7 +86,7 @@ dword stream::read_char() {
         return unget_buf[--unget_idx];
     }
 
-    return get(stupid_1_byte_correction(this));
+    return get();
 }
 
 void stream::unget(dword ch) {
@@ -125,6 +104,11 @@ void stream::unget(dword ch) {
 }
 
 void stream::write_dec_uint(qword num) {
+    if (num == 0) {
+        write_char('0');
+        return;
+    }
+
     dword length = 32;
     dword buffer[length];
 
@@ -140,7 +124,7 @@ void stream::write_dec_uint(qword num) {
         div /= 10;
     }
 
-    for (int i = 0; i < index; i++) {
+    for (dword i = 0; i < index; i++) {
         write_char(buffer[i]);
     }
 }

@@ -9,6 +9,14 @@
 # Включение переменных окружения
 include .env
 
+SOPSTOOLS			:=${SOPSTOOLS}
+CCROSSCOMPILER		:=$(SOPSTOOLS)/i686-sops-gcc
+CXXCROSSCOMPILER	:=$(SOPSTOOLS)/i686-sops-g++
+ASSEMBLER			:=nasm
+ARCHIVER			:=$(SOPSTOOLS)/i686-sops-ar
+LINKERSCRIPT    	:=linker.ld
+PYTHON				:=python
+
 BUILDDIR		:=build
 SRCDIR			:=src
 DISKFILE		:=$(BUILDDIR)/sops.img
@@ -25,7 +33,12 @@ KERNEL_ASM_SRC	:=$(wildcard $(KERNEL_SRC_DIR)/*/*.asm)
 KERNELSRC		:=$(KERNEL_ASM_SRC) $(KERNEL_CPP_SRC)
 KERNEL_CPP_OBJ  :=$(foreach cpp, $(KERNEL_CPP_SRC), $(OBJSDIR_KERNEL)/$(patsubst %.cpp,%.o,$(notdir $(cpp))))
 KERNEL_ASM_OBJ	:=$(foreach asm, $(KERNEL_ASM_SRC), $(OBJSDIR_KERNEL)/$(patsubst %.asm,%.o,$(notdir $(asm))))
-KERNELOBJ		:=$(KERNEL_CPP_OBJ) $(KERNEL_ASM_OBJ)
+KERNEL_ASM_OBJ	:=$(filter-out $(OBJSDIR_KERNEL)/crti.o,$(KERNEL_ASM_OBJ))
+KERNEL_ASM_OBJ	:=$(filter-out $(OBJSDIR_KERNEL)/crtn.o,$(KERNEL_ASM_OBJ))
+KERNEL_ASM_OBJ	:=$(filter-out $(OBJSDIR_KERNEL)/crt0.o,$(KERNEL_ASM_OBJ))
+KERNEL_CRTBEGIN	:=$(shell $(CXXCROSSCOMPILER) -print-file-name=crtbegin.o)
+KERNEL_CRTEND	:=$(shell $(CXXCROSSCOMPILER) -print-file-name=crtend.o)
+KERNELOBJ		:=$(OBJSDIR_KERNEL)/crt0.o $(OBJSDIR_KERNEL)/crti.o $(KERNEL_CRTBEGIN) $(KERNEL_CPP_OBJ) $(KERNEL_ASM_OBJ) $(KERNEL_CRTEND) $(OBJSDIR_KERNEL)/crtn.o
 KERNELBIN		:=$(BINSDIR)/kernel.bin
 KERNELMAP		:=$(BUILDDIR)/kernel.map
 
@@ -43,14 +56,6 @@ SYSROOT			:=sysroot
 SYSROOTINCLUDE	:=$(SYSROOT)/resources/include
 SYSROOTLIBS		:=$(SYSROOT)/resources/libs
 BUILDDIR_ETC	:=$(BUILDDIR)/etc
-
-SOPSTOOLS			:=${SOPSTOOLS}
-CCROSSCOMPILER		:=$(SOPSTOOLS)/i686-sops-gcc
-CXXCROSSCOMPILER	:=$(SOPSTOOLS)/i686-sops-g++
-ASSEMBLER			:=nasm
-ARCHIVER			:=$(SOPSTOOLS)/i686-sops-ar
-LINKERSCRIPT    	:=linker.ld
-PYTHON				:=python
 
 BUILDUTILS			:=buildutils
 SYSCALLMACRO_SCRIPT	:=$(BUILDUTILS)/make_syscall_macros.py
@@ -185,6 +190,9 @@ $(OBJSDIR_KERNEL)/%.o : $(KERNEL_SRC_DIR)/*/*/%.cpp | $(OBJSDIR_KERNEL) ; \
 	$(if $(filter-out src/kernel/int/int.cpp,$<),,-mgeneral-regs-only) \
 	$(if $(filter-out src/kernel/acpi/sci.cpp,$<),,-mgeneral-regs-only)  \
 	-I$(KERNEL_SRC_DIR) ;
+
+$(OBJSDIR_KERNEL)/%.o : $(KERNEL_SRC_DIR)/%.asm | $(OBJSDIR_KERNEL) ; \
+    $(ASSEMBLER) -f elf32 $< -o $@
 
 $(OBJSDIR_KERNEL)/%.o : $(KERNEL_SRC_DIR)/*/%.asm | $(OBJSDIR_KERNEL) ; \
     $(ASSEMBLER) -f elf32 $< -o $@

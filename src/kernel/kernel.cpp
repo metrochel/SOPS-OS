@@ -10,7 +10,6 @@
 #include "kernel.hpp"
 #include "acpi/acpi.hpp"
 #include "graphics/graphics.hpp"
-#include "graphics/glyphs/glyphs.hpp"
 #include "io_old/com_old.hpp"
 #include "io_old/ps2.hpp"
 #include "int/int.hpp"
@@ -32,6 +31,7 @@
 #include "cpu/gdt.hpp"
 
 #include "graphics/graphics.hpp"
+#include "io/com/com.hpp"
 
 #include "syscall/syscall.hpp"
 
@@ -44,12 +44,22 @@ void initBLD() {
     bld->DiskNo &= 0x7F;
 }
 
-/// @brief Точка входа в ядро.
-int main() {
+/// @brief Подготавливает ядро к запуску.
+/// @note Вызывается из @c _start.
+extern "C"
+void kernel_prep() {
     disableInts();
     initBLD();
     initMemMgr();
     graphics::init();
+}
+
+/// @brief Точка входа в ядро.
+int main() {
+    cout << "Добро пожаловать в СОпС вер. 0.2.0!\n\n";
+
+    com::init();
+    cout << "Инициализировано " << com::com_ports.length() << " COM-портов.\n";
 
 //    setPICOffsets(0x20, 0x28);
 //    initInts();

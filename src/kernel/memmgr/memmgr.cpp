@@ -4,11 +4,12 @@
 #include "../io_old/com_old.hpp"
 #include "../run/process.hpp"
 
-const ptrint memMgrDataStart = 0xB0000000;
+#define MEM_MGR_DATA_START  0xB0000000
+
 
 void initMemMgr() {
-    byte *memMgrData = (byte*)memMgrDataStart;
-    createPages(memMgrDataStart, 0x6000000, 8192);
+    byte *memMgrData = (byte*)MEM_MGR_DATA_START;
+    createPages(MEM_MGR_DATA_START, 0x6000000, 8192);
     initPMM(memMgrData);
     initVMM(memMgrData);
 }

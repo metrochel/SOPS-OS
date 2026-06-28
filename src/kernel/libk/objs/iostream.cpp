@@ -9,6 +9,12 @@
 
 /* === istream === */
 
+void istream::put([[maybe_unused]] dword ch) {
+    // TODO: бросать исключение
+    // Так как istream - поток ввода, вывод в него запрещён.
+    return;
+}
+
 #define right_shift_op_decl(type)                   \
     istream& istream::operator>>(type& number) {    \
         qword no = read_uint();                     \
@@ -39,11 +45,16 @@ istream& istream::operator>>(intmod mod) {
 }
 
 istream& istream::operator=(const istream&& ref) {
-    get = ref.get;
     return *this;
 }
 
 /* === ostream === */
+
+dword ostream::get() {
+    // TODO: бросать исключение
+    // Так как ostream - поток вывода, то чтение из него запрещено.
+    return maxdword;
+}
 
 #define left_shift_op_decl(type)                \
     ostream& ostream::operator<<(type num) {    \
@@ -84,14 +95,11 @@ ostream& ostream::operator<<(const string& str) {
 }
 
 ostream& ostream::operator=(const ostream&& ref) {
-    put = ref.put;
     return *this;
 }
 
 /* === iostream === */
 
 iostream& iostream::operator=(const iostream&& ref) {
-    istream::get = ref.istream::get;
-    ostream::put = ref.ostream::put;
     return *this;
 }

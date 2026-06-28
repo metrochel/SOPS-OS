@@ -1,4 +1,4 @@
-ENTRY(main)
+ENTRY(_start)
 
 SECTIONS {
 	. = 0xC0000000;
@@ -14,6 +14,14 @@ SECTIONS {
 	.shstrtab : ALIGN(4096) {
 		*(.shstrtab)
 	}
+
+    .init : ALIGN(4096) {
+        *(.init)
+    }
+
+    .fini : ALIGN(4096) {
+        *(.fini)
+    }
 
 	.text : ALIGN(4096) {
 		*(.text)

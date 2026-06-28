@@ -14,7 +14,9 @@
 
 using namespace graphics;
 
-graph_ostream cout, cwrn, cerr;
+graph_ostream cout(default_fg_col, default_bg_col);
+graph_ostream cwrn(warn_fg_col, warn_bg_col);
+graph_ostream cerr(error_fg_col, error_bg_col);
 
 dword graphics::text_cur_x = 1;
 dword graphics::text_cur_y = 1;
@@ -89,7 +91,7 @@ void graphics::refresh_text(character *vp_pre_update) {
     }
 }
 
-void graph_ostream::graphical_put(dword symb, void *obj) {
+void graph_ostream::put(dword symb) {
     if (is_newline(symb)) {
         text_cur_x = text_border;
         text_cur_y ++;
@@ -102,16 +104,13 @@ void graph_ostream::graphical_put(dword symb, void *obj) {
         return;
     }
 
-    static void **dbg_ptr = (void**)0x9510;
-    *dbg_ptr++ = obj;
-
     const glyph &g = glyph_from_symbol(symb);
 
     dword x = ttg_x(text_cur_x);
     dword y = ttg_y(text_cur_y);
 
-    dword fg_col = ((graph_ostream*)obj)->fg_col;
-    dword bg_col = ((graph_ostream*)obj)->bg_col;
+    static void *dbg_ptr = (void*)0x9500;
+    memcpy(&cout, dbg_ptr, sizeof cout);
 
     reg_char(symb, fg_col, bg_col, text_cur_x, text_cur_y);
     putglyph(g, x, y, fg_col, bg_col);
@@ -147,15 +146,6 @@ void graphics::init() {
 
     error_fg_col = encode_col(255, 0, 0);
     error_bg_col = encode_col(128, 0, 0);
-
-    cout = graph_ostream(default_fg_col, default_bg_col);
-    cwrn = graph_ostream(warn_fg_col, warn_bg_col);
-    cerr = graph_ostream(error_fg_col, error_bg_col);
-
-    static graph_ostream **dbg_ptr = (graph_ostream**)0x9500;
-    *dbg_ptr++ = &cout;
-    *dbg_ptr++ = &cwrn;
-    *dbg_ptr++ = &cerr;
 
     screen_chars = (character*)kmalloc(sizeof ((character){}) * 2 * usable_text_surface);
 

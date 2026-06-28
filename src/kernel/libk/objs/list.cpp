@@ -5,6 +5,7 @@
  */
 
 #include "../include/list.hpp"
+#include "../instantiation/list_inst.hpp"
 #include "../../memmgr/memmgr.hpp"
 #include "../util.hpp"
 
@@ -21,7 +22,7 @@ template<typename T>
 list<T>::list(const T* arr, size_t length) {
     capacity = cap_from_len(length);
 
-    array = kmalloc(capacity * sizeof(*arr));
+    array = (T*)kmalloc(capacity * sizeof(*arr));
     if (!array) {
         // TODO: бросать исключение
     }
@@ -35,7 +36,7 @@ list<T>::list(const list<T> &copy_list) {
     capacity = cap_from_len(copy_list.length());
 
     size_t cap_bytes = sizeof(*copy_list.array);
-    array = kmalloc(cap_bytes);
+    array = (T*)kmalloc(cap_bytes);
     if (!array) {
         // TODO: бросать исключение
     }
@@ -75,7 +76,7 @@ void list<T>::extend(const list<T> &add_list) {
     reallocate(len + add_list.len);
     for (dword i = 0; i < add_list.len; i++) {
         dword index = len + i;
-        T &element = add_list[index];
+        T &element = (T&)add_list[index];
         array[index] = element;
     }
 }
@@ -125,7 +126,6 @@ T& list<T>::operator[](int index) {
 
     if (index < 0 || index >= len) {
         // TODO: бросать исключение
-        return (T)null;
     }
 
     return array[index];

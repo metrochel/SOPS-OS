@@ -118,18 +118,13 @@ namespace graphics {
 }
 
 class graph_ostream : public ostream {
-    static void graphical_put(dword symb, void *ptr);
+    virtual void put(dword symb) override;
 
     dword fg_col;
     dword bg_col;
 
 public:
-    graph_ostream() : stream(), ostream() {}
-    graph_ostream(dword fg, dword bg) :
-        stream(graphical_put, nullptr), ostream(graphical_put),
-        fg_col(fg), bg_col(bg)
-        {
-        }
+    graph_ostream(dword fg, dword bg) : fg_col(fg), bg_col(bg) {}
 };
 
 /// @c cout - это поток стандартного вывода.

@@ -5,8 +5,8 @@
 //    подключёнными через COM-порт.
 //
 
-#ifndef _COM_INCL
-#define _COM_INCL
+#ifndef _COM_OLD_INCL
+#define _COM_OLD_INCL
 
 #include "libk/nums.hpp"
 

@@ -23,34 +23,14 @@ public:
     /// Постоянная, равная размеру буфера, используемого функцией @c unget.
     const dword unget_buf_sz = 256;
 
-    /// @c put_func_t - это тип функции, записывающей один символ для данного потока.
-    /// @note Второй аргумент функции put - указатель на сам объект, то есть @c this.
-    typedef void (*put_func_t)(dword, void*);
-    /// @c get_func_t - это тип функции, считывающей один символ для данного потока.
-    /// @note Аргумент функции get - указатель на сам объект, то есть @c this.
-    typedef dword (*get_func_t)(void*);
-
     /// @c data_modifier - это перечень допустимых модификаторов для чтения/записи данных.
     typedef struct {
         intmod int_mod;
     } data_modifier;
 
-    stream() : put(nullptr), get(nullptr), unget_buf(nullptr) {}
-
-    /// @brief Создаёт поток с функцией записи @c put.
-    /// @param put Функция записи
-    stream(put_func_t put);
-    /// @brief Создаёт поток с функцией чтения @c get.
-    /// @param get Функция чтения
-    stream(get_func_t get);
-    /// @brief Создаёт поток с функциями записи put и чтения @c get.
-    /// @param put Функция записи
-    /// @param get Функция чтения
-    stream(put_func_t put, get_func_t get);
-
 private:
     /// Буфер символов, возвращённых функцией @c unget
-    dword *const unget_buf;
+    dword *unget_buf;
     /// Индекс в буфере возвращённых символов
     dword unget_idx = 0;
 
@@ -90,13 +70,19 @@ private:
     qword read_hex_uint();
 
 protected:
+    /// @brief Создаёт пустой поток.
+    stream();
+
     /// Текущий модификатор вывода
     data_modifier modifier = { dec };
 
-    /// Функция записи в данный поток
-    put_func_t put;
-    /// Функция чтения из данного потока
-    get_func_t get;
+    /// @brief Записывает символ в поток.
+    /// @param ch Символ
+    virtual void put(dword ch) = 0;
+
+    /// @brief Считывает символ из потока.
+    /// @return Считанный символ
+    virtual dword get() = 0;
 
     /// @brief Изменяет модификатор данных.
     void set_modifier(data_modifier new_mod);
