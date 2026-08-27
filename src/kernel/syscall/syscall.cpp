@@ -3,11 +3,12 @@
  */
 
 #include "syscall.hpp"
-#include "../dbg/dbg.hpp"
 
 #define handle(name)            __syscall_ext_hdl_decl(name)
 
 using namespace syscalls;
+
+// FIXME: Модуль написан с учётом старого ядра. Переписать.
 
 handle(exit) {
     dword exit_code = (dword)arg1;
@@ -16,15 +17,14 @@ handle(exit) {
 }
 
 handle(invalid) {
-    kdebug("ОШИБКА: Процесс %d попытался исполнить несуществующий системный вызов\n", pid);
-    kdebug("Аргументы:\n\t%d (%x),\n\t%d (%x),\n\t%d (%x),\n\t%d (%x),\n\t%d (%x)\n",
-           arg1, arg1, arg2, arg2, arg3, arg3, arg4, arg4, arg5, arg5);
+//    kdebug("ОШИБКА: Процесс %d попытался исполнить несуществующий системный вызов\n", pid);
+//    kdebug("Аргументы:\n\t%d (%x),\n\t%d (%x),\n\t%d (%x),\n\t%d (%x),\n\t%d (%x)\n",
+//           arg1, arg1, arg2, arg2, arg3, arg3, arg4, arg4, arg5, arg5);
     return -1;
 }
 
 #define handle_case(name) case __syscall_number_name(name): \
-    kdebug("Выбранный системный вызов: " #name ".\n");      \
-    return __syscall_handle_name(name);
+    return nullptr;
 
 syscall_handle_t get_syscall_handle(dword syscall) {
     switch (syscall) {

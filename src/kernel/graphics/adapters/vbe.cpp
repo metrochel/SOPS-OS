@@ -6,16 +6,16 @@
 #include "vbe.hpp"
 #include "../graphics.hpp"
 
-using namespace graphics::vbe;
+NAMESPACE_BEGIN(graphics::vbe)
 
 /* === Глобальные переменные === */
 
 byte *vbe_framebuf_ptr = nullptr;
-byte graphics::vbe::bpp = 0;
-const vbe_mode_info *graphics::vbe::vbe_info;
+byte bpp = 0;
+const vbe_mode_info *vbe_info;
 
 #define decl_adapter_funcs_for_bpp(bpp) \
-    const graphics::adapter_funcs graphics::vbe::vbe_adapter_funcs_##bpp = { \
+    const adapter_funcs vbe_adapter_funcs_##bpp = { \
         &vbe_compute_pixoff_##bpp,      \
         &vbe_encode_col_##bpp,          \
         &vbe_putpixel_##bpp,            \
@@ -33,13 +33,13 @@ decl_adapter_funcs_for_bpp(general)
 /* === inline-функции putpixel === */
 
 template<typename T, size_t mask, byte bpp>
-force_inline void template_vbe_inline_putpixel(dword offset, T col) {
+always_inline void template_vbe_inline_putpixel(dword offset, T col) {
     *(T*)(vbe_framebuf_ptr + offset) = col & mask;
 }
 
 #define decl_inline_func(bpp, type, mask) \
-    force_inline void graphics::vbe::inline_putpixel_##bpp (dword offset, dword col) {          \
-        template_vbe_inline_putpixel<type, mask, bpp / 8>(offset, col);                         \
+    always_inline void inline_putpixel_##bpp (dword offset, dword col) {         \
+        template_vbe_inline_putpixel<type, mask, bpp / 8>(offset, col);          \
     }
 
 decl_inline_func(8, byte, maxbyte)
@@ -103,12 +103,12 @@ inline void template_vbe_blit(dword x, dword y, dword width, dword height, dword
 }
 
 template<typename T, size_t mask, byte bpp>
-inline void template_vbe_putglyph(const graphics::glyph &g, dword x, dword y, dword fg_col, dword bg_col) {
+inline void template_vbe_putglyph(const glyph &g, dword x, dword y, dword fg_col, dword bg_col) {
     dword pixoff = template_vbe_compute_pixoff<bpp>(x, y);
-    dword byte_width = graphics::glyph_width * bpp;
-    for (dword i = 0; i < graphics::glyph_height; i++) {
-        dword bitmask = 1 << (graphics::glyph_width - 1);
-        for (int j = graphics::glyph_width - 1; j >= 0; j--) {
+    dword byte_width = glyph_width * bpp;
+    for (dword i = 0; i < glyph_height; i++) {
+        dword bitmask = 1 << (glyph_width - 1);
+        for (int j = glyph_width - 1; j >= 0; j--) {
             if (g.lines[i] & bitmask)
                 template_vbe_inline_putpixel<T, mask, bpp>(pixoff, fg_col);
             else
@@ -123,24 +123,24 @@ inline void template_vbe_putglyph(const graphics::glyph &g, dword x, dword y, dw
 
 /* === Основные функции === */
 
-#define declare_funcs_for_bpp(bpp, type, mask)                                                                      \
-    dword graphics::vbe::vbe_compute_pixoff_##bpp(dword x, dword y) {                                               \
-        return template_vbe_compute_pixoff<bpp / 8>(x, y);                                                          \
-    }                                                                                                               \
-    dword graphics::vbe::vbe_encode_col_##bpp(byte r, byte g, byte b) {                                             \
-        return template_vbe_encode_col(r, g, b);                                                                    \
-    }                                                                                                               \
-    void graphics::vbe::vbe_putpixel_##bpp (dword x, dword y, dword col) {                                          \
-        template_vbe_putpixel<type, mask, bpp / 8>(x, y, col);                                                      \
-    }                                                                                                               \
-    void graphics::vbe::vbe_fill_##bpp(dword x, dword y, dword width, dword height, dword col) {                    \
-        template_vbe_fill<type, mask, bpp / 8>(x, y, width, height, col);                                           \
-    }                                                                                                               \
-    void graphics::vbe::vbe_blit_##bpp(dword x, dword y, dword width, dword height, dword *cols) {                  \
-        template_vbe_blit<type, mask, bpp / 8>(x, y, width, height, cols);                                          \
-    }                                                                                                               \
-    void graphics::vbe::vbe_putglyph_##bpp(const graphics::glyph &g, dword x, dword y, dword fg_col, dword bg_col) {\
-        template_vbe_putglyph<type, mask, bpp / 8>(g, x, y, fg_col, bg_col);                                        \
+#define declare_funcs_for_bpp(bpp, type, mask)                                                      \
+    dword vbe_compute_pixoff_##bpp(dword x, dword y) {                                              \
+        return template_vbe_compute_pixoff<bpp / 8>(x, y);                                          \
+    }                                                                                               \
+    dword vbe_encode_col_##bpp(byte r, byte g, byte b) {                                            \
+        return template_vbe_encode_col(r, g, b);                                                    \
+    }                                                                                               \
+    void vbe_putpixel_##bpp (dword x, dword y, dword col) {                                         \
+        template_vbe_putpixel<type, mask, bpp / 8>(x, y, col);                                      \
+    }                                                                                               \
+    void vbe_fill_##bpp(dword x, dword y, dword width, dword height, dword col) {                   \
+        template_vbe_fill<type, mask, bpp / 8>(x, y, width, height, col);                           \
+    }                                                                                               \
+    void vbe_blit_##bpp(dword x, dword y, dword width, dword height, dword *cols) {                 \
+        template_vbe_blit<type, mask, bpp / 8>(x, y, width, height, cols);                          \
+    }                                                                                               \
+    void vbe_putglyph_##bpp(const glyph &g, dword x, dword y, dword fg_col, dword bg_col) {         \
+        template_vbe_putglyph<type, mask, bpp / 8>(g, x, y, fg_col, bg_col);                        \
     }
 
 declare_funcs_for_bpp(8, byte, maxbyte)
@@ -150,15 +150,15 @@ declare_funcs_for_bpp(32, dword, maxdword)
 
 /* === Общие функции === */
 
-dword graphics::vbe::vbe_compute_pixoff_general(dword x, dword y) {
+dword vbe_compute_pixoff_general(dword x, dword y) {
     return y * vbe_info->pitch + x * (bpp / 8);
 }
 
-dword graphics::vbe::vbe_encode_col_general(byte r, byte g, byte b) {
+dword vbe_encode_col_general(byte r, byte g, byte b) {
     return template_vbe_encode_col(r, g, b);
 }
 
-force_inline void graphics::vbe::inline_putpixel_general(dword offset, dword col) {
+always_inline void inline_putpixel_general(dword offset, dword col) {
     byte *write_ptr = vbe_framebuf_ptr + offset;
     byte bytes = bpp / 8;
     for (byte i = 0; i < bytes; i++) {
@@ -167,12 +167,12 @@ force_inline void graphics::vbe::inline_putpixel_general(dword offset, dword col
     }
 }
 
-void graphics::vbe::vbe_putpixel_general(dword x, dword y, dword col) {
+void vbe_putpixel_general(dword x, dword y, dword col) {
     dword offset = vbe_compute_pixoff_general(x, y);
     inline_putpixel_general(offset, col);
 }
 
-void graphics::vbe::vbe_fill_general(dword x, dword y, dword width, dword height, dword col) {
+void vbe_fill_general(dword x, dword y, dword width, dword height, dword col) {
     dword offset = vbe_compute_pixoff_general(x, y);
     byte bytes_per_pix = bpp / 8;
     dword byte_width = width * bytes_per_pix;
@@ -186,7 +186,7 @@ void graphics::vbe::vbe_fill_general(dword x, dword y, dword width, dword height
     }
 }
 
-void graphics::vbe::vbe_blit_general(dword x, dword y, dword width, dword height, dword *cols) {
+void vbe_blit_general(dword x, dword y, dword width, dword height, dword *cols) {
     dword pixoff = vbe_compute_pixoff_general(x, y);
     dword offset = 0;
     byte bytes_per_pix = bpp / 8;
@@ -202,13 +202,13 @@ void graphics::vbe::vbe_blit_general(dword x, dword y, dword width, dword height
     }
 }
 
-void graphics::vbe::vbe_putglyph_general(const graphics::glyph &g, dword x, dword y, dword fg_col, dword bg_col) {
+void vbe_putglyph_general(const glyph &g, dword x, dword y, dword fg_col, dword bg_col) {
     dword pixoff = vbe_compute_pixoff_general(x, y);
     byte bytes_per_pix = bpp / 8;
-    dword byte_width = graphics::glyph_width * bytes_per_pix;
-    for (dword i = 0; i < graphics::glyph_height; i++) {
+    dword byte_width = glyph_width * bytes_per_pix;
+    for (dword i = 0; i < glyph_height; i++) {
         dword bitmask = 1;
-        for (dword j = 0; j < graphics::glyph_width; j++) {
+        for (dword j = 0; j < glyph_width; j++) {
             if (g.lines[i] & bitmask)
                 inline_putpixel_general(pixoff, fg_col);
             else
@@ -223,7 +223,7 @@ void graphics::vbe::vbe_putglyph_general(const graphics::glyph &g, dword x, dwor
 
 /* === Функции инициализации === */
 
-const graphics::adapter_funcs& graphics::vbe::get_adapter_funcs() {
+const adapter_funcs& get_adapter_funcs() {
     switch (bpp) {
         case 8: return vbe_adapter_funcs_8;
         case 16: return vbe_adapter_funcs_16;
@@ -233,7 +233,7 @@ const graphics::adapter_funcs& graphics::vbe::get_adapter_funcs() {
     }
 }
 
-void graphics::vbe::init_vbe(vbe_mode_info *info_ptr) {
+void init_vbe(vbe_mode_info *info_ptr) {
     vbe_info = info_ptr;
 
     vbe_framebuf_ptr = (byte*)(0xFC000000 + (info_ptr->frame_buffer & 0xFFF));
@@ -242,3 +242,5 @@ void graphics::vbe::init_vbe(vbe_mode_info *info_ptr) {
     screen_width = info_ptr->width;
     screen_height = info_ptr->height;
 }
+
+NAMESPACE_END(graphics::vbe)

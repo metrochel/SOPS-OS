@@ -10,6 +10,6 @@
 #include "../include/list.hpp"
 #include "io/com/com.hpp"
 
-template class list<com::com_port>;
+template class list<com::com_port*>;
 
 #endif //_LIST_INST_INCL

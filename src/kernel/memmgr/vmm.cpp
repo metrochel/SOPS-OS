@@ -1,9 +1,9 @@
 #include "vmm.hpp"
 #include "paging.hpp"
 #include "pmm.hpp"
-#include "../io_old/com_old.hpp"
-#include "../run/process.hpp"
 #include "../libk/util.hpp"
+
+#define PID_KERNEL 0
 
 const dword tablesCount = 1024;
 
@@ -36,17 +36,17 @@ void allocatePage(ptrint vaddr, word pid) {
 }
 
 void initVMM(byte *&memMgrPtr) {
-    kdebug("Начата инициализация менеджера виртуальной памяти.\n");
+//    kdebug("Начата инициализация менеджера виртуальной памяти.\n");
 
     tables = (TableInfo*)memMgrPtr;
     memset(tables, sizeof(TableInfo) * tablesCount, 0);
-    kdebug("Разметка таблиц установлена на адрес %x.\n", tables);
+//    kdebug("Разметка таблиц установлена на адрес %x.\n", tables);
     memMgrPtr += sizeof(TableInfo) * tablesCount;
 
     blocksBase = (MemBlock*)memMgrPtr;
     blocks = blocksBase;
     firstFree = blocksBase;
-    kdebug("Разметка блоков установлена на адрес %x.\n", blocksBase);
+//    kdebug("Разметка блоков установлена на адрес %x.\n", blocksBase);
 
     for (ptrint i = 0; i < 8; i++) {
         TableInfo idPageTable
@@ -76,7 +76,7 @@ void initVMM(byte *&memMgrPtr) {
     {nullptr, 0xB0000000, PAGE_TABLE_SIZE, true, nullptr};
     insertBlock(memMgrBlock);
 
-    kdebug("Инициализация менеджера виртуальной памяти завершена.\n");
+//    kdebug("Инициализация менеджера виртуальной памяти завершена.\n");
 }
 
 dword allocatePageTable(word pid, dword start) {
@@ -145,7 +145,6 @@ dword allocatePageTables(dword start, dword len, word pid) {
 
 byte *virtAlloc(dword amt, word pid) {
     // kdebug("Получен запрос на выделение %d Б для процесса %d.\n", amt, pid);
-    
     for (dword i = 0; i < tablesCount; i++) {
         if (tables[i].pid != pid)
             continue;
@@ -485,18 +484,18 @@ dword getVarSz(void *var) {
 }
 
 void logBlocks(dword pageTable) {
-    kdebug("Таблица %d (%x):\n", pageTable, pageTable << 22);
+//    kdebug("Таблица %d (%x):\n", pageTable, pageTable << 22);
     MemBlock *block = tables[pageTable].firstBlock;
     dword i = 1;
     while (block) {
-        kdebug("Блок %d:\n", i);
-        kdebug("\tАдрес: %x\n", block);
-        kdebug("\tПредыдущий блок: %x\n", block->prevBlock);
-        kdebug("\tОснование: %x\n", block->base);
-        kdebug("\tРазмер: %d Б (%x)\n", block->size, block->size);
-        kdebug("\tЗанят ли? ");
-        kdebug(block->occupied ? "Да\n" : "Нет\n");
-        kdebug("\tСледующий блок: %x\n", block->nextBlock);
+//        kdebug("Блок %d:\n", i);
+//        kdebug("\tАдрес: %x\n", block);
+//        kdebug("\tПредыдущий блок: %x\n", block->prevBlock);
+//        kdebug("\tОснование: %x\n", block->base);
+//        kdebug("\tРазмер: %d Б (%x)\n", block->size, block->size);
+//        kdebug("\tЗанят ли? ");
+//        kdebug(block->occupied ? "Да\n" : "Нет\n");
+//        kdebug("\tСледующий блок: %x\n", block->nextBlock);
         i ++;
         block = block->nextBlock;
     }

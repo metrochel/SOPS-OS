@@ -120,7 +120,7 @@ void list<T>::remove(int index) {
 }
 
 template<typename T>
-T& list<T>::operator[](int index) {
+T& list<T>::operator[](dword index) {
     if (index < 0)
         index += len;
 
@@ -132,7 +132,7 @@ T& list<T>::operator[](int index) {
 }
 
 template<typename T>
-const T& list<T>::operator[](int index) const {
+const T& list<T>::operator[](dword index) const {
     if (index < 0)
         index += len;
 

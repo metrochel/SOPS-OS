@@ -1,11 +1,8 @@
 #include "memmgr.hpp"
-#include "../kernel.hpp"
 #include "../libk/util.hpp"
-#include "../io_old/com_old.hpp"
-#include "../run/process.hpp"
 
 #define MEM_MGR_DATA_START  0xB0000000
-
+#define PID_KERNEL 0
 
 void initMemMgr() {
     byte *memMgrData = (byte*)MEM_MGR_DATA_START;
@@ -19,13 +16,13 @@ byte *kmalloc(dword amount, word pid) {
     if (!alloc)
         return nullptr;
 
-    Process p = getProcessData(pid);
-    if (!p.startAddress) {
-        p.startAddress = (ptrint)alloc;
-    }
+//    Process p = getProcessData(pid);
+//    if (!p.startAddress) {
+//        p.startAddress = (ptrint)alloc;
+//    }
 
-    p.usedMemory += amount;
-    setProcessData(pid, p);
+//    p.usedMemory += amount;
+//    setProcessData(pid, p);
     return alloc;
 }
 
@@ -45,15 +42,16 @@ void krealloc(void *&ptr, dword newSize) {
     void *_ptr = ptr;
     ptr = kmalloc(newSize);
     dword prevSz = getVarSz(ptr);
-    memcpy((byte*)_ptr, (byte*)ptr, prevSz >= newSize ? newSize : prevSz);
-    kfree(ptr);
+    memcpy(_ptr, ptr, prevSz >= newSize ? newSize : prevSz);
+    kfree(_ptr);
 }
 
 void kfree(void *var, word pid) {
+    if (!var) return;
     dword freed = virtFree(var, pid);
-    Process p = getProcessData(pid);
-    p.usedMemory -= freed;
-    setProcessData(pid, p);
+//    Process p = getProcessData(pid);
+//    p.usedMemory -= freed;
+//    setProcessData(pid, p);
 }
 
 void kfree(void *var) {

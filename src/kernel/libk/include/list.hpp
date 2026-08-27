@@ -14,7 +14,7 @@ template<typename T>
 class list {
 private:
     /// Массив элементов
-    T* array;
+    T *array;
     /// Длина списка
     size_t len;
     /// Ёмкость списка
@@ -69,10 +69,10 @@ public:
     iterator begin() const { return array; }
     /// Возвращает итератор в конце.
     /// @return Неизменный итератор, установленный в конец строки
-    iterator end() const { return array + len - 1; }
+    iterator end() const { return array + len; }
 
-    T& operator[](int index);
-    const T& operator[](int index) const;
+    T& operator[](dword index);
+    const T& operator[](dword index) const;
 };
 
 #endif //_LIST_INCL

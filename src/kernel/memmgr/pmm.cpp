@@ -1,8 +1,6 @@
 #include "pmm.hpp"
 #include "../libk/util.hpp"
-#include "../run/process.hpp"
 #include "../kernel.hpp"
-#include "../io_old/com_old.hpp"
 
 byte *pageFramesMap = nullptr;
 qword mapLen = 0;
@@ -15,13 +13,13 @@ inline void occupyPage(ptrint paddr) {
 }
 
 void initPMM(byte *&memMgrPtr) {
-    kdebug("Начата инициализация менеджера физической памяти.\n");
+//    kdebug("Начата инициализация менеджера физической памяти.\n");
 
     MemMapEntry *entries = (MemMapEntry*)((byte*)bld + sizeof(BootLoaderData));
     word memMapC = bld->MemMapEntriesCount;
 
     qword memAmt = entries[memMapC-1].base + entries[memMapC-1].size;
-    kdebug("Системе доступно %D МБ оперативной памяти.\n", memAmt / 1024 / 1024);
+//    kdebug("Системе доступно %D МБ оперативной памяти.\n", memAmt / 1024 / 1024);
     mapLen = memAmt / 4096;
     if (memAmt == 0) {
         #ifdef __x86_64__
@@ -30,21 +28,21 @@ void initPMM(byte *&memMgrPtr) {
         mapLen = 0x100000;
         #endif
     }
-    kdebug("Длина разметки физической памяти: %D Б.\n", mapLen);
+//    kdebug("Длина разметки физической памяти: %D Б.\n", mapLen);
 
     pageFramesMap = memMgrPtr;
     memMgrPtr += mapLen;
     memset(pageFramesMap, mapLen, 0);
     memset(pageFramesMap, (0x8000000 / PAGE_SIZE) / 8, maxbyte);
 
-    kdebug("Анализ разметки памяти.\n");
+//    kdebug("Анализ разметки памяти.\n");
     for (word i = 0; i < memMapC; i++) {
         MemMapEntry entry = entries[i];
-        kdebug("Метка %d:\n", i+1);
-        kdebug("\tОснование: %X\n", entry.base);
-        kdebug("\tРазмер: %D Б (%X)\n", entry.size, entry.size);
-        kdebug("\tТип: %d\n", entry.type);
-        kdebug("\tРасширенные аттрибуты: %b\n", entry.exAttributes);
+//        kdebug("Метка %d:\n", i+1);
+//        kdebug("\tОснование: %X\n", entry.base);
+//        kdebug("\tРазмер: %D Б (%X)\n", entry.size, entry.size);
+//        kdebug("\tТип: %d\n", entry.type);
+//        kdebug("\tРасширенные аттрибуты: %b\n", entry.exAttributes);
         
         if (entry.type != MemMapEntryType::Unoccupied) {
             dword pagesCount = (entry.size + PAGE_SIZE - 1) / PAGE_SIZE;
@@ -53,9 +51,9 @@ void initPMM(byte *&memMgrPtr) {
             }
         }
     }
-    kdebug("Адрес карты физической памяти: %x.\n", pageFramesMap);
+//    kdebug("Адрес карты физической памяти: %x.\n", pageFramesMap);
 
-    kdebug("Инициализация менеджера физической памяти завершена.\n");
+//    kdebug("Инициализация менеджера физической памяти завершена.\n");
 }
 
 ptrint allocatePageFrame() {

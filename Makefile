@@ -54,7 +54,7 @@ LIBC_SHARED_FILE:=$(BUILDDIR)/libc.a
 
 SYSROOT			:=sysroot
 SYSROOTINCLUDE	:=$(SYSROOT)/resources/include
-SYSROOTLIBS		:=$(SYSROOT)/resources/libs
+SYSROOTLIBS		:=$(SYSROOT)/resources/lib
 BUILDDIR_ETC	:=$(BUILDDIR)/etc
 
 BUILDUTILS			:=buildutils
@@ -168,7 +168,7 @@ $(BINSDIR)/%.bin : $(SRCDIR)/boot/%.asm | $(BINSDIR) ; \
 #
 
 $(OBJSDIR_KERNEL)/%.o : $(KERNEL_SRC_DIR)/%.cpp | $(OBJSDIR_KERNEL) ; \
-    $(CXXCROSSCOMPILER) -c $< -o $@ -ffreestanding \
+    $(CXXCROSSCOMPILER) -c $< -o $@ -ffreestanding -masm=intel \
 	-O2 -lgc++ -Wall -Wextra -Wno-write-strings \
 	$(if $(filter-out src/kernel/graphics/text.cpp,$<),,-Wno-multichar) -fno-exceptions -fno-rtti \
 	$(if $(filter-out src/kernel/int/int.cpp,$<),,-mgeneral-regs-only) \
@@ -176,7 +176,7 @@ $(OBJSDIR_KERNEL)/%.o : $(KERNEL_SRC_DIR)/%.cpp | $(OBJSDIR_KERNEL) ; \
 	-I$(KERNEL_SRC_DIR) ;
 
 $(OBJSDIR_KERNEL)/%.o : $(KERNEL_SRC_DIR)/*/%.cpp | $(OBJSDIR_KERNEL) ; \
-    $(CXXCROSSCOMPILER) -c $< -o $@ -ffreestanding \
+    $(CXXCROSSCOMPILER) -c $< -o $@ -ffreestanding -masm=intel \
 	-O2 -lgc++ -Wall -Wextra -Wno-write-strings \
 	$(if $(filter-out src/kernel/graphics/text.cpp,$<),,-Wno-multichar) -fno-exceptions -fno-rtti \
 	$(if $(filter-out src/kernel/int/int.cpp,$<),,-mgeneral-regs-only) \
@@ -184,11 +184,10 @@ $(OBJSDIR_KERNEL)/%.o : $(KERNEL_SRC_DIR)/*/%.cpp | $(OBJSDIR_KERNEL) ; \
 	-I$(KERNEL_SRC_DIR) ;
 
 $(OBJSDIR_KERNEL)/%.o : $(KERNEL_SRC_DIR)/*/*/%.cpp | $(OBJSDIR_KERNEL) ; \
-    $(CXXCROSSCOMPILER) -c $< -o $@ -ffreestanding \
+    $(CXXCROSSCOMPILER) -c $< -o $@ -ffreestanding -masm=intel \
 	-O2 -lgc++ -Wall -Wextra -Wno-write-strings \
 	$(if $(filter-out src/kernel/graphics/text.cpp,$<),,-Wno-multichar) -fno-exceptions -fno-rtti \
-	$(if $(filter-out src/kernel/int/int.cpp,$<),,-mgeneral-regs-only) \
-	$(if $(filter-out src/kernel/acpi/sci.cpp,$<),,-mgeneral-regs-only)  \
+	$(if $(filter-out src/kernel/int/handles/%.cpp,$<),,-mgeneral-regs-only) \
 	-I$(KERNEL_SRC_DIR) ;
 
 $(OBJSDIR_KERNEL)/%.o : $(KERNEL_SRC_DIR)/%.asm | $(OBJSDIR_KERNEL) ; \

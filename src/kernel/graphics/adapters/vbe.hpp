@@ -12,7 +12,7 @@
 #include "../helpers/typedefs.hpp"
 
 #define decl_funcs_for_bpp(bpp)                                                 \
-    extern force_inline void inline_putpixel_##bpp(dword offset, dword col);    \
+    extern always_inline void inline_putpixel_##bpp(dword offset, dword col);    \
     decl_graphics_funcs(, vbe, bpp)
 
 namespace graphics::inline vbe {

@@ -4,8 +4,9 @@
  */
 
 #include "glyphs.hpp"
+#include "libk/objs.hpp"
 
-using namespace graphics::glyphs;
+NAMESPACE_BEGIN(graphics::glyphs)
 
 #define glyph_case(symb, glyph) \
     case (dword)(symb): return (glyph);
@@ -206,7 +207,7 @@ const glyph& glyph_from_symb_misc(dword symb) {
     }
 }
 
-const glyph& graphics::glyph_from_symbol(dword symb) {
+const glyph& glyph_from_symbol(dword symb) {
     if (symb == ' ')
         return NULLGLYPH;
     if ('A' <= symb && symb <= 'Z')
@@ -216,11 +217,6 @@ const glyph& graphics::glyph_from_symbol(dword symb) {
     if ('0' <= symb && symb <= '9')
         return glyph_from_symb_digit(symb);
 
-//    dword *dbg_ptr = (dword*)0x9510;
-//    dbg_ptr[0] = 'А';
-//    dbg_ptr[1] = symb;
-//    dbg_ptr[2] = 'Я';
-
     if ('А' <= symb && symb <= 'Я' || symb == 'Ё')
         return glyph_from_symb_cyrillic_upper(symb);
     if ('а' <= symb && symb <= 'я' || symb == 'ё')
@@ -228,3 +224,5 @@ const glyph& graphics::glyph_from_symbol(dword symb) {
 
     return glyph_from_symb_misc(symb);
 }
+
+NAMESPACE_END(graphics::glyphs)

@@ -119,12 +119,13 @@ namespace graphics {
 
 class graph_ostream : public ostream {
     virtual void put(dword symb) override;
+    virtual void flush() override {}
 
     dword fg_col;
     dword bg_col;
 
 public:
-    graph_ostream(dword fg, dword bg) : fg_col(fg), bg_col(bg) {}
+    graph_ostream(dword fg, dword bg);
 };
 
 /// @c cout - это поток стандартного вывода.

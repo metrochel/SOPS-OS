@@ -9,16 +9,22 @@
 
 #define is_line_stop(ch) ((ch) == 0 || (ch) == '\n')
 
-stream::stream() {
+/* === Конструктор === */
+
+stream::stream() : modifier{} {
     unget_buf = (dword*)(kmalloc(unget_buf_sz));
-    modifier.int_mod = intmod::dec;
 }
 
+/* === Запись и чтение символа === */
+
 void stream::write_char(byte c) {
-    // Процедура write_char будет выводить символ в соответствии с UTF-8,
+    // Процедура write_char будет выводить символ в соответствии с UTF-8, если modifier.send_utf8 == true,
     // то есть в функцию put должен попадать полный символ, а не его кусочки.
 
-    static byte index = 0;
+    if (!modifier.send_utf8) {
+        put(c);
+        return;
+    }
 
     // Если символ не соответствует UTF-8, хотя должен...
     if ((c >> 6 != 0b10) && write_bytes_remaining) {
@@ -40,7 +46,6 @@ void stream::write_char(byte c) {
 
     // Если символ начинает цепочку байтов символа UTF-8...
     if (c & 0x80) {
-//        buffer[0] = buffer[1] = buffer[2] = buffer[3] = 0;
         // Если должен последовать 1 байт...
         if ((c >> 5) == 0b110) {
             write_bytes_remaining = 1;
@@ -103,7 +108,10 @@ void stream::unget(dword ch) {
     unget_buf[unget_idx++] = ch;
 }
 
-void stream::write_dec_uint(qword num) {
+/* === Запись числа === */
+
+template<typename T>
+void stream::write_text_dec_uint(T num) {
     if (num == 0) {
         write_char('0');
         return;
@@ -112,32 +120,32 @@ void stream::write_dec_uint(qword num) {
     dword length = 32;
     dword buffer[length];
 
-    qword div = 1;
-    while (div <= num) div *= 10;
-    div /= 10;
-
-    dword index = 0;
+    int index = 0;
     while (num) {
-        dword digit = num / div;
+        dword digit = num % 10;
         buffer[index++] = '0' + digit;
-        num %= div;
-        div /= 10;
+        num /= 10;
     }
 
-    for (dword i = 0; i < index; i++) {
+    for (int i = index - 1; i >= 0; i--) {
         write_char(buffer[i]);
     }
 }
 
-void stream::write_bin_uint(qword num) {
+template<typename T>
+void stream::write_text_bin_uint(T num) {
     if (!num) {
         write_char('0');
         return;
     }
 
     byte bits = 0;
-    while (((qword)1 << bits) <= num)
-        bits++;
+    if (msb(num)) {
+        bits = 8 * sizeof(num);
+    } else {
+        while (((T) 1 << bits) <= num)
+            bits++;
+    }
 
     write_char('0');
     write_char('b');
@@ -149,15 +157,20 @@ void stream::write_bin_uint(qword num) {
     }
 }
 
-void stream::write_oct_uint(qword num) {
+template<typename T>
+void stream::write_text_oct_uint(T num) {
     if (!num) {
         write_char('0');
         return;
     }
 
     byte triplets = 0;
-    while (((qword)1 << (3 * triplets)) <= num) {
-        triplets++;
+    if (msb(num))
+        triplets = (8 * sizeof(num) + 2) / 3;
+    else {
+        while (((T) 1 << (3 * triplets)) <= num) {
+            triplets++;
+        }
     }
 
     write_char('0');
@@ -170,15 +183,20 @@ void stream::write_oct_uint(qword num) {
     }
 }
 
-void stream::write_hex_uint(qword num) {
+template<typename T>
+void stream::write_text_hex_uint(T num) {
     if (!num) {
         write_char('0');
         return;
     }
 
     byte quads = 0;
-    while (((qword)1 << (4 * quads)) <= num) {
-        quads++;
+    if (msb(num))
+        quads = 2 * sizeof(num);
+    else {
+        while (((T) 1 << (4 * quads)) <= num) {
+            quads++;
+        }
     }
 
     write_char('0');
@@ -194,8 +212,96 @@ void stream::write_hex_uint(qword num) {
     }
 }
 
-qword stream::read_dec_uint() {
-    qword num = 0;
+template<typename T>
+void stream::write_text_uint(T num) {
+    switch (modifier.int_mod) {
+        case dec:
+            write_text_dec_uint(num);
+            return;
+        case bin:
+            write_text_bin_uint(num);
+            return;
+        case oct:
+            write_text_oct_uint(num);
+            return;
+        case hex:
+            write_text_hex_uint(num);
+            return;
+        default:
+            // TODO: бросать исключение
+            return;
+    }
+}
+
+template<typename T>
+void stream::write_binary_uint(T num) {
+    while (num) {
+        write_char(LSB(num));
+        num >>= 8;
+    }
+}
+
+template<typename T>
+void stream::write_text_int(T num) {
+    if (num < 0) {
+        write_char('-');
+        num = -num;
+    }
+
+    write_text_uint((qword)num);
+}
+
+template<typename T>
+void stream::write_binary_int(T num) {
+    while (num) {
+        write_char(LSB(num));
+        num >>= 8;
+    }
+}
+
+template<typename T>
+void stream::write_uint(T num) {
+    if (modifier.str_mod == streammod::text) {
+        write_text_uint(num);
+        flush();
+        return;
+    }
+    if (modifier.str_mod == streammod::binary) {
+        write_binary_uint(num);
+        flush();
+        return;
+    }
+
+    // TODO: бросать исключение
+}
+
+template<typename T>
+void stream::write_int(T num) {
+    if (modifier.str_mod == streammod::text) {
+        write_text_int(num);
+        flush();
+    }
+    if (modifier.str_mod == streammod::binary) {
+        write_binary_int(num);
+        flush();
+    }
+
+    // TODO: бросать исключение
+}
+
+template void stream::write_uint<>(byte num);
+template void stream::write_uint<>(word num);
+template void stream::write_uint<>(dword num);
+template void stream::write_uint<>(qword num);
+template void stream::write_uint<>(size_t num);
+
+template void stream::write_int<>(int num);
+
+/* === Чтение числа === */
+
+template<typename T>
+T stream::read_text_dec_uint() {
+    T num = 0;
 
     dword ch = read_char();
     while (ch >= '0' && ch <= '9') {
@@ -207,8 +313,9 @@ qword stream::read_dec_uint() {
     return num;
 }
 
-qword stream::read_bin_uint() {
-    qword num = 0;
+template<typename T>
+T stream::read_text_bin_uint() {
+    T num = 0;
 
     dword ch = read_char();
     while (ch == '1' || ch == '0') {
@@ -220,8 +327,9 @@ qword stream::read_bin_uint() {
     return num;
 }
 
-qword stream::read_oct_uint() {
-    qword num = 0;
+template<typename T>
+T stream::read_text_oct_uint() {
+    T num = 0;
 
     dword ch = read_char();
     while (ch >= '0' && ch <= '7') {
@@ -233,11 +341,12 @@ qword stream::read_oct_uint() {
     return num;
 }
 
-qword stream::read_hex_uint() {
-    qword num = 0;
+template<typename T>
+T stream::read_text_hex_uint() {
+    T num = 0;
 
     dword ch = read_char();
-    while (ch >= '0' && ch <= '9' || ch >= 'A' && ch <= 'F' || ch >= 'a' && ch <= 'f') {
+    while ((ch >= '0' && ch <= '9') || (ch >= 'A' && ch <= 'F') || (ch >= 'a' && ch <= 'f')) {
         byte digit = ch - '0';
         if (digit >= 10) {
             digit = ch - 'A' + 10;
@@ -254,68 +363,53 @@ qword stream::read_hex_uint() {
     return num;
 }
 
-void stream::set_modifier(stream::data_modifier new_mod) {
-    modifier = new_mod;
-}
-
-void stream::set_int_modifier(intmod new_mod) {
-    modifier.int_mod = new_mod;
-}
-
-void stream::write_uint(qword num) {
+template<typename T>
+T stream::read_text_uint() {
     switch (modifier.int_mod) {
-        case dec:
-            write_dec_uint(num);
-            return;
-        case bin:
-            write_bin_uint(num);
-            return;
-        case oct:
-            write_oct_uint(num);
-            return;
-        case hex:
-            write_hex_uint(num);
-            return;
-        default:
-            // TODO: бросать исключение
-            return;
-    }
-}
-
-void stream::write_int(long long num) {
-    if (num < 0) {
-        write_char('-');
-        num = -num;
-    }
-
-    write_uint(num);
-}
-
-void stream::write_str(const char *str) {
-    while (*str) {
-        write_char(*str++);
-    }
-}
-
-void stream::write_str(const string& str) {
-    for (char c : str) {
-        write_char(c);
-    }
-}
-
-qword stream::read_uint() {
-    switch (modifier.int_mod) {
-        case dec: return read_dec_uint();
-        case bin: return read_bin_uint();
-        case oct: return read_oct_uint();
-        case hex: return read_hex_uint();
+        case dec: return read_text_dec_uint<T>();
+        case bin: return read_text_bin_uint<T>();
+        case oct: return read_text_oct_uint<T>();
+        case hex: return read_text_hex_uint<T>();
         default:
             // TODO: бросать исключение
             return -1;
     }
 }
 
-long long stream::read_int() {
+template<typename T>
+T stream::read_binary_uint() {
+    T value = 0;
+    dword size = sizeof ((T)0);
+
+    for (dword i = 0; i < size; i++) {
+        dword ch = read_char();
+        value = (value << 8) | ch;
+    }
+
+    return value;
+}
+
+template<typename T>
+T stream::read_uint() {
+    if (modifier.str_mod == streammod::text) {
+        return read_text_uint<T>();
+    }
+    if (modifier.str_mod == streammod::binary) {
+        return read_binary_uint<T>();
+    }
+
+    // TODO: бросать исключение
+    return (T)maxqword;
+}
+
+template byte stream::read_uint();
+template word stream::read_uint();
+template dword stream::read_uint();
+template qword stream::read_uint();
+template size_t stream::read_uint();
+
+template<typename T>
+T stream::read_text_int() {
     bool negative = false;
 
     dword ch = read_char();
@@ -325,8 +419,56 @@ long long stream::read_int() {
         // TODO: unget(ch);
     }
 
-    long long uint = (long long)read_uint();
+    T uint = (T)read_text_uint<T>();
     return negative ? -uint : uint;
+}
+
+template<typename T>
+T stream::read_binary_int() {
+    T value = 0;
+    dword size = sizeof ((T)0);
+
+    for (dword i = 0; i < size; i++) {
+        dword ch = read_char();
+        value = (value << 8) | ch;
+    }
+
+    return value;
+}
+
+template<typename T>
+T stream::read_int() {
+    if (modifier.str_mod == streammod::text) {
+        return read_text_int<T>();
+    }
+    if (modifier.str_mod == streammod::binary) {
+        return read_binary_int<T>();
+    }
+
+    // TODO: бросать исключение
+    return (T)maxqword;
+}
+
+template char stream::read_int<>();
+template short stream::read_int<>();
+template int stream::read_int<>();
+template long stream::read_int<>();
+template long long stream::read_int<>();
+
+/* === Запись и чтение строки === */
+
+void stream::write_str(const char *str) {
+    while (*str) {
+        write_char(*str++);
+    }
+    flush();
+}
+
+void stream::write_str(const string& str) {
+    for (char c : str) {
+        write_char(c);
+    }
+    flush();
 }
 
 string stream::read_str() {
@@ -341,3 +483,11 @@ string stream::read_str() {
 
     return str;
 }
+
+/* === Модификаторы === */
+
+void stream::set_modifier(stream::data_modifier new_mod) {
+    modifier = new_mod;
+}
+
+

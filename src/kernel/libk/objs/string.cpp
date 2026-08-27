@@ -8,7 +8,15 @@
 #include "../../memmgr/memmgr.hpp"
 #include "../util.hpp"
 
-extern size_t strlen(const char *str);
+size_t strlen(const char *str) {
+    size_t len = 0;
+    while (*str) {
+        len++;
+        str++;
+    }
+
+    return len;
+}
 
 string::string() {
     symbols = nullptr;

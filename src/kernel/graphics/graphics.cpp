@@ -18,54 +18,56 @@ graph_ostream cout(default_fg_col, default_bg_col);
 graph_ostream cwrn(warn_fg_col, warn_bg_col);
 graph_ostream cerr(error_fg_col, error_bg_col);
 
-dword graphics::text_cur_x = 1;
-dword graphics::text_cur_y = 1;
+NAMESPACE_BEGIN(graphics)
 
-dword graphics::screen_width, graphics::screen_height;
-dword graphics::text_screen_width, graphics::text_screen_height;
+dword text_cur_x = 1;
+dword text_cur_y = 1;
 
-dword graphics::default_fg_col, graphics::default_bg_col;
-dword graphics::warn_fg_col, graphics::warn_bg_col;
-dword graphics::error_fg_col, graphics::error_bg_col;
+dword screen_width, screen_height;
+dword text_screen_width, text_screen_height;
+
+dword default_fg_col, default_bg_col;
+dword warn_fg_col, warn_bg_col;
+dword error_fg_col, error_bg_col;
 
 #define usable_text_width (graphics::text_screen_width - 2 * text_border)
 #define usable_text_height (graphics::text_screen_height - 2 * text_border)
 #define usable_text_surface (usable_text_width * usable_text_height)
 
-const adapter_funcs* graphics::cur_adapter_funcs = nullptr;
-adapter graphics::cur_adapter = none;
+const adapter_funcs* cur_adapter_funcs = nullptr;
+adapter cur_adapter = none;
 
-character *graphics::screen_chars, *graphics::viewport;
+character *screen_chars, *viewport;
 
-dword graphics::compute_pixoff(dword x, dword y) {
+dword compute_pixoff(dword x, dword y) {
     return cur_adapter_funcs->compute_pixoff(x, y);
 }
 
-dword graphics::encode_col(byte r, byte g, byte b) {
+dword encode_col(byte r, byte g, byte b) {
     return cur_adapter_funcs->encode_col(r, g, b);
 }
 
-void graphics::putpixel(dword x, dword y, dword col) {
+void putpixel(dword x, dword y, dword col) {
     cur_adapter_funcs->putpixel(x, y, col);
 }
 
-void graphics::fill(dword x, dword y, dword width, dword height, dword col) {
+void fill(dword x, dword y, dword width, dword height, dword col) {
     cur_adapter_funcs->fill(x, y, width, height, col);
 }
 
-void graphics::blit(dword x, dword y, dword width, dword height, dword *cols) {
+void blit(dword x, dword y, dword width, dword height, dword *cols) {
     cur_adapter_funcs->blit(x, y, width, height, cols);
 }
 
-void graphics::putglyph(const glyph &g, dword x, dword y, dword fg_col, dword bg_col) {
+void putglyph(const glyph &g, dword x, dword y, dword fg_col, dword bg_col) {
     cur_adapter_funcs->putglyph(g, x, y, fg_col, bg_col);
 }
 
-void graphics::reg_char(dword ch, dword fg_col, dword bg_col, dword x, dword y) {
+void reg_char(dword ch, dword fg_col, dword bg_col, dword x, dword y) {
     viewport[y * usable_text_width + x] = { ch, fg_col, bg_col };
 }
 
-void graphics::scroll() {
+void scroll() {
     character *vp_pre_update = viewport;
     viewport += usable_text_width;
     if (viewport - screen_chars >= text_screen_width * text_screen_height) {
@@ -75,7 +77,7 @@ void graphics::scroll() {
     refresh_text(vp_pre_update);
 }
 
-void graphics::refresh_text(character *vp_pre_update) {
+void refresh_text(character *vp_pre_update) {
     for (dword i = 0; i <= usable_text_height; i++) {
         for (dword j = 0; j <= usable_text_width; j++) {
             dword idx = i * usable_text_width + j;
@@ -91,44 +93,7 @@ void graphics::refresh_text(character *vp_pre_update) {
     }
 }
 
-void graph_ostream::put(dword symb) {
-    if (is_newline(symb)) {
-        text_cur_x = text_border;
-        text_cur_y ++;
-
-        if (text_cur_y >= text_screen_height - text_border) {
-            scroll();
-            text_cur_y--;
-        }
-
-        return;
-    }
-
-    const glyph &g = glyph_from_symbol(symb);
-
-    dword x = ttg_x(text_cur_x);
-    dword y = ttg_y(text_cur_y);
-
-    static void *dbg_ptr = (void*)0x9500;
-    memcpy(&cout, dbg_ptr, sizeof cout);
-
-    reg_char(symb, fg_col, bg_col, text_cur_x, text_cur_y);
-    putglyph(g, x, y, fg_col, bg_col);
-
-    text_cur_x++;
-
-    if (text_cur_x >= text_screen_width - text_border) {
-        text_cur_x = text_border;
-        text_cur_y++;
-    }
-
-    if (text_cur_y >= text_screen_height - text_border) {
-        scroll();
-        text_cur_y--;
-    }
-}
-
-void graphics::init() {
+void init() {
     vbe_mode_info *vbe = &(bld->VBEInfo);
     init_vbe(vbe);
 
@@ -155,4 +120,44 @@ void graphics::init() {
     }
 
     viewport = screen_chars;
+}
+
+NAMESPACE_END(graphics)
+
+void graph_ostream::put(dword symb) {
+    if (is_newline(symb)) {
+        text_cur_x = text_border;
+        text_cur_y ++;
+
+        if (text_cur_y >= text_screen_height - text_border) {
+            scroll();
+            text_cur_y--;
+        }
+
+        return;
+    }
+
+    const glyph &g = glyph_from_symbol(symb);
+
+    dword x = ttg_x(text_cur_x);
+    dword y = ttg_y(text_cur_y);
+
+    reg_char(symb, fg_col, bg_col, text_cur_x, text_cur_y);
+    putglyph(g, x, y, fg_col, bg_col);
+
+    text_cur_x++;
+
+    if (text_cur_x >= text_screen_width - text_border) {
+        text_cur_x = text_border;
+        text_cur_y++;
+    }
+
+    if (text_cur_y >= text_screen_height - text_border) {
+        scroll();
+        text_cur_y--;
+    }
+}
+
+graph_ostream::graph_ostream(dword fg, dword bg) : fg_col(fg), bg_col(bg) {
+    set_send_utf8(true);
 }

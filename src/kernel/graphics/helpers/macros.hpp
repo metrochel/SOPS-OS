@@ -7,8 +7,7 @@
 #define _GRAPHICS_MACROS_INCL
 
 #include "../glyphs/glyphs.hpp"
-
-#define force_inline inline __attribute__((always_inline))
+#include "libk/objs.hpp"
 
 /// Этот макрос нужен, чтобы значительно проще объявлять функции для адаптеров.
 #define decl_graphics_funcs(mod, prefix, suffix) \

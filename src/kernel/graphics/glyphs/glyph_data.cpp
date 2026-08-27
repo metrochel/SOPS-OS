@@ -1,8 +1,9 @@
 #include "glyphs.hpp"
+#include "libk/objs.hpp"
 
-using namespace graphics::glyphs;
+#define declare_glyph(name) const glyph name
 
-#define declare_glyph(name) const glyph graphics::glyphs::name
+NAMESPACE_BEGIN(graphics::glyphs)
 
 declare_glyph(NULLGLYPH){0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
@@ -4379,3 +4380,5 @@ declare_glyph(CYRILLIC_LOWERCASE_YA) {
     0b0000000000000000,
     0b0000000000000000
 };
+
+NAMESPACE_END(graphics::glyphs)

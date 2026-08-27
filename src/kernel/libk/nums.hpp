@@ -36,7 +36,7 @@ typedef dword ptrint;
 #endif
 
 // `size_t` - это число, достаточное, чтобы указать размер чего-либо.
-typedef unsigned long long size_t;
+typedef unsigned long size_t;
 
 // Размер указателя
 #define ptrsize sizeof(ptrint)
@@ -57,5 +57,17 @@ typedef unsigned long long size_t;
 #define BYTE6(n)    (byte)(((n) >> 48) & 0xFF)
 // 7-й байт числа
 #define BYTE7(n)    (byte)(((n) >> 56) & 0xFF)
+
+// Младший байт числа
+#define LSB(n)  (byte)((n) & 0xFF)
+// Старший байт числа
+#define MSB(n)  (byte)((n) & 0xFF << (sizeof((n)) * 8))
+
+// Младший бит числа
+#define lsb(n) (byte)((n) & 0x01)
+// Старший бит числа
+#define msb(n) (byte)(((n) >> (8 * sizeof(n) - 1)))
+
+#define test_bit(n, bit) ((n) & (((decltype(n))(1)) << (bit)))
 
 #endif

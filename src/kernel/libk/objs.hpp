@@ -11,9 +11,12 @@
 #include "include/list.hpp"
 #include "include/stream.hpp"
 #include "include/iostream.hpp"
+#include "include/doublebuffer.hpp"
 
 #define NAMESPACE_BEGIN(space) namespace space {
 #define NAMESPACE_END(space) }
+
+#define always_inline __attribute__((always_inline)) inline
 
 /// @c string_list - это список @c list из элементов типа @c string.
 typedef list<string> string_list;

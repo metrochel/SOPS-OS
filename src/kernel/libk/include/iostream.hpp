@@ -16,14 +16,22 @@ protected:
     istream() {}
 public:
     virtual void put(dword ch) override;
+    virtual void flush() override;
 
     istream& operator>>(byte &number);
     istream& operator>>(word &number);
     istream& operator>>(dword &number);
     istream& operator>>(qword &number);
+    istream& operator>>(size_t &number);
     istream& operator>>(char &ch);
     istream& operator>>(string &str);
     istream& operator>>(intmod mod);
+    istream& operator>>(void *&ptr);
+
+    template<typename T>
+    istream& operator>>(T *&ptr) {
+        return operator>>((void*&)ptr);
+    }
 
     istream& operator=(const istream&&);
 };
@@ -40,11 +48,18 @@ public:
     ostream& operator<<(word number);
     ostream& operator<<(dword number);
     ostream& operator<<(qword number);
+    ostream& operator<<(size_t number);
     ostream& operator<<(int number);
     ostream& operator<<(intmod mod);
     ostream& operator<<(char ch);
     ostream& operator<<(const char *str);
     ostream& operator<<(const string& str);
+    ostream& operator<<(void *ptr);
+
+    template<typename T>
+    ostream& operator<<(T *ptr) {
+        return operator<<((void*)ptr);
+    }
 
     ostream& operator=(const ostream&&);
 };
