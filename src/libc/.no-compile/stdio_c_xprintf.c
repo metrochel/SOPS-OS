@@ -5,10 +5,11 @@
  * 
  */
 
+#include <stdarg.h>
 #include <stdint.h>
+#include "../include/stddef.h"
 #include "../include/stdio.h"
 #include "../include/stdlib.h"
-#include "../include/stddef.h"
 #include "../include/ctype.h"
 #include "../include/tgmath.h"
 #include "../include/wchar.h"
@@ -151,7 +152,7 @@ int wide_f_put(put_args(CHAR)) {
 
 #define put_w_padding(len, put_func) \
     if (state->min_width == -1) {                                   \
-        int min_width = va_arg(*args, int);                         \
+        int min_width = va_arg(args, int);                         \
         if (min_width < 0) {                                        \
             min_width = -min_width;                                 \
             state->flags |= FMT_LEFT_JUSTIFIED;                     \
@@ -184,7 +185,7 @@ int wide_f_put(put_args(CHAR)) {
     int precision = state->precision;                               \
     int negative = 0;                                               \
     if (precision == -1)                                            \
-        precision = va_arg(*args, int);                             \
+        precision = va_arg(args, int);                             \
     else if (precision == -2)                                       \
         precision = 1;                                              \
     if (!precision && !number)                                      \
@@ -224,7 +225,7 @@ int wide_f_put(put_args(CHAR)) {
 #define put_uint(number)    \
     int precision = state->precision;                               \
     if (precision == -1)                                            \
-        precision = va_arg(*args, int);                             \
+        precision = va_arg(args, int);                             \
     else if (precision == -2)                                       \
         precision = 1;                                              \
     if (!precision && !number)                                      \
@@ -250,7 +251,7 @@ int wide_f_put(put_args(CHAR)) {
 #define put_oct_uint(number)                                        \
     int precision = state->precision;                               \
     if (precision == -1)                                            \
-        precision = va_arg(*args, int);                             \
+        precision = va_arg(args, int);                             \
     else if (precision == -2)                                       \
         precision = 1;                                              \
     if (!precision && !number) {                                    \
@@ -283,7 +284,7 @@ int wide_f_put(put_args(CHAR)) {
 #define put_hex_uint(number)                                        \
     int precision = state->precision;                               \
     if (precision == -1)                                            \
-        precision = va_arg(*args, int);                             \
+        precision = va_arg(args, int);                             \
     else if (precision == -2)                                       \
         precision = 1;                                              \
     if (!precision && !number) {                                    \
@@ -356,7 +357,7 @@ int wide_f_put(put_args(CHAR)) {
     }                                                               \
     int precision = state->precision;                               \
     if (precision == -1)                                            \
-        precision = va_arg(*args, int);                             \
+        precision = va_arg(args, int);                             \
     else if (precision == -2)                                       \
         precision = 6;                                              \
     if (number < 0) {                                               \
@@ -397,7 +398,7 @@ int wide_f_put(put_args(CHAR)) {
 #define put_hex_float(number)                                           \
     int precision = state->precision;                                   \
     if (precision == -1)                                                \
-        precision = va_arg(*args, int);                                 \
+        precision = va_arg(args, int);                                 \
     __typeof__(number) max_pow = 1;                                     \
     while (max_pow < number)                                            \
         max_pow *= 16;                                                  \
@@ -487,9 +488,9 @@ int wide_f_put(put_args(CHAR)) {
 
 /* === Обработчики форматов === */
 
-#define __handle_args (void **str, size_t maxlen, printf_state_t *state, va_list *args,   \
+#define __handle_args (void **str, size_t maxlen, printf_state_t *state, va_list args,   \
     size_t *chars_count, put_func_t put)
-#define __handle_args_caps (void **str, size_t maxlen, printf_state_t *state, va_list *args,   \
+#define __handle_args_caps (void **str, size_t maxlen, printf_state_t *state, va_list args,   \
     size_t *chars_count, put_func_t put, int caps)
 
 #define __handle_decl(name, the_printf) \
@@ -504,14 +505,14 @@ int wide_f_put(put_args(CHAR)) {
 handle_decl(char) {
 #ifndef WCHAR
     if (state->size_spec == spec_none) {                                                // Нет уточнения размера
-        int ch = va_arg(*args, int);
+        int ch = va_arg(args, int);
         unsigned char c = (unsigned char)ch;
         put_w_padding(1, call_put(c))
         return 0;
     }
 
     if (state->size_spec == spec_l) {                                                  // Уточнение "l"
-        wint_t ch = va_arg(*args, wint_t);
+        wint_t ch = va_arg(args, wint_t);
         CHAR buf[4] = {0, 0, 0, 0};
         int char_sz = wctomb(buf, ch);
         CHAR *_buf = buf;
@@ -523,7 +524,7 @@ handle_decl(char) {
 
 #else
     if (state->size_spec == spec_none) {
-        int ch = va_arg(*args, int);
+        int ch = va_arg(args, int);
         char *ptr = (char*)&ch;
         wchar_t c;
         size_t cvt = mbtowc(&c, ptr, 4);
@@ -533,7 +534,7 @@ handle_decl(char) {
     }
 
     if (state->size_spec == spec_l) {
-        wint_t ch = va_arg(*args, wint_t);
+        wint_t ch = va_arg(args, wint_t);
         wchar_t c = (wchar_t)ch;
         put_w_padding(1, call_put(c))
         return 0;
@@ -547,12 +548,12 @@ handle_decl(char) {
 handle_decl(str) {
 #ifndef WCHAR
     if (state->size_spec == spec_none) {
-        const char *string = va_arg(*args, const char*);
+        const char *string = va_arg(args, const char*);
         size_t len = strlen(string);
         int stop = len;
 
         if (state->precision == -1) {
-            stop = va_arg(*args, int);
+            stop = va_arg(args, int);
         }
         else if (state->precision > 0)
             stop = state->precision;
@@ -565,12 +566,12 @@ handle_decl(str) {
     }
 
     if (state->size_spec == spec_l) {
-        const wchar_t *string = va_arg(*args, const wchar_t*);
+        const wchar_t *string = va_arg(args, const wchar_t*);
         size_t len = wcslen(string);
         int stop = len;
 
         if (state->precision == -1) {
-            stop = va_arg(*args, int);
+            stop = va_arg(args, int);
         }
         else if (state->precision > 0)
             stop = state->precision;
@@ -588,7 +589,7 @@ handle_decl(str) {
     }
 #else
     if (state->size_spec == spec_none) {
-        const char *string = va_arg(*args, const char*);
+        const char *string = va_arg(args, const char*);
         size_t len = strlen(string);
         int stop = len;
 
@@ -599,7 +600,7 @@ handle_decl(str) {
             return -1;
 
         if (state->precision == -1) {
-            stop = va_arg(*args, int);
+            stop = va_arg(args, int);
         } else if (state->precision > 0)
             stop = state->precision;
 
@@ -610,12 +611,12 @@ handle_decl(str) {
     }
 
     if (state->size_spec == spec_l) {
-        const wchar_t *string = va_arg(*args, const wchar_t*);
+        const wchar_t *string = va_arg(args, const wchar_t*);
         size_t len = wcslen(string);
         int stop = len;
 
         if (state->precision == -1) {
-            stop = va_arg(*args, int);
+            stop = va_arg(args, int);
         } else if (state->precision > 0)
             stop = state->precision;
 
@@ -630,37 +631,37 @@ handle_decl(str) {
 
 handle_decl(sint) {
     if (state->size_spec == spec_hh || state->size_spec == spec_h || state->size_spec == spec_none) {
-        int number = va_arg(*args, int);
+        int number = va_arg(args, int);
         put_int(number)
         return 0;
     }
 
     if (state->size_spec == spec_l) {
-        long number = va_arg(*args, long);
+        long number = va_arg(args, long);
         put_int(number)
         return 0;
     }
 
     if (state->size_spec == spec_ll) {
-        long long number = va_arg(*args, long long);
+        long long number = va_arg(args, long long);
         put_int(number)
         return 0;
     }
 
     if (state->size_spec == spec_j) {
-        intmax_t number = va_arg(*args, intmax_t);
+        intmax_t number = va_arg(args, intmax_t);
         put_int(number)
         return 0;
     }
 
     if (state->size_spec == spec_z) {
-        signed_size_t number = va_arg(*args, signed_size_t);
+        signed_size_t number = va_arg(args, signed_size_t);
         put_int(number)
         return 0;
     }
 
     if (state->size_spec == spec_t) {
-        ptrdiff_t number = va_arg(*args, ptrdiff_t);
+        ptrdiff_t number = va_arg(args, ptrdiff_t);
         put_int(number)
         return 0;
     }
@@ -670,37 +671,37 @@ handle_decl(sint) {
 
 handle_decl(uint) {
     if (state->size_spec == spec_hh || state->size_spec == spec_h || state->size_spec == spec_none) {
-        unsigned int number = va_arg(*args, unsigned int);
+        unsigned int number = va_arg(args, unsigned int);
         put_uint(number)
         return 0;
     }
 
     if (state->size_spec == spec_l) {
-        unsigned long number = va_arg(*args, unsigned long);
+        unsigned long number = va_arg(args, unsigned long);
         put_uint(number)
         return 0;
     }
 
     if (state->size_spec == spec_ll) {
-        unsigned long long number = va_arg(*args, unsigned long long);
+        unsigned long long number = va_arg(args, unsigned long long);
         put_uint(number)
         return 0;
     }
 
     if (state->size_spec == spec_j) {
-        uintmax_t number = va_arg(*args, uintmax_t);
+        uintmax_t number = va_arg(args, uintmax_t);
         put_uint(number)
         return 0;
     }
 
     if (state->size_spec == spec_z) {
-        size_t number = va_arg(*args, size_t);
+        size_t number = va_arg(args, size_t);
         put_uint(number)
         return 0;
     }
 
     if (state->size_spec == spec_t) {
-        uptrdiff_t number = va_arg(*args, uptrdiff_t);
+        uptrdiff_t number = va_arg(args, uptrdiff_t);
         put_uint(number)
         return 0;
     }
@@ -710,37 +711,37 @@ handle_decl(uint) {
 
 handle_decl(oct_int) {
     if (state->size_spec == spec_hh || state->size_spec == spec_h || state->size_spec == spec_none) {
-        unsigned int number = va_arg(*args, unsigned int);
+        unsigned int number = va_arg(args, unsigned int);
         put_oct_uint(number)
         return 0;
     }
 
     if (state->size_spec == spec_l) {
-        unsigned long number = va_arg(*args, unsigned long);
+        unsigned long number = va_arg(args, unsigned long);
         put_oct_uint(number)
         return 0;
     }
 
     if (state->size_spec == spec_ll) {
-        unsigned long long number = va_arg(*args, unsigned long long);
+        unsigned long long number = va_arg(args, unsigned long long);
         put_oct_uint(number)
         return 0;
     }
 
     if (state->size_spec == spec_j) {
-        uintmax_t number = va_arg(*args, uintmax_t);
+        uintmax_t number = va_arg(args, uintmax_t);
         put_oct_uint(number)
         return 0;
     }
 
     if (state->size_spec == spec_z) {
-        size_t number = va_arg(*args, size_t);
+        size_t number = va_arg(args, size_t);
         put_oct_uint(number)
         return 0;
     }
 
     if (state->size_spec == spec_t) {
-        uptrdiff_t number = va_arg(*args, uptrdiff_t);
+        uptrdiff_t number = va_arg(args, uptrdiff_t);
         put_oct_uint(number)
         return 0;
     }
@@ -750,37 +751,37 @@ handle_decl(oct_int) {
 
 handle_decl_caps(hex_int) {
     if (state->size_spec == spec_hh || state->size_spec == spec_h || state->size_spec == spec_none) {
-        unsigned int number = va_arg(*args, unsigned int);
+        unsigned int number = va_arg(args, unsigned int);
         put_hex_uint(number)
         return 0;
     }
 
     if (state->size_spec == spec_l) {
-        unsigned long number = va_arg(*args, unsigned long);
+        unsigned long number = va_arg(args, unsigned long);
         put_hex_uint(number)
         return 0;
     }
 
     if (state->size_spec == spec_ll) {
-        unsigned long long number = va_arg(*args, unsigned long long);
+        unsigned long long number = va_arg(args, unsigned long long);
         put_hex_uint(number)
         return 0;
     }
 
     if (state->size_spec == spec_j) {
-        uintmax_t number = va_arg(*args, uintmax_t);
+        uintmax_t number = va_arg(args, uintmax_t);
         put_hex_uint(number)
         return 0;
     }
 
     if (state->size_spec == spec_z) {
-        size_t number = va_arg(*args, size_t);
+        size_t number = va_arg(args, size_t);
         put_hex_uint(number)
         return 0;
     }
 
     if (state->size_spec == spec_t) {
-        uptrdiff_t number = va_arg(*args, uptrdiff_t);
+        uptrdiff_t number = va_arg(args, uptrdiff_t);
         put_hex_uint(number)
         return 0;
     }
@@ -790,13 +791,13 @@ handle_decl_caps(hex_int) {
 
 handle_decl_caps(float) {
     if (state->size_spec == spec_none || state->size_spec == spec_l) {
-        double number = va_arg(*args, double);
+        double number = va_arg(args, double);
         put_float(number)
         return 0;
     }
 
     if (state->size_spec == spec_L) {
-        long double number = va_arg(*args, long double);
+        long double number = va_arg(args, long double);
         put_float(number)
         return 0;
     }
@@ -806,7 +807,7 @@ handle_decl_caps(float) {
 
 handle_decl_caps(exp_flt) {
     if (state->size_spec == spec_none || state->size_spec == spec_l) {
-        double number = va_arg(*args, double);
+        double number = va_arg(args, double);
 
         put_exp_flt(number)
 
@@ -814,7 +815,7 @@ handle_decl_caps(exp_flt) {
     }
 
     if (state->size_spec == spec_L) {
-        long double number = va_arg(*args, long double);
+        long double number = va_arg(args, long double);
 
         put_exp_flt(number)
 
@@ -826,7 +827,7 @@ handle_decl_caps(exp_flt) {
 
 handle_decl_caps(exp16_flt) {
     if (state->size_spec == spec_none || state->size_spec == spec_l) {
-        double number = va_arg(*args, double);
+        double number = va_arg(args, double);
 
         int exponent = 0;
         int neg = number < 0;
@@ -873,7 +874,7 @@ handle_decl_caps(exp16_flt) {
     }
 
     if (state->size_spec == spec_L) {
-        double number = va_arg(*args, long double);
+        double number = va_arg(args, long double);
 
         int exponent = 0;
         int neg = number < 0;
@@ -924,10 +925,10 @@ handle_decl_caps(exp16_flt) {
 
 handle_decl_caps(flt) {
     if (state->size_spec == spec_none || state->size_spec == spec_l) {
-        double number = va_arg(*args, double);
+        double number = va_arg(args, double);
 
         if (state->precision == -1)
-            state->precision = va_arg(*args, int);
+            state->precision = va_arg(args, int);
 
         int p = 0;
         if (state->precision < 0)
@@ -961,10 +962,10 @@ handle_decl_caps(flt) {
     }
 
     if (state->size_spec == spec_L) {
-        long double number = va_arg(*args, long double);
+        long double number = va_arg(args, long double);
 
         if (state->precision == -1)
-            state->precision = va_arg(*args, int);
+            state->precision = va_arg(args, int);
 
         int p = 0;
         if (state->precision < 0)
@@ -1005,49 +1006,49 @@ handle_decl(cw) {
     put_int(chars)
 
     if (state->size_spec == spec_hh) {
-        signed char *ptr = va_arg(*args, signed char*);
+        signed char *ptr = va_arg(args, signed char*);
         *ptr = chars;
         return 0;
     }
 
     if (state->size_spec == spec_h) {
-        short *ptr = va_arg(*args, short*);
+        short *ptr = va_arg(args, short*);
         *ptr = chars;
         return 0;
     }
 
     if (state->size_spec == spec_none) {
-        int *ptr = va_arg(*args, int*);
+        int *ptr = va_arg(args, int*);
         *ptr = chars;
         return 0;
     }
 
     if (state->size_spec == spec_l) {
-        long *ptr = va_arg(*args, long*);
+        long *ptr = va_arg(args, long*);
         *ptr = chars;
         return 0;
     }
 
     if (state->size_spec == spec_ll) {
-        long long *ptr = va_arg(*args, long long*);
+        long long *ptr = va_arg(args, long long*);
         *ptr = chars;
         return 0;
     }
 
     if (state->size_spec == spec_j) {                                                        // Уточнение размера "j"
-        intmax_t *ptr = va_arg(*args, intmax_t*);
+        intmax_t *ptr = va_arg(args, intmax_t*);
         *ptr = chars;
         return 0;
     }
 
     if (state->size_spec == spec_z) {
-        signed_size_t *ptr = va_arg(*args, signed_size_t*);
+        signed_size_t *ptr = va_arg(args, signed_size_t*);
         *ptr = chars;
         return 0;
     }
 
     if (state->size_spec == spec_t) {
-        ptrdiff_t *ptr = va_arg(*args, ptrdiff_t*);
+        ptrdiff_t *ptr = va_arg(args, ptrdiff_t*);
         *ptr = chars;
         return 0;
     }
@@ -1059,7 +1060,7 @@ handle_decl(ptr) {
     if (state->size_spec)
         return -1;
 
-    void *ptr = va_arg(*args, void*);
+    void *ptr = va_arg(args, void*);
     long ptrint = (long)ptr;
     int caps = 0;
 
@@ -1113,7 +1114,7 @@ size_spec_t get_size_spec(const CHAR *format, const CHAR **new_format) {
 #define __handle_fmt_func(printf) concat3(handle_, printf, _format)
 #define handle_fmt_func __handle_fmt_func(PRINTF)
 
-int handle_fmt_func(void **str, size_t maxlen, printf_state_t *state, size_t *chars_count, va_list *args, put_func_t put) {
+int handle_fmt_func(void **str, size_t maxlen, printf_state_t *state, size_t *chars_count, va_list args, put_func_t put) {
     switch (state->spec) {
         handle_case('c', char)
         handle_case('s', str)
@@ -1213,7 +1214,7 @@ int __nprintf(void *out, size_t maxlen, const CHAR *format, va_list args, put_fu
 
         state.spec = *format++;
 
-        int fmt_result = handle_fmt_func(&out, maxlen, &state, &chars_count, &args, put);
+        int fmt_result = handle_fmt_func(&out, maxlen, &state, &chars_count, args, put);
 
         if (fmt_result)         // Произошла ошибка при обработке формата
             return fmt_result;

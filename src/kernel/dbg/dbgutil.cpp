@@ -10,13 +10,7 @@
 NAMESPACE_BEGIN(debug)
 
 void print_stack_trace() {
-    stack_frame *frame;
-    __asm__ volatile (
-        "mov %d0, ebp"
-        : "=m"(frame)
-        :
-        :
-    );
+    auto *frame = (stack_frame*)__builtin_return_address(0);
 
     cout << "Стек:\n";
     cout << "  " << frame->eip;

@@ -10,7 +10,7 @@
 #include "typedefs.hpp"
 
 namespace interrupt {
-    extern idt_entry32 idt[];
+    extern idt_entry idt[];
 
     const byte irq_offset = 0x20;
 

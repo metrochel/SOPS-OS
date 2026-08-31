@@ -11,6 +11,12 @@
 
 NAMESPACE_BEGIN(interrupt::inline handles)
 
+#ifdef __x86_64__
+# define AX "rax"
+#else
+# define AX "eax"
+#endif
+
 dword get_cpu_err_code() {
     dword code;
 
@@ -180,10 +186,10 @@ isr(pf_handle) {
 
     void *address;
     __asm__ volatile (
-        "mov eax, cr2; mov %d0, eax;"
+        "mov " AX ", cr2; mov %d0, " AX ";"
         :   "=m"(address)
         :
-        :   "eax"
+        : AX
     );
     cerr << "Адрес сбоя: " << address << "\n";
 

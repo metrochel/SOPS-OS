@@ -13,19 +13,29 @@
 
 NAMESPACE_BEGIN(interrupt)
 
-idt_entry32 idt[256];
+idt_entry idt[256];
 
-idtr32 idtr;
+idtr idtr_value;
 
 void register_handle(handle routine, byte vector, byte cpl) {
-    idt_entry32 entry;
-    entry.offset1 = (ptrint)(routine) >> 16;
+    idt_entry entry;
+    auto routine_addr = (ptrint)routine;
+#ifdef __x86_64__
+    entry.offset1 = HDWORD(routine_addr);
+    entry.offset2 = WORD1(routine_addr);
+    entry.present = 1;
+    entry.dpl = cpl;
+    entry.gate = int_gate64;
+    entry.selector = 0x08;
+    entry.offset2 = WORD0(routine_addr);
+#else
+    entry.offset1 = WORD1(routine_addr);
     entry.present = 1;
     entry.dpl = cpl;
     entry.gate = int_gate32;
     entry.selector = 0x08;
-    entry.offset2 = (ptrint)(routine) & maxword;
-
+    entry.offset2 = WORD0(routine_addr);
+#endif
     idt[vector] = entry;
 }
 
@@ -33,14 +43,20 @@ void eoi(byte irq) {
     pic::eoi(irq);
 }
 
+#ifdef __x86_64__
+#define LIDT "lidtq"
+#else
+#define LIDT "lidt"
+#endif
+
 void init_idt() {
-    idtr.offset = (dword)idt;
-    idtr.size = sizeof(idt) - 1;
+    idtr_value.offset = (ptrint)idt;
+    idtr_value.size = sizeof(idt) - 1;
 
     __asm__ volatile (
-        "lidt %d0"
+        LIDT " [%0]"
         :
-        : "m"(idtr)
+        : "m"(idtr_value)
         :
     );
 }

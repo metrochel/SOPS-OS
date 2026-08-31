@@ -886,7 +886,7 @@ int __vsscanf(SCANF)(const CHAR * buffer, const CHAR * format, va_list args) {
     scanf_args.buffer = (void*)buffer;
     scanf_args.format = format;
     scanf_args.chars_count = 0;
-    scanf_args.args = args;
+    va_copy(scanf_args.args, args);
     scanf_args.state = (scanf_state_t){};
     return __nscanf(&scanf_args, &SSCANF);
 }
@@ -896,7 +896,7 @@ int __vfscanf(SCANF)(FILE * buffer, const CHAR * format, va_list args) {
     scanf_args.buffer = buffer;
     scanf_args.format = format;
     scanf_args.chars_count = 0;
-    scanf_args.args = args;
+    va_copy(scanf_args.args, args);
     scanf_args.state = (scanf_state_t){};
     return __nscanf(&scanf_args, &FSCANF);
 }
@@ -906,7 +906,7 @@ int __vscanf(SCANF)(const CHAR * format, va_list args) {
     scanf_args.buffer = stdin;
     scanf_args.format = format;
     scanf_args.chars_count = 0;
-    scanf_args.args = args;
+    va_copy(scanf_args.args, args);
     scanf_args.state = (scanf_state_t){};
     return __nscanf(&scanf_args, &FSCANF);
 }
@@ -918,7 +918,7 @@ int __sscanf(SCANF)(const CHAR * buffer, const CHAR * format, ...) {
     scanf_args.buffer = (void*)buffer;
     scanf_args.format = format;
     scanf_args.chars_count = 0;
-    scanf_args.args = args;
+    va_copy(scanf_args.args, args);
     scanf_args.state = (scanf_state_t){};
     int result = __nscanf(&scanf_args, &SSCANF);
     va_end(args);
@@ -932,7 +932,7 @@ int __fscanf(SCANF)(FILE * buffer, const CHAR * format, ...) {
     scanf_args.buffer = buffer;
     scanf_args.format = format;
     scanf_args.chars_count = 0;
-    scanf_args.args = args;
+    va_copy(scanf_args.args, args);
     scanf_args.state = (scanf_state_t){};
     int result = __nscanf(&scanf_args, &FSCANF);
     va_end(args);
@@ -946,7 +946,7 @@ int __scanf(SCANF)(const CHAR * format, ...) {
     scanf_args.buffer = stdin;
     scanf_args.format = format;
     scanf_args.chars_count = 0;
-    scanf_args.args = args;
+    va_copy(scanf_args.args, args);
     scanf_args.state = (scanf_state_t){};
     int result = __nscanf(&scanf_args, &FSCANF);
     va_end(args);

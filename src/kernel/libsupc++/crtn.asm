@@ -5,6 +5,19 @@
 ;   Эти функции отвечают за инициализацию до ядра и очистку после него.
 ;
 
+; Если выходной формат - ELF64, то мы собираем под 64 бита.
+%ifidn __?OUTPUT_FORMAT?__, elf64
+bits 64
+%define BP rbp
+%define SP rsp
+%define BITS64
+; Иначе - под 32.
+%else
+bits 32
+%define BP ebp
+%define SP esp
+%endif
+
 extern __cxa_finalize
 
 ; Код функции _init помещаем в секцию .init.
@@ -15,7 +28,7 @@ section .init
 ;_init:
     ; Тут будет код, сгенерированный GCC.
 
-    pop ebp
+    pop BP
     ret
 
 ; Код функции _fini помещаем в секцию .fini.
@@ -30,11 +43,20 @@ section .fini
     ; Нам нужно вызвать ещё глобальные деструкторы.
     ; GCC, похоже, сам этого не делает. Тогда надо ему помочь.
     ; Делаем вызов __cxa_finalize(0) (см. файл globcon.cpp).
-    sub esp, 8
+
+%ifndef BITS64
+    sub SP, 8
     push 0
     call __cxa_finalize
 
-    add esp, 12
+    add SP, 12
+%else
+    sub SP, 8
+    xor rdi, rdi
+    call __cxa_finalize
 
-    pop ebp
+    add SP, 8
+%endif
+
+    pop BP
     ret

@@ -9,11 +9,14 @@
 # Включение переменных окружения
 include .env
 
+TARGET		:=$(if $(filter ${ARCH},i386),i686,${ARCH})-sops
+ELFTARGET	:=$(if $(filter ${ARCH},i386),elf32,elf64)
+
 SOPSTOOLS			:=${SOPSTOOLS}
-CCROSSCOMPILER		:=$(SOPSTOOLS)/i686-sops-gcc
-CXXCROSSCOMPILER	:=$(SOPSTOOLS)/i686-sops-g++
+CCROSSCOMPILER		:=$(SOPSTOOLS)/$(TARGET)-gcc
+CXXCROSSCOMPILER	:=$(SOPSTOOLS)/$(TARGET)-g++
 ASSEMBLER			:=nasm
-ARCHIVER			:=$(SOPSTOOLS)/i686-sops-ar
+ARCHIVER			:=$(SOPSTOOLS)/$(TARGET)-ar
 LINKERSCRIPT    	:=linker.ld
 PYTHON				:=python
 
@@ -29,7 +32,7 @@ BOOTBINS		:=$(patsubst $(SRCDIR)/boot/%.asm, $(BUILDDIR)/bins/%.bin, $(BOOTSRC))
 OBJSDIR_KERNEL  :=$(OBJSDIR)/kernel
 KERNEL_SRC_DIR	:=$(SRCDIR)/kernel
 KERNEL_CPP_SRC 	:=$(KERNEL_SRC_DIR)/kernel.cpp $(wildcard $(KERNEL_SRC_DIR)/*/*.cpp) $(wildcard $(KERNEL_SRC_DIR)/*/*/*.cpp)
-KERNEL_ASM_SRC	:=$(wildcard $(KERNEL_SRC_DIR)/*/*.asm)
+KERNEL_ASM_SRC	:=$(wildcard $(KERNEL_SRC_DIR)/*/${ARCH}/*.asm)
 KERNELSRC		:=$(KERNEL_ASM_SRC) $(KERNEL_CPP_SRC)
 KERNEL_CPP_OBJ  :=$(foreach cpp, $(KERNEL_CPP_SRC), $(OBJSDIR_KERNEL)/$(patsubst %.cpp,%.o,$(notdir $(cpp))))
 KERNEL_ASM_OBJ	:=$(foreach asm, $(KERNEL_ASM_SRC), $(OBJSDIR_KERNEL)/$(patsubst %.asm,%.o,$(notdir $(asm))))
@@ -43,12 +46,12 @@ KERNELBIN		:=$(BINSDIR)/kernel.bin
 KERNELMAP		:=$(BUILDDIR)/kernel.map
 
 LIBC_SRC_DIR	:=$(SRCDIR)/libc
-LIBC_ASM32_SRC  :=$(wildcard $(LIBC_SRC_DIR)/i386/*.asm)
+LIBC_ASM_SRC  	:=$(wildcard $(LIBC_SRC_DIR)/${ARCH}/*.asm)
 LIBC_C_SRC		:=$(wildcard $(LIBC_SRC_DIR)/etc/*.c) $(wildcard $(LIBC_SRC_DIR)/formatters/*.c) $(wildcard $(LIBC_SRC_DIR)/*.c)
 LIBCINCLUDE		:=$(SRCDIR)/libc/include
 LIBC_HEADERS    :=$(wildcard $(LIBCINCLUDE)/*/*.h) $(wildcard $(LIBCINCLUDE)/*.h)
 OBJSDIR_LIBC	:=$(OBJSDIR)/libc
-LIBC_ASM32_OBJ	:=$(foreach asm32, $(LIBC_ASM32_SRC), $(OBJSDIR_LIBC)/$(patsubst %.asm,%.o,$(notdir $(asm32))))
+LIBC_ASM_OBJ	:=$(foreach asm, $(LIBC_ASM_SRC), $(OBJSDIR_LIBC)/$(patsubst %.asm,%.o,$(notdir $(asm))))
 LIBC_C_OBJ		:=$(foreach src,$(LIBC_C_SRC),$(OBJSDIR_LIBC)/$(patsubst %.c,%.o,$(notdir $(src))))
 LIBC_SHARED_FILE:=$(BUILDDIR)/libc.a
 
@@ -72,7 +75,7 @@ all: $(BUILDDIR) $(DISKFILE) $(BINSDIR) $(BOOTBINS) $(KERNELBIN) $(SYSROOT) all-
 	dd if=$(BINSDIR)/boot2.bin of=$(DISKFILE) bs=512 seek=2 conv=notrunc; \
 	dd if=$(KERNELBIN) of=$(DISKFILE) bs=512 seek=10 conv=notrunc; \
 	mcopy -pmso -i $(DISKFILE) $(SYSROOT)/* :: ;
-	
+
 #
 #	Полная сборка libc
 #
@@ -83,7 +86,7 @@ all-libc: $(LIBC_SHARED_FILE) ;
 #
 install-libc: $(LIBCINCLUDE) $(LIBC_SHARED_FILE) install-headers
 	cp $(LIBC_SHARED_FILE) $(SYSROOTLIBS)
-	cp $(LIBC_ASM32_OBJ) $(SYSROOTLIBS)
+	cp $(LIBC_ASM_OBJ) $(SYSROOTLIBS)
 
 install-headers: $(LIBC_HEADERS)
 	cp -r $(LIBCINCLUDE)/* $(SYSROOTINCLUDE)
@@ -117,31 +120,31 @@ $(BUILDDIR):
 #
 #	Создание папки с бинарными файлами
 #
-$(BINSDIR): $(BUILDDIR)
+$(BINSDIR): | $(BUILDDIR)
 	mkdir -p $(BUILDDIR)/bins
 
 #
 #	Создание папки с объектными файлами
 #
-$(OBJSDIR): $(BUILDDIR)
+$(OBJSDIR): | $(BUILDDIR)
 	mkdir -p $(BUILDDIR)/objs
 	
 #
 #	Папка с объектными файлами для ядра
 #
-$(OBJSDIR_KERNEL): $(OBJSDIR)
+$(OBJSDIR_KERNEL): | $(OBJSDIR)
 	mkdir -p $(OBJSDIR_KERNEL)
 
 #
 #	Папка с объектными файлами для libc
 #
-$(OBJSDIR_LIBC): $(OBJSDIR)
+$(OBJSDIR_LIBC): | $(OBJSDIR)
 	mkdir -p $(OBJSDIR_LIBC)
 
 #
 #	Папка с дополнительными файлами для сборки
 #
-$(BUILDDIR_ETC): $(BUILDDIR)
+$(BUILDDIR_ETC): | $(BUILDDIR)
 	mkdir -p $(BUILDDIR_ETC)
 
 #
@@ -173,6 +176,7 @@ $(OBJSDIR_KERNEL)/%.o : $(KERNEL_SRC_DIR)/%.cpp | $(OBJSDIR_KERNEL) ; \
 	$(if $(filter-out src/kernel/graphics/text.cpp,$<),,-Wno-multichar) -fno-exceptions -fno-rtti \
 	$(if $(filter-out src/kernel/int/int.cpp,$<),,-mgeneral-regs-only) \
 	$(if $(filter-out src/kernel/acpi/sci.cpp,$<),,-mgeneral-regs-only)  \
+	$(if $(filter ${ARCH},x86_64),-mcmodel=large) \
 	-I$(KERNEL_SRC_DIR) ;
 
 $(OBJSDIR_KERNEL)/%.o : $(KERNEL_SRC_DIR)/*/%.cpp | $(OBJSDIR_KERNEL) ; \
@@ -181,6 +185,7 @@ $(OBJSDIR_KERNEL)/%.o : $(KERNEL_SRC_DIR)/*/%.cpp | $(OBJSDIR_KERNEL) ; \
 	$(if $(filter-out src/kernel/graphics/text.cpp,$<),,-Wno-multichar) -fno-exceptions -fno-rtti \
 	$(if $(filter-out src/kernel/int/int.cpp,$<),,-mgeneral-regs-only) \
 	$(if $(filter-out src/kernel/acpi/sci.cpp,$<),,-mgeneral-regs-only)  \
+	$(if $(filter ${ARCH},x86_64),-mcmodel=large) \
 	-I$(KERNEL_SRC_DIR) ;
 
 $(OBJSDIR_KERNEL)/%.o : $(KERNEL_SRC_DIR)/*/*/%.cpp | $(OBJSDIR_KERNEL) ; \
@@ -188,19 +193,22 @@ $(OBJSDIR_KERNEL)/%.o : $(KERNEL_SRC_DIR)/*/*/%.cpp | $(OBJSDIR_KERNEL) ; \
 	-O2 -lgc++ -Wall -Wextra -Wno-write-strings \
 	$(if $(filter-out src/kernel/graphics/text.cpp,$<),,-Wno-multichar) -fno-exceptions -fno-rtti \
 	$(if $(filter-out src/kernel/int/handles/%.cpp,$<),,-mgeneral-regs-only) \
+	$(if $(filter ${ARCH},x86_64),-mcmodel=large) \
 	-I$(KERNEL_SRC_DIR) ;
 
 $(OBJSDIR_KERNEL)/%.o : $(KERNEL_SRC_DIR)/%.asm | $(OBJSDIR_KERNEL) ; \
-    $(ASSEMBLER) -f elf32 $< -o $@
+    $(ASSEMBLER) -f $(ELFTARGET) $< -o $@
 
 $(OBJSDIR_KERNEL)/%.o : $(KERNEL_SRC_DIR)/*/%.asm | $(OBJSDIR_KERNEL) ; \
-    $(ASSEMBLER) -f elf32 $< -o $@
+    $(ASSEMBLER) -f $(ELFTARGET) $< -o $@
 
 #
 #	Компоновка ядра
 #
 $(KERNELBIN): $(KERNELOBJ) | $(BUILDDIR_ETC)
-	$(CCROSSCOMPILER) -T $(LINKERSCRIPT) -o $(KERNELBIN) -lgcc -ffreestanding -O2 -nostdlib -Xlinker -Map=$(BUILDDIR_ETC)/kernel.map $(KERNELOBJ)
+	$(CXXCROSSCOMPILER) -T $(LINKERSCRIPT) -o $(KERNELBIN) -lgcc -ffreestanding -O2 -nostdlib -Xlinker \
+ 	-Map=$(BUILDDIR_ETC)/kernel.map $(if $(filter ${ARCH},x86_64),-mcmodel=large) \
+ 	$(KERNELOBJ)
 
 #===================================================== Libc =========================================================
 
@@ -211,10 +219,10 @@ $(SYSCALLMACRO_OUTFILE): $(SYSCALLMACRO_INFILES)
 	$(PYTHON) $(SYSCALLMACRO_SCRIPT) $(SYSCALLMACRO_OUTFILE) $(SYSCALLMACRO_INFILES)
 
 #
-#	Сборка 32-битных ассемблерных файлов libc
+#	Сборка ассемблерных файлов libc
 #
-$(OBJSDIR_LIBC)/%.o : $(LIBC_SRC_DIR)/*/%.asm | $(OBJSDIR_LIBC) ; \
-    $(ASSEMBLER) -f elf32 $< -o $@
+$(OBJSDIR_LIBC)/%.o : $(LIBC_SRC_DIR)/${ARCH}/%.asm | $(OBJSDIR_LIBC) ; \
+    $(ASSEMBLER) -f $(ELFTARGET) $< -o $@
 
 #
 #	Сборка C-файлов libc
@@ -231,5 +239,5 @@ $(OBJSDIR_LIBC)/%.o : $(LIBC_SRC_DIR)/formatters/%.c | $(SYSCALLMACRO_OUTFILE) $
 #
 #   Сборка файла библиотеки libc
 #
-$(LIBC_SHARED_FILE): $(LIBC_ASM32_OBJ) $(LIBC_C_OBJ)
-	$(ARCHIVER) rcs $(LIBC_SHARED_FILE) $(LIBC_ASM32_OBJ) $(LIBC_C_OBJ)
+$(LIBC_SHARED_FILE): $(LIBC_ASM_OBJ) $(LIBC_C_OBJ)
+	$(ARCHIVER) rcs $(LIBC_SHARED_FILE) $(LIBC_ASM_OBJ) $(LIBC_C_OBJ)

@@ -31,7 +31,7 @@ typedef unsigned long long syscall_arg_t;
 #define SET_ARG5(arg)  "movl " #arg ", %%rbx;"
 
 // Возврат значения производится в регистре RAX. RDX зарезервирован под дальнейшее расширение.
-#define GET_RESULT(arg1, arg2) "movl %%rax, " #arg1 "; movl %%rdx, " #arg2
+#define GET_RESULT(arg1, arg2) "movq %%rax, " #arg1 "; movq %%rdx, " #arg2
 
 #else
 

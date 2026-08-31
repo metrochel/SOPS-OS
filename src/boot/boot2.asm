@@ -1119,19 +1119,22 @@ tinydiskdriver:
 ;     Кстати, в 64-битном режиме без них нельзя.
 ;
 %define PAGING_BASE 0x101000
+; Макрос для первой директории страниц.
+; Она идёт сразу после PML4.
+%define PAGING_DIR_BASE PAGING_BASE + 0x1000
 paging_time:
     pusha
     ; Создаём пустую директорию страниц
     mov eax, 0x00000002
     mov ecx, 1024
-    mov edi, PAGING_BASE
+    mov edi, PAGING_DIR_BASE
     rep stosd
     ; Так, адрес директории страниц лежит в дефайне PAGING_BASE, и
     ; там резервировано 4 КиБ данных для таблиц страниц.
     
     ; Создаём "идентичные страницы" (т.е. адреса страниц совпадают с физическими)
     ; Этаких страничек сделаем на 8 МиБ (чтобы все страницы влезли)
-    mov edi, PAGING_BASE + 0x1000
+    mov edi, PAGING_DIR_BASE + 0x1000
     mov ecx, 0
 .identity_paging:
     mov eax, ecx
@@ -1144,7 +1147,7 @@ paging_time:
 
     ; Помещаем видеопамять на таблицы с
     ; виртуальным адресом на конце памяти
-    mov edi, PAGING_BASE + 0x3F0000
+    mov edi, PAGING_DIR_BASE + 0x3F0000
     mov esi, 0x10003D
     lodsd
     mov ecx, 0
@@ -1159,7 +1162,7 @@ paging_time:
 
     ; Помещаем ядро на странички с
     ; виртуальным адресом 0x1000000
-    mov edi, PAGING_BASE + 0x1000 + ((KERNEL_VIRTADDR & 0xFFC00000) >> 12) * 4
+    mov edi, PAGING_DIR_BASE + 0x1000 + ((KERNEL_VIRTADDR & 0xFFC00000) >> 12) * 4
     mov ebx, KERNEL_PHYSADDR
     mov ecx, 0
 .map_kernel:
@@ -1174,48 +1177,48 @@ paging_time:
 
     ; Загружаем таблицы в директорию
 .load_page_tables:
-    mov edi, PAGING_BASE
-    mov eax, PAGING_BASE + 0x1000
+    mov edi, PAGING_DIR_BASE
+    mov eax, PAGING_DIR_BASE + 0x1000
     or  eax, 3
     stosd
-    mov eax, PAGING_BASE + 0x2000
+    mov eax, PAGING_DIR_BASE + 0x2000
     or  eax, 3
     stosd
-    mov eax, PAGING_BASE + 0x3000
+    mov eax, PAGING_DIR_BASE + 0x3000
     or  eax, 3
     stosd
-    mov eax, PAGING_BASE + 0x4000
+    mov eax, PAGING_DIR_BASE + 0x4000
     or  eax, 3
     stosd
-    mov eax, PAGING_BASE + 0x5000
+    mov eax, PAGING_DIR_BASE + 0x5000
     or  eax, 3
     stosd
-    mov eax, PAGING_BASE + 0x6000
+    mov eax, PAGING_DIR_BASE + 0x6000
     or  eax, 3
     stosd
-    mov eax, PAGING_BASE + 0x7000
+    mov eax, PAGING_DIR_BASE + 0x7000
     or  eax, 3
     stosd
-    mov eax, PAGING_BASE + 0x8000
+    mov eax, PAGING_DIR_BASE + 0x8000
     or  eax, 3
     stosd
     
-    mov edi, PAGING_BASE + ((KERNEL_VIRTADDR & 0xFFC00000) >> 22) * 4
-    mov eax, PAGING_BASE + ((KERNEL_VIRTADDR & 0xFFC00000) >> 12) * 4 + 0x1000
+    mov edi, PAGING_DIR_BASE + ((KERNEL_VIRTADDR & 0xFFC00000) >> 22) * 4
+    mov eax, PAGING_DIR_BASE + ((KERNEL_VIRTADDR & 0xFFC00000) >> 12) * 4 + 0x1000
     or  eax, 3
     stosd
 
-    mov edi, PAGING_BASE + (0x3F0 * 4)
-    mov eax, PAGING_BASE + 0x3F0000
+    mov edi, PAGING_DIR_BASE + (0x3F0 * 4)
+    mov eax, PAGING_DIR_BASE + 0x3F0000
 .put_vram:
     or  eax, 3
     stosd
     add eax, 0x1000
-    cmp eax, PAGING_BASE + 0x400000
+    cmp eax, PAGING_DIR_BASE + 0x400000
     jb  .put_vram
 
     ; Загружаем директорию таблиц
-    mov eax, PAGING_BASE
+    mov eax, PAGING_DIR_BASE
     mov cr3, eax
     
     ; Активируем страничную память

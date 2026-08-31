@@ -153,7 +153,7 @@ size_t c8rtomb(char* restrict c, char8_t c8, mbstate_t* restrict state) {
         state->symbol = symbol;
         state->utf8_followers--;
         if (!state->utf8_followers) {
-            int result = wctomb(c, &symbol);
+            int result = wctomb(c, symbol);
             if (result == -1)
                 errno = EILSEQ;
             return result;

@@ -58,15 +58,29 @@ typedef unsigned long size_t;
 // 7-й байт числа
 #define BYTE7(n)    (byte)(((n) >> 56) & 0xFF)
 
+// 0-е слово в числе
+#define WORD0(n)    (word)(((n) >> 0) & 0xFFFF)
+// 1-е слово в числе
+#define WORD1(n)    (word)(((n) >> 16) & 0xFFFF)
+// 2-е слово в числе
+#define WORD2(n)    (word)(((n) >> 32) & 0xFFFF)
+// 3-е слово в числе
+#define WORD3(n)    (word)(((n) >> 48) & 0xFFFF)
+
+// Низшее двойное слово в числе
+#define LDWORD(n)   (dword)((n) & maxdword)
+// Высшее двойное слово в числе
+#define HDWORD(n)   (dword)(((n) >> 32) & maxdword)
+
 // Младший байт числа
 #define LSB(n)  (byte)((n) & 0xFF)
 // Старший байт числа
-#define MSB(n)  (byte)((n) & 0xFF << (sizeof((n)) * 8))
+#define MSB(n)  (byte)(((n) >> ((sizeof(n) - 1) * 8)) & 0xFF)
 
 // Младший бит числа
 #define lsb(n) (byte)((n) & 0x01)
 // Старший бит числа
-#define msb(n) (byte)(((n) >> (8 * sizeof(n) - 1)))
+#define msb(n) (byte)(((n) >> ((sizeof(n) * 8 - 1))) & 0x01)
 
 #define test_bit(n, bit) ((n) & (((decltype(n))(1)) << (bit)))
 
